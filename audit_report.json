@@ -1,0 +1,2650 @@
+{
+  "summary": {
+    "total": 1465,
+    "classified": 1459,
+    "pct_classified": 99.6,
+    "with_anomalies": 280,
+    "pct_anomalies": 19.1
+  },
+  "sector_distribution": {
+    "AI & Machine Learning": 508,
+    "Enterprise Software": 252,
+    "Cybersecurity": 193,
+    "FinTech": 166,
+    "HealthTech": 138,
+    "Developer Tools & Infrastructure": 131,
+    "Life Sciences": 93,
+    "CleanTech": 88,
+    "Robotics": 79,
+    "Marketing Tech": 79,
+    "Energy": 72,
+    "Hardware": 60,
+    "Consumer Tech": 55,
+    "Aerospace & Defense": 47,
+    "E-commerce & Retail": 44,
+    "HRTech": 34,
+    "LegalTech": 32,
+    "SpaceTech": 28,
+    "InsurTech": 28,
+    "PropTech": 27,
+    "Mobility": 23,
+    "MediaTech": 19,
+    "AgriTech": 18,
+    "EdTech": 18,
+    "FoodTech": 13,
+    "Quantum Computing": 10
+  },
+  "subsector_distribution": {
+    "Uncategorized": 152,
+    "AI Model Development Platforms": 91,
+    "Productivity Tools": 69,
+    "ERP & Business Operations": 65,
+    "AI Driven Developer Productivity": 60,
+    "AI Security And Guardrails": 56,
+    "CRM & Sales": 54,
+    "AI Agent Platforms And Automation": 53,
+    "Threat Detection & Intelligence": 48,
+    "Cybersecurity Risk Management": 48,
+    "AI Data & Training Infrastructure": 45,
+    "Supply Chain & Logistics Automation": 45,
+    "API Infrastructure": 44,
+    "Payment And Fraud Solutions": 44,
+    "MLOps & Model Serving": 43,
+    "Field & Industrial Operations": 42,
+    "Financial Compliance Automation": 41,
+    "AI For Drug Discovery": 41,
+    "Embedded Financial Services": 40,
+    "Customer Support": 36,
+    "Data Security & Privacy": 35,
+    "Aerospace Defense": 32,
+    "SOC & Incident Response": 31,
+    "Sensors & IoT Devices": 30,
+    "AI Powered Commerce": 29,
+    "Automated Marketing Assets": 28,
+    "AI Energy Infrastructure": 28,
+    "Robot Foundation Models": 26,
+    "AI Lead Generation": 26,
+    "Observability & Monitoring": 26,
+    "Industrial Automation Robotics": 25,
+    "Cloud Security": 24,
+    "Financial Planning Analytics": 24,
+    "Healthcare Practice Management": 24,
+    "Investment Intelligence": 24,
+    "Semiconductor & Chips": 24,
+    "HR Management Platforms": 24,
+    "AppSec / DevSecOps": 23,
+    "IAM / PAM": 23,
+    "Energy Storage Systems": 23,
+    "Personal Health Insights": 23,
+    "Enterprise Project Management": 23,
+    "General Purpose Robotics": 21,
+    "Lifestyle & Wellness": 21,
+    "AI Compute & Cloud Infrastructure": 21,
+    "AI Code Generation And Repair": 19,
+    "AI Chronic Care Management": 19,
+    "Specialty Practice Workflow Automation": 18,
+    "Personal Productivity": 18,
+    "WealthTech": 18,
+    "Identity Verification And Onboarding": 17,
+    "Legal Compliance Automation": 17,
+    "Outbound Sales Automation": 16,
+    "CI/CD & DevOps": 16,
+    "Consumer Electronics": 16,
+    "Energy Efficiency Software": 16,
+    "Autonomous Industrial Robotics": 16,
+    "Sustainable Biomanufacturing": 15,
+    "Decarbonized Industrial Heat": 15,
+    "Corporate Treasury Management": 15,
+    "Industrial Byproduct Upcycling": 15,
+    "Insurance Backoffice Automation": 15,
+    "Military And Defense Automation": 15,
+    "Medical Practice Software": 14,
+    "Pollution Control Technology": 14,
+    "AI For Education And Creativity": 14,
+    "Industrial Robotics": 14,
+    "AI Foundation Models For Biology": 14,
+    "Nuclear Energy": 14,
+    "AI World Models": 13,
+    "Tax Compliance Automation": 13,
+    "Consumer Insights Automation": 13,
+    "Internal Audit Automation": 13,
+    "Ad Tech": 13,
+    "Medical Imaging AI": 13,
+    "Industrial Asset Inspection": 13,
+    "Gaming & Entertainment": 13,
+    "Trading Infrastructure": 13,
+    "Mortgage And Lending Tech": 12,
+    "AI Content Production": 12,
+    "Retail Commerce Automation": 12,
+    "Endpoint Security": 12,
+    "Secrets And Non Human Identity Security": 12,
+    "General Purpose AI Models": 11,
+    "AI Ambient Clinical Assistants": 11,
+    "Search Infrastructure": 11,
+    "Real Estate Agent Software": 11,
+    "Mental Health": 11,
+    "Demand Response Management": 11,
+    "Low-Code / No-Code": 10,
+    "Biometric & Deepfake Protection": 10,
+    "Regulatory Document Automation": 10,
+    "Logistics And Warehouse Robotics": 10,
+    "Cryptographic Data Verification": 10,
+    "Social & Community": 10,
+    "Space Based Data Services": 10,
+    "Personalized Media Experiences": 10,
+    "Defense And Security Robotics": 10,
+    "SEO & Content": 10,
+    "Corporate Learning": 10,
+    "Digital Asset Liquidity": 10,
+    "Web Data Intelligence": 10,
+    "AI Industrial Operations": 10,
+    "Network Security": 9,
+    "Audit And Risk Automation": 9,
+    "Recruiting And Talent Acquisition": 9,
+    "External Attack Surface Management": 9,
+    "AI For Material Discovery": 9,
+    "AI Driven Bioproduction": 9,
+    "AI Agent Memory & State": 9,
+    "AI Medical Workflow": 9,
+    "Generative Media Tools": 9,
+    "Grid Resilience Technology": 9,
+    "Video Ad Automation": 9,
+    "Launch And Propulsion Systems": 8,
+    "Quantum Processors & Systems": 8,
+    "Aviation And Flight Systems": 8,
+    "Construction Project Intelligence": 8,
+    "Commercial Insurance Brokerage": 8,
+    "AI Model Safety": 8,
+    "In Space Mobility": 7,
+    "Visual Commerce Tools": 7,
+    "Renewable Energy Forecasting": 7,
+    "Infrastructure Monitoring": 7,
+    "Crypto Compliance Solutions": 7,
+    "Computational Immune Engineering": 7,
+    "Transport Emissions Capture": 7,
+    "Urban Mobility Solutions": 6,
+    "AI Media Management": 6,
+    "Device & Firmware Security": 6,
+    "AI Commerce Integration": 6,
+    "AI Precision Oncology Diagnostics": 6,
+    "EV Charging Networks": 6,
+    "AI Aerospace Defense Simulation": 6,
+    "AI Neuroscience Research": 6,
+    "AI Engineering Design": 6,
+    "Dedicated Small Satellite Launch": 5,
+    "Brand Safety And Marketing": 5,
+    "Workforce Compliance Platforms": 5,
+    "Neural Interface Technologies": 5,
+    "Advanced Microscopy Diagnostics": 5,
+    "Higher Education": 5,
+    "Speech & Audio AI": 5,
+    "Drone Defense Systems": 5,
+    "Biomimetic Surveillance Drones": 5,
+    "Textile Waste Recycling": 5,
+    "Electric Cargo Mobility": 5,
+    "Cancer Precision Therapeutics": 5,
+    "Sustainable Metal Recovery": 5,
+    "Policy Intelligence And News": 5,
+    "Water Efficiency Solutions": 4,
+    "Reusable Space Vehicles": 4,
+    "Product Compliance Management": 4,
+    "Pharma Regulatory Compliance": 4,
+    "Insurance Claims Automation": 4,
+    "Physical Security Intelligence": 4,
+    "Precision Additive Manufacturing": 4,
+    "AI Native Ecommerce Platforms": 4,
+    "Vendor Risk Management": 4,
+    "Clinical Trial Optimization": 4,
+    "AI Clinical Trial Optimization": 4,
+    "Digital Experience Development": 4,
+    "Immune System Analytics": 4,
+    "AI Weather And Climate": 3,
+    "Social Media": 3,
+    "K-12 Education": 3,
+    "Refurbished Electronics Marketplace": 3,
+    "E Waste Metal Recovery": 3,
+    "Climate Risk Insurance": 3,
+    "Digital Health Insurance": 3,
+    "Provider Credentialing Automation": 3,
+    "AI Oncology Diagnostics": 3,
+    "Restaurant Management": 3,
+    "Accessibility & Inclusion": 3,
+    "Influencer Marketing": 3,
+    "Specialty And Emerging Risk Insurance": 3,
+    "AI Orthodontic Imaging": 2,
+    "Aviation Operational Intelligence": 2,
+    "Regulatory Submission Automation": 2,
+    "Gig Economy Platforms": 2,
+    "Circular Appliance Solutions": 2,
+    "AI Fertility Treatment Optimization": 2,
+    "AI For Market Access": 2,
+    "Health Insurance Platforms": 2,
+    "Urban Heat Solutions": 2,
+    "AI For Material Science": 2,
+    "Medical Weight Management": 2,
+    "Male Reproductive Health": 2,
+    "Space Based Energy": 2,
+    "Federated AI For Life Sciences": 1,
+    "D2C Brands": 1,
+    "Solar Water Purification": 1,
+    "Enzyme Based Recycling": 1,
+    "AI Material Science Simulation": 1,
+    "AI Risk Certification": 1,
+    "Digital Experience Design": 1,
+    "Wholesale Insurance Marketplace": 1,
+    "AI For Patent Intelligence": 1,
+    "Retail Intelligence": 1,
+    "Mars Surface Exploration": 1
+  },
+  "singletons": [
+    "AI For Patent Intelligence",
+    "AI Material Science Simulation",
+    "AI Risk Certification",
+    "D2C Brands",
+    "Digital Experience Design",
+    "Enzyme Based Recycling",
+    "Federated AI For Life Sciences",
+    "Mars Surface Exploration",
+    "Retail Intelligence",
+    "Solar Water Purification",
+    "Wholesale Insurance Marketplace"
+  ],
+  "anomalies": {
+    "empty_subsectors_with_sectors": [
+      {
+        "name": "Maisa",
+        "website": "https://maisa.ai",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      },
+      {
+        "name": "K-Dense",
+        "website": "https://www.k-dense.ai",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      },
+      {
+        "name": "Fini",
+        "website": "https://www.usefini.com",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      },
+      {
+        "name": "Sola",
+        "website": "https://www.sola.ai",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      },
+      {
+        "name": "Tekst",
+        "website": "https://www.tekst.com",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      },
+      {
+        "name": "Pit",
+        "website": "https://pit.com",
+        "sectors": [
+          "AI & Machine Learning"
+        ]
+      }
+    ],
+    "empty_sectors": [],
+    "uncategorized": [
+      {
+        "name": "Midnight Labs",
+        "subsectors": [
+          "Biometric & Deepfake Protection",
+          "Threat Detection & Intelligence",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "enclaive",
+        "subsectors": [
+          "Data Security & Privacy",
+          "Cloud Security",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Emproof",
+        "subsectors": [
+          "Device & Firmware Security",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Nevermined",
+        "subsectors": [
+          "Embedded Financial Services",
+          "Payment And Fraud Solutions",
+          "API Infrastructure",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Quideos",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Shifted",
+        "subsectors": [
+          "Uncategorized",
+          "Energy Storage Systems"
+        ]
+      },
+      {
+        "name": "Robeauté",
+        "subsectors": [
+          "Neural Interface Technologies",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Airalo",
+        "subsectors": [
+          "Personal Productivity",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Jimini.ai",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Farmless",
+        "subsectors": [
+          "Uncategorized",
+          "Sustainable Biomanufacturing"
+        ]
+      },
+      {
+        "name": "Sopht",
+        "subsectors": [
+          "ERP & Business Operations",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Ekili",
+        "subsectors": [
+          "Personal Productivity",
+          "Lifestyle & Wellness",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Sahar",
+        "subsectors": [
+          "Threat Detection & Intelligence",
+          "Physical Security Intelligence",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Klassif.ai",
+        "subsectors": [
+          "Uncategorized",
+          "Supply Chain & Logistics Automation",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "Waypoint",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "ResQoos",
+        "subsectors": [
+          "Real Estate Agent Software",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Nolana",
+        "subsectors": [
+          "Insurance Claims Automation",
+          "Insurance Backoffice Automation",
+          "Financial Compliance Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Twin",
+        "subsectors": [
+          "Uncategorized",
+          "Productivity Tools",
+          "CRM & Sales"
+        ]
+      },
+      {
+        "name": "SOUS",
+        "subsectors": [
+          "SEO & Content",
+          "Automated Marketing Assets",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "BlpDigital",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Solar Foods",
+        "subsectors": [
+          "Uncategorized",
+          "Sustainable Biomanufacturing"
+        ]
+      },
+      {
+        "name": "Lawhive",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Smart Bricks",
+        "subsectors": [
+          "WealthTech",
+          "Investment Intelligence",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Fluidstack",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "AI Data & Training Infrastructure",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Delfa",
+        "subsectors": [
+          "Clinical Trial Optimization",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Stardust",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Tomo",
+        "subsectors": [
+          "Personal Productivity",
+          "Lifestyle & Wellness",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "JUPUS",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Salient",
+        "subsectors": [
+          "Mortgage And Lending Tech",
+          "Financial Compliance Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Lindy",
+        "subsectors": [
+          "Productivity Tools",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Glimmer",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Tessel",
+        "subsectors": [
+          "Medical Imaging AI",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Thesis Care",
+        "subsectors": [
+          "AI Ambient Clinical Assistants",
+          "AI Chronic Care Management",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "ActInside",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "MATVIS",
+        "subsectors": [
+          "AI Security And Guardrails",
+          "Data Security & Privacy",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Vertoro",
+        "subsectors": [
+          "Sustainable Biomanufacturing",
+          "Industrial Byproduct Upcycling",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Space Forge",
+        "subsectors": [
+          "In Space Mobility",
+          "Uncategorized",
+          "Semiconductor & Chips",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "VARM",
+        "subsectors": [
+          "Urban Heat Solutions",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Turnout",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "DatumLocus",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "EthicHub",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Omio",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Naboo",
+        "subsectors": [
+          "Supply Chain & Logistics Automation",
+          "ERP & Business Operations",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Ollie",
+        "subsectors": [
+          "Personal Productivity",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Proxima Fusion",
+        "subsectors": [
+          "Nuclear Energy",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Flease",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "State Affairs",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Seqana",
+        "subsectors": [
+          "Uncategorized",
+          "Space Based Data Services"
+        ]
+      },
+      {
+        "name": "QunaSys",
+        "subsectors": [
+          "Uncategorized",
+          "AI For Material Discovery",
+          "AI For Drug Discovery"
+        ]
+      },
+      {
+        "name": "Orbio AI",
+        "subsectors": [
+          "Recruiting And Talent Acquisition",
+          "HR Management Platforms",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Kessaku",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Nourished",
+        "subsectors": [
+          "Personal Health Insights",
+          "Uncategorized",
+          "Lifestyle & Wellness"
+        ]
+      },
+      {
+        "name": "Parkeo",
+        "subsectors": [
+          "Urban Mobility Solutions",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Novelgen",
+        "subsectors": [
+          "Pollution Control Technology",
+          "Sustainable Biomanufacturing",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Translucent",
+        "subsectors": [
+          "Healthcare Practice Management",
+          "Uncategorized",
+          "Financial Planning Analytics",
+          "Investment Intelligence"
+        ]
+      },
+      {
+        "name": "11x AI",
+        "subsectors": [
+          "AI Lead Generation",
+          "Outbound Sales Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Tallano Technologies",
+        "subsectors": [
+          "Transport Emissions Capture",
+          "Pollution Control Technology",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Rainbow Crops",
+        "subsectors": [
+          "Uncategorized",
+          "AI For Material Discovery"
+        ]
+      },
+      {
+        "name": "Kerys Software",
+        "subsectors": [
+          "Endpoint Security",
+          "Network Security",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Moonwatt",
+        "subsectors": [
+          "Energy Storage Systems",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Giga",
+        "subsectors": [
+          "Uncategorized",
+          "Customer Support"
+        ]
+      },
+      {
+        "name": "Tinct",
+        "subsectors": [
+          "Personalized Media Experiences",
+          "Automated Marketing Assets",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Parloa",
+        "subsectors": [
+          "Customer Support",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Zelara",
+        "subsectors": [
+          "Personalized Media Experiences",
+          "Automated Marketing Assets",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Contraline",
+        "subsectors": [
+          "Male Reproductive Health",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "ZOE",
+        "subsectors": [
+          "Personal Health Insights",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "NewLimit",
+        "subsectors": [
+          "AI For Drug Discovery",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Veyro.ai",
+        "subsectors": [
+          "SEO & Content",
+          "Web Data Intelligence",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Saudara",
+        "subsectors": [
+          "Uncategorized",
+          "Supply Chain & Logistics Automation"
+        ]
+      },
+      {
+        "name": "Phytolon",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Phagos",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "GrazeMate",
+        "subsectors": [
+          "Uncategorized",
+          "Industrial Automation Robotics",
+          "Industrial Asset Inspection"
+        ]
+      },
+      {
+        "name": "Rejoni",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "FYYYRE",
+        "subsectors": [
+          "Corporate Learning",
+          "AI For Education And Creativity",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Pinata",
+        "subsectors": [
+          "API Infrastructure",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Curity",
+        "subsectors": [
+          "IAM / PAM",
+          "Secrets And Non Human Identity Security",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Novaleum",
+        "subsectors": [
+          "Industrial Byproduct Upcycling",
+          "Sustainable Biomanufacturing",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Runwise",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "CroíValve",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Bota",
+        "subsectors": [
+          "API Infrastructure",
+          "Uncategorized",
+          "Sensors & IoT Devices",
+          "Consumer Electronics"
+        ]
+      },
+      {
+        "name": "Oscar Health",
+        "subsectors": [
+          "Digital Health Insurance",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "TerraSpark",
+        "subsectors": [
+          "Uncategorized",
+          "Space Based Energy"
+        ]
+      },
+      {
+        "name": "Brilliant Harvest",
+        "subsectors": [
+          "Uncategorized",
+          "Customer Support"
+        ]
+      },
+      {
+        "name": "DuckDuckGoose",
+        "subsectors": [
+          "Biometric & Deepfake Protection",
+          "Identity Verification And Onboarding",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Opereit",
+        "subsectors": [
+          "Supply Chain & Logistics Automation",
+          "ERP & Business Operations",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Hydra Host",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Andera",
+        "subsectors": [
+          "Internal Audit Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Kvasir Technologies",
+        "subsectors": [
+          "Sustainable Biomanufacturing",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Leyden Labs",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Blueprint Biomed",
+        "subsectors": [
+          "Uncategorized",
+          "AI For Material Discovery"
+        ]
+      },
+      {
+        "name": "CycloTech",
+        "subsectors": [
+          "Aviation And Flight Systems",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Cadence",
+        "subsectors": [
+          "AI Chronic Care Management",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Superlight",
+        "subsectors": [
+          "Electric Cargo Mobility",
+          "Uncategorized",
+          "Transport Emissions Capture"
+        ]
+      },
+      {
+        "name": "Vivici",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "CollimateHealth",
+        "subsectors": [
+          "Cancer Precision Therapeutics",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "BodyWision",
+        "subsectors": [
+          "Personal Health Insights",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Kyrok",
+        "subsectors": [
+          "ERP & Business Operations",
+          "Supply Chain & Logistics Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "OneSoil",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Fuzed",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Skello",
+        "subsectors": [
+          "HR Management Platforms",
+          "Workforce Compliance Platforms",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "VAir",
+        "subsectors": [
+          "Uncategorized",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Exobiosphere",
+        "subsectors": [
+          "Uncategorized",
+          "AI For Drug Discovery"
+        ]
+      },
+      {
+        "name": "Alizé",
+        "subsectors": [
+          "Policy Intelligence And News",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Datox",
+        "subsectors": [
+          "Financial Compliance Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Elora",
+        "subsectors": [
+          "Uncategorized",
+          "Customer Support",
+          "CRM & Sales"
+        ]
+      },
+      {
+        "name": "Figen AI",
+        "subsectors": [
+          "WealthTech",
+          "Financial Compliance Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Flox Intelligence",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Episurf Medical",
+        "subsectors": [
+          "Specialty Practice Workflow Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Fika Jobs",
+        "subsectors": [
+          "Recruiting And Talent Acquisition",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Greater Than",
+        "subsectors": [
+          "Climate Risk Insurance",
+          "Specialty And Emerging Risk Insurance",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Gamma",
+        "subsectors": [
+          "Uncategorized",
+          "Productivity Tools"
+        ]
+      },
+      {
+        "name": "Wayve",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Justinian",
+        "subsectors": [
+          "Policy Intelligence And News",
+          "Regulatory Document Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "InSoil",
+        "subsectors": [
+          "Uncategorized",
+          "Mortgage And Lending Tech",
+          "Embedded Financial Services"
+        ]
+      },
+      {
+        "name": "Eole Stab",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Fulcana",
+        "subsectors": [
+          "Uncategorized",
+          "Energy Storage Systems",
+          "Grid Resilience Technology"
+        ]
+      },
+      {
+        "name": "Xylo",
+        "subsectors": [
+          "Field & Industrial Operations",
+          "Productivity Tools",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Polysense Intelligence",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Nebex",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "INTU Diagnostics",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Senra Systems",
+        "subsectors": [
+          "Uncategorized",
+          "Aviation And Flight Systems"
+        ]
+      },
+      {
+        "name": "Prolo",
+        "subsectors": [
+          "Field & Industrial Operations",
+          "Supply Chain & Logistics Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Feel Reformed",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Aardaia",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Aylight",
+        "subsectors": [
+          "Semiconductor & Chips",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Doctorsa",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "CCRAFT",
+        "subsectors": [
+          "Semiconductor & Chips",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Sirona Technologies",
+        "subsectors": [
+          "Pollution Control Technology",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Catalyxx",
+        "subsectors": [
+          "Sustainable Biomanufacturing",
+          "Industrial Byproduct Upcycling",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "InsectBiotech",
+        "subsectors": [
+          "Uncategorized",
+          "Industrial Byproduct Upcycling",
+          "Sustainable Biomanufacturing"
+        ]
+      },
+      {
+        "name": "EfficientIP",
+        "subsectors": [
+          "Network Security",
+          "Data Security & Privacy",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Magnitude",
+        "subsectors": [
+          "Vendor Risk Management",
+          "Cybersecurity Risk Management",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Upside",
+        "subsectors": [
+          "AI Chronic Care Management",
+          "Health Insurance Platforms",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "ValueGrain",
+        "subsectors": [
+          "Uncategorized",
+          "Industrial Byproduct Upcycling"
+        ]
+      },
+      {
+        "name": "RapidPulse",
+        "subsectors": [
+          "Uncategorized",
+          "AI Medical Workflow"
+        ]
+      },
+      {
+        "name": "Jota",
+        "subsectors": [
+          "Payment And Fraud Solutions",
+          "Embedded Financial Services",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Queue",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "WrxFlo",
+        "subsectors": [
+          "Field & Industrial Operations",
+          "Supply Chain & Logistics Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "OXMIQ Labs",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "AI Model Development Platforms",
+          "Semiconductor & Chips",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "En Carta Diagnostics",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Aampere",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "ORiS",
+        "subsectors": [
+          "Space Based Energy",
+          "Uncategorized",
+          "Aerospace Defense"
+        ]
+      },
+      {
+        "name": "Self Inspection",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "BeCaps",
+        "subsectors": [
+          "Uncategorized",
+          "Sustainable Biomanufacturing",
+          "Industrial Byproduct Upcycling"
+        ]
+      },
+      {
+        "name": "Ticketeame",
+        "subsectors": [
+          "Gaming & Entertainment",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Proveye",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Ponda",
+        "subsectors": [
+          "Sustainable Biomanufacturing",
+          "Industrial Byproduct Upcycling",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Meshy",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure",
+          "Low-Code / No-Code",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Crystalys Therapeutics",
+        "subsectors": [
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Candid Health",
+        "subsectors": [
+          "Healthcare Practice Management",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Cashea",
+        "subsectors": [
+          "Mortgage And Lending Tech",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Pricepoint",
+        "subsectors": [
+          "CRM & Sales",
+          "Uncategorized"
+        ]
+      }
+    ],
+    "over_tagged": [
+      {
+        "name": "CoreThink.ai",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Agent Platforms And Automation",
+          "AI Driven Developer Productivity",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Gomboc",
+        "subsectors": [
+          "Cloud Security",
+          "AppSec / DevSecOps",
+          "CI/CD & DevOps",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Positive Carbon",
+        "subsectors": [
+          "Pollution Control Technology",
+          "Water Efficiency Solutions",
+          "Field & Industrial Operations",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "Bayshore",
+        "subsectors": [
+          "Legal Compliance Automation",
+          "Regulatory Document Automation",
+          "Internal Audit Automation",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "TAGBASE",
+        "subsectors": [
+          "Supply Chain & Logistics Automation",
+          "ERP & Business Operations",
+          "Cryptographic Data Verification",
+          "Identity Verification And Onboarding"
+        ]
+      },
+      {
+        "name": "spotixx",
+        "subsectors": [
+          "Financial Compliance Automation",
+          "Payment And Fraud Solutions",
+          "Identity Verification And Onboarding",
+          "Threat Detection & Intelligence"
+        ]
+      },
+      {
+        "name": "GuardianSphere",
+        "subsectors": [
+          "Data Security & Privacy",
+          "Threat Detection & Intelligence",
+          "Brand Safety And Marketing",
+          "AI Lead Generation"
+        ]
+      },
+      {
+        "name": "Pi",
+        "subsectors": [
+          "AppSec / DevSecOps",
+          "AI Security And Guardrails",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "Mistral AI",
+        "subsectors": [
+          "General Purpose AI Models",
+          "AI Agent Platforms And Automation",
+          "AI Model Development Platforms",
+          "AI Code Generation And Repair",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Edgee",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "AI Driven Developer Productivity",
+          "API Infrastructure"
+        ]
+      },
+      {
+        "name": "Alpic",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "API Infrastructure",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Catena",
+        "subsectors": [
+          "Corporate Treasury Management",
+          "Financial Compliance Automation",
+          "IAM / PAM",
+          "Secrets And Non Human Identity Security",
+          "Cryptographic Data Verification"
+        ]
+      },
+      {
+        "name": "Nevermined",
+        "subsectors": [
+          "Embedded Financial Services",
+          "Payment And Fraud Solutions",
+          "API Infrastructure",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "BoostSecurity.io (SecureIQx)",
+        "subsectors": [
+          "AppSec / DevSecOps",
+          "Threat Detection & Intelligence",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "Locus",
+        "subsectors": [
+          "Payment And Fraud Solutions",
+          "Embedded Financial Services",
+          "API Infrastructure",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "LangWatch",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Coval",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Data & Training Infrastructure",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Airweave",
+        "subsectors": [
+          "AI Agent Memory & State",
+          "AI Agent Platforms And Automation",
+          "Search Infrastructure",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Delair",
+        "subsectors": [
+          "Aerospace Defense",
+          "Defense And Security Robotics",
+          "Sensors & IoT Devices",
+          "Industrial Asset Inspection",
+          "Autonomous Industrial Robotics"
+        ]
+      },
+      {
+        "name": "Hamming",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Agent Platforms And Automation",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Nolana",
+        "subsectors": [
+          "Insurance Claims Automation",
+          "Insurance Backoffice Automation",
+          "Financial Compliance Automation",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Octen",
+        "subsectors": [
+          "AI Data & Training Infrastructure",
+          "AI Agent Platforms And Automation",
+          "Search Infrastructure",
+          "API Infrastructure"
+        ]
+      },
+      {
+        "name": "Replify",
+        "subsectors": [
+          "CRM & Sales",
+          "Customer Support",
+          "Outbound Sales Automation",
+          "AI Lead Generation"
+        ]
+      },
+      {
+        "name": "All Ears",
+        "subsectors": [
+          "Consumer Insights Automation",
+          "Web Data Intelligence",
+          "Brand Safety And Marketing",
+          "AI Media Management"
+        ]
+      },
+      {
+        "name": "Arize AI",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "DataBahn",
+        "subsectors": [
+          "SOC & Incident Response",
+          "Data Security & Privacy",
+          "Observability & Monitoring",
+          "Infrastructure Monitoring",
+          "AI Data & Training Infrastructure"
+        ]
+      },
+      {
+        "name": "Codag",
+        "subsectors": [
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity",
+          "AI Agent Platforms And Automation",
+          "AI Data & Training Infrastructure"
+        ]
+      },
+      {
+        "name": "AICE",
+        "subsectors": [
+          "Defense And Security Robotics",
+          "Aerospace Defense",
+          "Industrial Asset Inspection",
+          "Biomimetic Surveillance Drones"
+        ]
+      },
+      {
+        "name": "Context.dev",
+        "subsectors": [
+          "AI Data & Training Infrastructure",
+          "AI Agent Platforms And Automation",
+          "API Infrastructure",
+          "Search Infrastructure"
+        ]
+      },
+      {
+        "name": "dottxt",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Model Development Platforms",
+          "AI Driven Developer Productivity",
+          "API Infrastructure"
+        ]
+      },
+      {
+        "name": "Subconscious",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "AI Code Generation And Repair",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Qwen Studio",
+        "subsectors": [
+          "General Purpose AI Models",
+          "AI Agent Platforms And Automation",
+          "AI Code Generation And Repair",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Together AI",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "AI Model Development Platforms",
+          "API Infrastructure",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Sardine",
+        "subsectors": [
+          "Identity Verification And Onboarding",
+          "Threat Detection & Intelligence",
+          "Financial Compliance Automation",
+          "Payment And Fraud Solutions"
+        ]
+      },
+      {
+        "name": "Space Forge",
+        "subsectors": [
+          "In Space Mobility",
+          "Uncategorized",
+          "Semiconductor & Chips",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Rosebud AI",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure",
+          "Low-Code / No-Code",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Ongo",
+        "subsectors": [
+          "Lifestyle & Wellness",
+          "Personal Productivity",
+          "Consumer Electronics",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Pensero",
+        "subsectors": [
+          "AI Driven Developer Productivity",
+          "Observability & Monitoring",
+          "Productivity Tools",
+          "Enterprise Project Management"
+        ]
+      },
+      {
+        "name": "Oplane",
+        "subsectors": [
+          "AppSec / DevSecOps",
+          "AI Security And Guardrails",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "Linc",
+        "subsectors": [
+          "HR Management Platforms",
+          "Workforce Compliance Platforms",
+          "Financial Compliance Automation",
+          "Tax Compliance Automation"
+        ]
+      },
+      {
+        "name": "Didit",
+        "subsectors": [
+          "Identity Verification And Onboarding",
+          "Biometric & Deepfake Protection",
+          "Financial Compliance Automation",
+          "Payment And Fraud Solutions",
+          "Crypto Compliance Solutions",
+          "API Infrastructure"
+        ]
+      },
+      {
+        "name": "NexDash",
+        "subsectors": [
+          "Electric Cargo Mobility",
+          "Transport Emissions Capture",
+          "Demand Response Management",
+          "Supply Chain & Logistics Automation",
+          "Field & Industrial Operations"
+        ]
+      },
+      {
+        "name": "Guild.ai",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "AI Driven Developer Productivity",
+          "Observability & Monitoring"
+        ]
+      },
+      {
+        "name": "GALVANY Energy GmbH",
+        "subsectors": [
+          "Energy Efficiency Software",
+          "Energy Storage Systems",
+          "Demand Response Management",
+          "Consumer Electronics",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Abacus.AI",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Agent Platforms And Automation",
+          "AI Driven Developer Productivity",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Agenta",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Model Development Platforms",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Flumes",
+        "subsectors": [
+          "AI Agent Memory & State",
+          "AI Agent Platforms And Automation",
+          "API Infrastructure",
+          "Search Infrastructure"
+        ]
+      },
+      {
+        "name": "Galtea",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "InsForge",
+        "subsectors": [
+          "AI Driven Developer Productivity",
+          "API Infrastructure",
+          "AI Agent Platforms And Automation",
+          "AI Compute & Cloud Infrastructure"
+        ]
+      },
+      {
+        "name": "Higgsfield AI",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure",
+          "Generative Media Tools",
+          "AI Content Production",
+          "Automated Marketing Assets",
+          "Video Ad Automation"
+        ]
+      },
+      {
+        "name": "Accordance",
+        "subsectors": [
+          "Tax Compliance Automation",
+          "Financial Compliance Automation",
+          "Regulatory Document Automation",
+          "Audit And Risk Automation"
+        ]
+      },
+      {
+        "name": "POWER.xyz",
+        "subsectors": [
+          "Automated Marketing Assets",
+          "Personalized Media Experiences",
+          "Visual Commerce Tools",
+          "AI Powered Commerce"
+        ]
+      },
+      {
+        "name": "Translucent",
+        "subsectors": [
+          "Healthcare Practice Management",
+          "Uncategorized",
+          "Financial Planning Analytics",
+          "Investment Intelligence"
+        ]
+      },
+      {
+        "name": "Protai Bio",
+        "subsectors": [
+          "AI For Drug Discovery",
+          "AI Foundation Models For Biology",
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure"
+        ]
+      },
+      {
+        "name": "Flaunt",
+        "subsectors": [
+          "Social Media",
+          "Automated Marketing Assets",
+          "AI Powered Commerce",
+          "Visual Commerce Tools"
+        ]
+      },
+      {
+        "name": "Mindflow",
+        "subsectors": [
+          "SOC & Incident Response",
+          "Cloud Security",
+          "Productivity Tools",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "Adaptive ML",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "MLOps & Model Serving",
+          "Customer Support",
+          "Productivity Tools"
+        ]
+      },
+      {
+        "name": "Playabl",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Agent Platforms And Automation",
+          "Low-Code / No-Code",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Synthesia",
+        "subsectors": [
+          "Automated Marketing Assets",
+          "Video Ad Automation",
+          "Corporate Learning",
+          "AI For Education And Creativity"
+        ]
+      },
+      {
+        "name": "Argil",
+        "subsectors": [
+          "Generative Media Tools",
+          "AI Content Production",
+          "Automated Marketing Assets",
+          "Video Ad Automation"
+        ]
+      },
+      {
+        "name": "Moselle",
+        "subsectors": [
+          "ERP & Business Operations",
+          "Supply Chain & Logistics Automation",
+          "Retail Commerce Automation",
+          "AI Powered Commerce"
+        ]
+      },
+      {
+        "name": "OpusClip",
+        "subsectors": [
+          "Social Media",
+          "Automated Marketing Assets",
+          "AI Content Production",
+          "Generative Media Tools"
+        ]
+      },
+      {
+        "name": "Builder.io",
+        "subsectors": [
+          "Low-Code / No-Code",
+          "AI Driven Developer Productivity",
+          "Productivity Tools",
+          "Enterprise Project Management"
+        ]
+      },
+      {
+        "name": "Fireworks AI",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "AI Model Development Platforms",
+          "API Infrastructure",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "Lemma",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Agent Platforms And Automation",
+          "Observability & Monitoring",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Bota",
+        "subsectors": [
+          "API Infrastructure",
+          "Uncategorized",
+          "Sensors & IoT Devices",
+          "Consumer Electronics"
+        ]
+      },
+      {
+        "name": "Tessl",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "Gigacatalyst",
+        "subsectors": [
+          "Low-Code / No-Code",
+          "AI Code Generation And Repair",
+          "Productivity Tools",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "Poolside",
+        "subsectors": [
+          "AI Agent Platforms And Automation",
+          "General Purpose AI Models",
+          "AI Driven Developer Productivity",
+          "AI Code Generation And Repair"
+        ]
+      },
+      {
+        "name": "n8n",
+        "subsectors": [
+          "Low-Code / No-Code",
+          "CI/CD & DevOps",
+          "Productivity Tools",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "PlayerZero",
+        "subsectors": [
+          "AI Driven Developer Productivity",
+          "Observability & Monitoring",
+          "AI Agent Platforms And Automation",
+          "MLOps & Model Serving"
+        ]
+      },
+      {
+        "name": "Traysar",
+        "subsectors": [
+          "Defense And Security Robotics",
+          "Aerospace Defense",
+          "Autonomous Industrial Robotics",
+          "Biomimetic Surveillance Drones"
+        ]
+      },
+      {
+        "name": "Allium",
+        "subsectors": [
+          "Investment Intelligence",
+          "Crypto Compliance Solutions",
+          "API Infrastructure",
+          "Search Infrastructure"
+        ]
+      },
+      {
+        "name": "FOMO",
+        "subsectors": [
+          "Digital Asset Liquidity",
+          "Trading Infrastructure",
+          "Social & Community",
+          "Gaming & Entertainment"
+        ]
+      },
+      {
+        "name": "Ascendance Flight Technologies",
+        "subsectors": [
+          "Aviation And Flight Systems",
+          "Aerospace Defense",
+          "Transport Emissions Capture",
+          "Decarbonized Industrial Heat"
+        ]
+      },
+      {
+        "name": "Build",
+        "subsectors": [
+          "Construction Project Intelligence",
+          "AI Engineering Design",
+          "Field & Industrial Operations",
+          "Enterprise Project Management"
+        ]
+      },
+      {
+        "name": "geoSurge",
+        "subsectors": [
+          "SEO & Content",
+          "Web Data Intelligence",
+          "AI Data & Training Infrastructure",
+          "AI Model Development Platforms"
+        ]
+      },
+      {
+        "name": "PostSig",
+        "subsectors": [
+          "Legal Compliance Automation",
+          "Audit And Risk Automation",
+          "Investment Intelligence",
+          "Financial Compliance Automation"
+        ]
+      },
+      {
+        "name": "Apeiroon",
+        "subsectors": [
+          "Aerospace Defense",
+          "Military And Defense Automation",
+          "Sensors & IoT Devices",
+          "Network Security",
+          "Device & Firmware Security"
+        ]
+      },
+      {
+        "name": "Sherpa.ai",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure",
+          "Data Security & Privacy",
+          "AI Security And Guardrails"
+        ]
+      },
+      {
+        "name": "Spirit AI",
+        "subsectors": [
+          "Robot Foundation Models",
+          "General Purpose Robotics",
+          "Consumer Electronics",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Critical Cloud",
+        "subsectors": [
+          "Observability & Monitoring",
+          "Infrastructure Monitoring",
+          "MLOps & Model Serving",
+          "AI Compute & Cloud Infrastructure",
+          "Cloud Security",
+          "AI Security And Guardrails",
+          "Cybersecurity Risk Management"
+        ]
+      },
+      {
+        "name": "Devana",
+        "subsectors": [
+          "MLOps & Model Serving",
+          "AI Model Development Platforms",
+          "AI Security And Guardrails",
+          "Data Security & Privacy",
+          "Cybersecurity Risk Management"
+        ]
+      },
+      {
+        "name": "Drone Radio Beacon (DRB)",
+        "subsectors": [
+          "Industrial Asset Inspection",
+          "Industrial Automation Robotics",
+          "AI Industrial Operations",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Frameway",
+        "subsectors": [
+          "Automated Marketing Assets",
+          "Video Ad Automation",
+          "AI Content Production",
+          "Generative Media Tools"
+        ]
+      },
+      {
+        "name": "PlayReplay",
+        "subsectors": [
+          "Sensors & IoT Devices",
+          "Consumer Electronics",
+          "Lifestyle & Wellness",
+          "Gaming & Entertainment"
+        ]
+      },
+      {
+        "name": "Zylio",
+        "subsectors": [
+          "Financial Compliance Automation",
+          "Financial Planning Analytics",
+          "Supply Chain & Logistics Automation",
+          "ERP & Business Operations"
+        ]
+      },
+      {
+        "name": "Seltz",
+        "subsectors": [
+          "AI Data & Training Infrastructure",
+          "AI Agent Platforms And Automation",
+          "API Infrastructure",
+          "Search Infrastructure"
+        ]
+      },
+      {
+        "name": "Edviro",
+        "subsectors": [
+          "Energy Efficiency Software",
+          "Demand Response Management",
+          "Grid Resilience Technology",
+          "Field & Industrial Operations"
+        ]
+      },
+      {
+        "name": "One Biosciences",
+        "subsectors": [
+          "AI Foundation Models For Biology",
+          "Cancer Precision Therapeutics",
+          "AI Precision Oncology Diagnostics",
+          "AI Clinical Trial Optimization"
+        ]
+      },
+      {
+        "name": "Axle Energy",
+        "subsectors": [
+          "AI Energy Infrastructure",
+          "Energy Efficiency Software",
+          "Demand Response Management",
+          "Grid Resilience Technology"
+        ]
+      },
+      {
+        "name": "Whering",
+        "subsectors": [
+          "Personal Productivity",
+          "Lifestyle & Wellness",
+          "AI Powered Commerce",
+          "Visual Commerce Tools"
+        ]
+      },
+      {
+        "name": "Quantum Systems",
+        "subsectors": [
+          "Defense And Security Robotics",
+          "Drone Defense Systems",
+          "Aerospace Defense",
+          "Industrial Asset Inspection",
+          "General Purpose Robotics"
+        ]
+      },
+      {
+        "name": "StirlingX",
+        "subsectors": [
+          "Aerospace Defense",
+          "Defense And Security Robotics",
+          "Industrial Asset Inspection",
+          "Autonomous Industrial Robotics"
+        ]
+      },
+      {
+        "name": "Kord",
+        "subsectors": [
+          "Financial Compliance Automation",
+          "Payment And Fraud Solutions",
+          "Legal Compliance Automation",
+          "Audit And Risk Automation"
+        ]
+      },
+      {
+        "name": "8090",
+        "subsectors": [
+          "AI Driven Developer Productivity",
+          "Low-Code / No-Code",
+          "AI Model Development Platforms",
+          "MLOps & Model Serving"
+        ]
+      },
+      {
+        "name": "SOND",
+        "subsectors": [
+          "Personal Health Insights",
+          "Lifestyle & Wellness",
+          "Consumer Electronics",
+          "Sensors & IoT Devices"
+        ]
+      },
+      {
+        "name": "Valarian",
+        "subsectors": [
+          "Cloud Security",
+          "AI Security And Guardrails",
+          "IAM / PAM",
+          "MLOps & Model Serving"
+        ]
+      },
+      {
+        "name": "Clawvisor",
+        "subsectors": [
+          "AI Security And Guardrails",
+          "Secrets And Non Human Identity Security",
+          "IAM / PAM",
+          "API Infrastructure",
+          "AI Driven Developer Productivity"
+        ]
+      },
+      {
+        "name": "Syntonym",
+        "subsectors": [
+          "AI Data & Training Infrastructure",
+          "AI Model Development Platforms",
+          "Data Security & Privacy",
+          "AI Model Safety"
+        ]
+      },
+      {
+        "name": "Mitigata",
+        "subsectors": [
+          "Cybersecurity Risk Management",
+          "Threat Detection & Intelligence",
+          "SOC & Incident Response",
+          "Specialty And Emerging Risk Insurance",
+          "Insurance Backoffice Automation"
+        ]
+      },
+      {
+        "name": "IDfy",
+        "subsectors": [
+          "Identity Verification And Onboarding",
+          "Cybersecurity Risk Management",
+          "Payment And Fraud Solutions",
+          "Financial Compliance Automation"
+        ]
+      },
+      {
+        "name": "Wultra",
+        "subsectors": [
+          "IAM / PAM",
+          "Identity Verification And Onboarding",
+          "Cryptographic Data Verification",
+          "Financial Compliance Automation",
+          "Payment And Fraud Solutions"
+        ]
+      },
+      {
+        "name": "Lissi GmbH",
+        "subsectors": [
+          "IAM / PAM",
+          "Identity Verification And Onboarding",
+          "Cryptographic Data Verification",
+          "API Infrastructure"
+        ]
+      },
+      {
+        "name": "Dawnguard",
+        "subsectors": [
+          "Cloud Security",
+          "AppSec / DevSecOps",
+          "Cybersecurity Risk Management",
+          "AI Driven Developer Productivity",
+          "CI/CD & DevOps"
+        ]
+      },
+      {
+        "name": "CYTUR",
+        "subsectors": [
+          "Threat Detection & Intelligence",
+          "Cybersecurity Risk Management",
+          "Vendor Risk Management",
+          "Aerospace Defense"
+        ]
+      },
+      {
+        "name": "OXMIQ Labs",
+        "subsectors": [
+          "AI Compute & Cloud Infrastructure",
+          "AI Model Development Platforms",
+          "Semiconductor & Chips",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Venice AI",
+        "subsectors": [
+          "API Infrastructure",
+          "AI Code Generation And Repair",
+          "Data Security & Privacy",
+          "AI Security And Guardrails"
+        ]
+      },
+      {
+        "name": "Gyre Energy",
+        "subsectors": [
+          "Energy Storage Systems",
+          "Demand Response Management",
+          "Grid Resilience Technology",
+          "Energy Efficiency Software",
+          "AI Industrial Operations"
+        ]
+      },
+      {
+        "name": "Ryflo",
+        "subsectors": [
+          "WealthTech",
+          "Investment Intelligence",
+          "Social & Community",
+          "Gaming & Entertainment"
+        ]
+      },
+      {
+        "name": "Meshy",
+        "subsectors": [
+          "AI Model Development Platforms",
+          "AI Data & Training Infrastructure",
+          "Low-Code / No-Code",
+          "Uncategorized"
+        ]
+      },
+      {
+        "name": "Rivvun",
+        "subsectors": [
+          "Financial Planning Analytics",
+          "Corporate Treasury Management",
+          "ERP & Business Operations",
+          "Supply Chain & Logistics Automation"
+        ]
+      },
+      {
+        "name": "ANELLO Photonics",
+        "subsectors": [
+          "Aerospace Defense",
+          "Aviation And Flight Systems",
+          "Sensors & IoT Devices",
+          "Semiconductor & Chips",
+          "Industrial Asset Inspection",
+          "Autonomous Industrial Robotics"
+        ]
+      }
+    ]
+  },
+  "horizontal_conflicts": [
+    {
+      "name": "Gigaton",
+      "sectors": [
+        "CleanTech",
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "Pollution Control Technology",
+        "Decarbonized Industrial Heat",
+        "AI World Models"
+      ]
+    },
+    {
+      "name": "Mistral AI",
+      "sectors": [
+        "AI & Machine Learning",
+        "Developer Tools & Infrastructure"
+      ],
+      "subsectors": [
+        "General Purpose AI Models",
+        "AI Agent Platforms And Automation",
+        "AI Model Development Platforms",
+        "AI Code Generation And Repair",
+        "AI Driven Developer Productivity"
+      ]
+    },
+    {
+      "name": "Kling AI",
+      "sectors": [
+        "AI & Machine Learning",
+        "MediaTech"
+      ],
+      "subsectors": [
+        "General Purpose AI Models",
+        "Generative Media Tools",
+        "AI Content Production"
+      ]
+    },
+    {
+      "name": "Genmo",
+      "sectors": [
+        "AI & Machine Learning",
+        "MediaTech"
+      ],
+      "subsectors": [
+        "AI World Models",
+        "Generative Media Tools",
+        "AI Content Production"
+      ]
+    },
+    {
+      "name": "Qwen Studio",
+      "sectors": [
+        "AI & Machine Learning",
+        "Developer Tools & Infrastructure"
+      ],
+      "subsectors": [
+        "General Purpose AI Models",
+        "AI Agent Platforms And Automation",
+        "AI Code Generation And Repair",
+        "AI Driven Developer Productivity"
+      ]
+    },
+    {
+      "name": "Mitiga Solutions",
+      "sectors": [
+        "CleanTech",
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Weather And Climate",
+        "AI World Models"
+      ]
+    },
+    {
+      "name": "Xplora",
+      "sectors": [
+        "AI & Machine Learning",
+        "Aerospace & Defense"
+      ],
+      "subsectors": [
+        "AI World Models",
+        "AI Aerospace Defense Simulation",
+        "Aerospace Defense"
+      ]
+    },
+    {
+      "name": "Ainwater",
+      "sectors": [
+        "CleanTech",
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "Water Efficiency Solutions",
+        "AI World Models"
+      ]
+    },
+    {
+      "name": "Fleet (fleet.ai)",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI World Models",
+        "AI Data & Training Infrastructure"
+      ]
+    },
+    {
+      "name": "Tavus",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Model Development Platforms",
+        "General Purpose AI Models"
+      ]
+    },
+    {
+      "name": "Recursive Superintelligence",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "General Purpose AI Models",
+        "AI Model Development Platforms"
+      ]
+    },
+    {
+      "name": "Poolside",
+      "sectors": [
+        "AI & Machine Learning",
+        "Developer Tools & Infrastructure"
+      ],
+      "subsectors": [
+        "AI Agent Platforms And Automation",
+        "General Purpose AI Models",
+        "AI Driven Developer Productivity",
+        "AI Code Generation And Repair"
+      ]
+    },
+    {
+      "name": "DeepSeek",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "General Purpose AI Models",
+        "AI Model Development Platforms"
+      ]
+    },
+    {
+      "name": "AMI Labs",
+      "sectors": [
+        "AI & Machine Learning",
+        "Robotics"
+      ],
+      "subsectors": [
+        "AI World Models",
+        "Robot Foundation Models"
+      ]
+    },
+    {
+      "name": "Worldmodeldata",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Data & Training Infrastructure",
+        "AI World Models"
+      ]
+    },
+    {
+      "name": "Physicl",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Data & Training Infrastructure",
+        "AI World Models"
+      ]
+    },
+    {
+      "name": "Experiential Labs",
+      "sectors": [
+        "AI & Machine Learning",
+        "Developer Tools & Infrastructure"
+      ],
+      "subsectors": [
+        "AI World Models",
+        "AI Model Development Platforms",
+        "AI Driven Developer Productivity"
+      ]
+    },
+    {
+      "name": "Ineffable Intelligence",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Model Development Platforms",
+        "General Purpose AI Models"
+      ]
+    },
+    {
+      "name": "Kausable",
+      "sectors": [
+        "AI & Machine Learning"
+      ],
+      "subsectors": [
+        "AI Model Development Platforms",
+        "General Purpose AI Models"
+      ]
+    }
+  ],
+  "taxonomy_drift": []
+}

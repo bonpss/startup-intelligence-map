@@ -1,0 +1,15 @@
+<svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="150" height="150" rx="37.5" fill="#BFFF1B"/>
+<rect x="37.5" y="93.75" width="18.75" height="18.75" fill="#111215"/>
+<path d="M56.25 75V93.75H37.5L56.25 75Z" fill="#111215"/>
+<rect width="18.75" height="18.75" transform="matrix(1 0 0 -1 37.5 56.25)" fill="#111215"/>
+<path d="M56.25 75V56.25H37.5L56.25 75Z" fill="#111215"/>
+<path d="M75 93.75V75H56.25L75 93.75Z" fill="#111215"/>
+<path d="M75 56.25L75 75L93.75 75L75 56.25Z" fill="#111215"/>
+<path d="M56.25 75L75 75L75 56.25L56.25 75Z" fill="#111215"/>
+<path d="M93.75 75L75 75L75 93.75L93.75 75Z" fill="#111215"/>
+<rect width="18.75" height="18.75" transform="matrix(-1 0 0 1 112.5 93.75)" fill="#111215"/>
+<path d="M93.75 75V93.75H112.5L93.75 75Z" fill="#111215"/>
+<rect x="112.5" y="56.25" width="18.75" height="18.75" transform="rotate(180 112.5 56.25)" fill="#111215"/>
+<path d="M93.75 75V56.25H112.5L93.75 75Z" fill="#111215"/>
+</svg>

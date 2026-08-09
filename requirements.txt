@@ -1,0 +1,9 @@
+playwright
+mistralai
+python-dotenv
+supabase
+html2text
+httpx
+tenacity
+trafilatura
+lxml_html_clean

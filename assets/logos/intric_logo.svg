@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 58" fill="#000000">
+	<style>
+		@media (prefers-color-scheme: dark) {
+			:root { fill: #ffffff; }
+		}
+	</style>
+	<g clip-path="url(#clip0_intric_favicon)">
+		<g mask="url(#mask0_intric_favicon)">
+			<path d="M34.8 46.4H46.4V34.8C52.8106 34.8 58 39.9894 58 46.4C58 52.8106 52.8106 58 46.4 58C39.9894 58 34.8 52.8026 34.8 46.4Z" />
+			<path d="M-3.8147e-06 46.4C-3.8147e-06 39.9894 5.19739 34.8 11.6 34.8V46.4H23.2C23.2 52.8026 18.0106 58 11.6 58C5.18942 58 -3.8147e-06 52.8026 -3.8147e-06 46.4Z" />
+			<path d="M34.8 11.6002C34.8 5.18962 39.9974 0.00019455 46.4 0.00019455C52.8026 0.00019455 58 5.18962 58 11.6002C58 18.0108 52.8106 23.2002 46.4 23.2002V11.6002H34.8Z" />
+			<path d="M-3.8147e-06 11.6002C-3.8147e-06 5.18962 5.19739 0.00019455 11.6 0.00019455C18.0026 0.00019455 23.2 5.18962 23.2 11.6002H11.6V23.2002C5.19739 23.2002 -3.8147e-06 18.0028 -3.8147e-06 11.6002Z" />
+		</g>
+		<path d="M18.7921 55.501L30.0077 46.3991H11.6013L18.7921 55.501Z" />
+		<path d="M55.5012 39.207L46.3993 27.9921V46.3984L55.5012 39.207Z" />
+		<path d="M39.2072 2.49868L27.9923 11.6006H46.3987L39.2072 2.49868Z" />
+		<path d="M2.49876 18.7923L11.6007 30.0078V11.6015L2.49876 18.7923Z" />
+	</g>
+	<defs>
+		<mask id="mask0_intric_favicon" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="58" height="58">
+			<path d="M0 58H58V0H0V58Z" fill="white" />
+		</mask>
+		<clipPath id="clip0_intric_favicon">
+			<rect width="58" height="58" fill="white" transform="matrix(-1 0 0 -1 58 58)" />
+		</clipPath>
+	</defs>
+</svg>

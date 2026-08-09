@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- SEO & Metadata matching Layout.astro -->
+    <title>Send money — Satolink</title>
+    <meta name="description"
+        content="Send and receive Bitcoin and USDT instantly, anywhere in the world. Non-custodial. No KYC." />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet" />
+
+    <!-- Global Styles (copied to public folder during build) -->
+    <link rel="stylesheet" href="/global.css" />
+
+    <!-- Custom CSS for Payments Component Overrides (Vanilla style) -->
+    <style>
+        .payments-page {
+            padding: 130px 0 80px;
+            position: relative;
+            overflow: hidden;
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .payments-page::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(840px 480px at 50% -10%,
+                    var(--accent-soft),
+                    transparent 70%);
+        }
+
+        .main-content-wrapper {
+            width: 100%;
+            transition: filter 0.5s ease, opacity 0.5s ease;
+        }
+
+        .blur-content {
+            filter: blur(12px) grayscale(20%);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Modal styling matching landing v5 theme */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(11, 11, 12, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card);
+            border: 1.5px solid var(--line);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 36px;
+            transform: scale(0.92);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .modal-overlay.open .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-family: var(--display);
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text);
+            text-align: center;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            font-family: var(--body);
+            font-size: 14px;
+            color: var(--muted);
+            text-align: center;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .modal-label {
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+
+        .modal-input {
+            background: var(--field);
+            border: 1.5px solid var(--line);
+            border-radius: 14px;
+            padding: 12px 16px;
+            font-family: var(--body);
+            font-size: 15px;
+            color: var(--text);
+            transition: border-color 0.25s;
+            width: 100%;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 15px;
+            background: var(--grad);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.25s var(--ease), box-shadow 0.25s;
+            box-shadow: 0 8px 24px -8px rgba(232, 93, 37, 0.4);
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .modal-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .modal-footer {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--line);
+            text-align: center;
+            font-size: 13.5px;
+            color: var(--muted);
+        }
+
+        .modal-footer a {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* Recipient Profile View styled for v5 */
+        .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 18px 0 8px;
+        }
+
+        .avatar-container {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--card);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            background: var(--bg-soft);
+        }
+
+        .badge-container {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            background: var(--card);
+            border-radius: 50%;
+            padding: 3px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            border: 1.5px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-name {
+            font-family: var(--display);
+            font-size: 23px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+
+        .profile-handle {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        /* Success screen card layout */
+        .success-box {
+            text-align: center;
+            padding: 24px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .success-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--green-soft);
+            color: var(--green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+
+        .success-title {
+            font-family: var(--display);
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .success-text {
+            font-size: 14.5px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin-bottom: 22px;
+            max-width: 34ch;
+        }
+
+        .success-details {
+            width: 100%;
+            background: var(--bg-soft);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 22px;
+            text-align: left;
+            font-size: 13.5px;
+        }
+
+        .success-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--line);
+        }
+
+        .success-detail-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .success-detail-row:first-child {
+            padding-top: 0;
+        }
+
+        .success-detail-row .k {
+            color: var(--muted);
+        }
+
+        .success-detail-row .v {
+            font-family: var(--mono);
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Test settings panel */
+        .test-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--bg-soft);
+            border: 1.5px dashed var(--line);
+            font-size: 11.5px;
+            font-family: var(--mono);
+            color: var(--muted);
+        }
+
+        .test-panel input {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--accent);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translate(-50%, 20px);
+            background: var(--card);
+            border: 1.5px solid var(--line);
+            color: var(--text);
+            padding: 12px 24px;
+            border-radius: 999px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s;
+            z-index: 120;
+            font-family: var(--body);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .toast.show {
+            transform: translate(-50%, 0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Force input styles to look like SendCard.astro */
+        .amt-in:focus {
+            outline: none;
+        }
+
+        /* Multi-state modal styling */
+        .auth-view {
+            display: none;
+            flex-direction: column;
+        }
+
+        .auth-view.active {
+            display: flex;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-family: var(--body);
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 16px;
+            align-self: flex-start;
+            transition: color 0.2s;
+        }
+
+        .back-btn:hover {
+            color: var(--text);
+        }
+
+        .info-card {
+            background: var(--bg-soft);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .info-card svg {
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .modal-btn-secondary {
+            background: transparent;
+            border: 1.5px solid var(--line);
+            color: var(--text);
+            box-shadow: none;
+        }
+
+        .modal-btn-secondary:hover {
+            border-color: var(--muted);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body data-theme="light">
+    <!-- Google Translate Hook -->
+    <div id="google_translate_element"></div>
+
+    <!-- Header (porting Header.astro HTML) -->
+    <header>
+        <nav class="nav" id="nav" aria-label="Main">
+            <div class="nav-in">
+                <a class="brand" href="https://satolink.com" aria-label="Satolink home">
+                    <svg width="23" height="23" viewBox="0 0 100 100" aria-hidden="true">
+                        <path d="M40 18 H88 V50 H62 V82 H12 V50 H40 Z" fill="var(--logo)"></path>
+                    </svg>
+                    <span class="word">satolink</span>
+                </a>
+                <div class="nav-r">
+                    <div class="lang-wrap">
+                        <button class="iconbtn" id="langBtn" aria-label="Change language" aria-haspopup="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="9"></circle>
+                                <path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"></path>
+                            </svg>
+                        </button>
+                        <div class="lang-menu" id="langMenu" role="menu">
+                            <button data-lang="es" role="menuitem"><span class="fl">🌐</span>Español</button>
+                            <button data-lang="en" role="menuitem"><span class="fl">🇬🇧</span>English</button>
+                            <button data-lang="pt" role="menuitem"><span class="fl">🇧🇷</span>Português</button>
+                            <button data-lang="fr" role="menuitem"><span class="fl">🇫🇷</span>Français</button>
+                            <button data-lang="ar" role="menuitem"><span class="fl">🇸🇦</span>العربية</button>
+                        </div>
+                    </div>
+                    <button class="iconbtn" id="themeBtn" aria-label="Light or dark theme">
+                        <svg id="iSun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <circle cx="12" cy="12" r="4.5"></circle>
+                            <path
+                                d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M19.4 4.6l-1.8 1.8M6.4 17.6l-1.8 1.8">
+                            </path>
+                        </svg>
+                        <svg id="iMoon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" style="display:none">
+                            <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10Z"></path>
+                        </svg>
+                    </button>
+                    <a class="btn btn-nav" id="nav-auth-btn" href="https://app.satolink.com/login">Create account</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Container (blurred content wrapper) -->
+    <div id="main-content-wrapper" class="main-content-wrapper">
+        <main class="payments-page">
+            <div class="wrap">
+                <!-- Payment Card (SendCardV2 container) -->
+                <div class="send rv in" id="payments-card" style="width: 100%; max-width: 440px; margin: 0 auto;">
+                    <!-- Recipient state (default card content) -->
+                    <div class="send-head">
+                        <span class="send-title">Send money</span>
+                        <span class="send-badge">
+                            <span class="dot dot-g" style="width:6px;height:6px" aria-hidden="true"></span>Arrives in
+                            seconds
+                        </span>
+                    </div>
+
+                    <div class="send-body" id="card-inner-flow">
+
+
+                        <!-- Amount Input Box -->
+                        <div class="field">
+                            <div class="field-l">You send</div>
+                            <div class="field-row">
+                                <input class="amt-in" id="amt" type="number" inputmode="decimal" step="any" value="50" min="1"
+                                    aria-label="Amount to send" />
+                                <div class="asset" role="group" aria-label="Choose the asset">
+                                    <button id="aBtc" class="on" data-asset="btc">₿ sats</button>
+                                    <button id="aUsdt" data-asset="usdt">₮ USDT</button>
+                                </div>
+                            </div>
+                            <div class="amt-sub" id="amtSub">≈ 50.00 USD · 51,020 sats</div>
+                        </div>
+
+                        <div class="send-arrow">
+                            <span class="ln" aria-hidden="true"></span>
+                            <span class="bolt">⚡ vía Lightning</span>
+                            <span class="ln" aria-hidden="true"></span>
+                        </div>
+                        <!-- Recipient Box -->
+                        <div class="field" style="margin-bottom: 24px;">
+                            <div class="field-l">To the account</div>
+                            <div class="field-row">
+                                <span id="user-display-name"
+                                    style="font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--text); padding: 4px 0;">...</span>
+                                <span
+                                    style="font-family: var(--mono); font-size: 15px; color: var(--muted); font-weight: 500; padding: 4px 0;">@satolink.com</span>
+                            </div>
+                        </div>
+                        <!-- Fees Summary -->
+                        <div class="summary">
+                            <div class="sum-row">
+                                <span class="k">Network fee</span>
+                                <span class="v free">≈ 0 · fraction of a cent</span>
+                            </div>
+                            <div class="sum-row">
+                                <span class="k">Delivery time</span>
+                                <span class="v">⚡ seconds</span>
+                            </div>
+                            <div class="sum-row total">
+                                <span class="k">They receive</span>
+                                <span class="v" id="getTxt">50 USD in sats</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button class="btn send-cta" id="pay-btn">Send Payment →</button>
+
+                        <p class="send-foot">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" aria-hidden="true">
+                                <rect x="4" y="10" width="16" height="10" rx="2"></rect>
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                            </svg>
+                            Non-custodial · your money is only yours
+                        </p>
+
+                        <!-- Testing Settings Toggle -->
+                        <div class="test-panel">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="fail-switch" />
+                                Simulate transaction failure
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer (porting Footer.astro HTML) -->
+    <footer>
+        <div class="wrap">
+            <div class="foot-card">
+                <div class="foot-in">
+                    <div class="foot-bottom"
+                        style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding-top: 0;">
+                        <a class="lead" href="https://satolink.com" aria-label="Satolink home"
+                            style="justify-content: center; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                            <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden="true">
+                                <path d="M40 18 H88 V50 H62 V82 H12 V50 H40 Z" fill="var(--logo)"></path>
+                            </svg>
+                            <span class="word"
+                                style="font-family: var(--display); font-weight: 800; font-size: 20px; color: var(--logo); margin-bottom: 0;">satolink</span>
+                        </a>
+                        <p class="foot-note" style="margin: 0;">
+                            © 2026 Satolink · non-custodial · no KYC · peer-to-peer money, not speculation ·
+                            illustrative rates
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODALS & OVERLAYS ================= -->
+
+    <!-- Login / Wallet Connection Modal -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-box">
+            <!-- View 1: Auth Options (Default) -->
+            <div id="auth-options-view" class="auth-view active">
+                <div class="modal-title">Connect Wallet</div>
+                <div class="modal-subtitle">To send money to <strong id="modal-recipient-display">@...</strong> you need
+                    to log in or create a Satolink account.</div>
+
+                <div class="info-card">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <div>
+                        <strong>No wallet yet?</strong> Creating your Satolink wallet lets you send and receive money
+                        instantly with zero network fees.
+                    </div>
+                </div>
+
+                <button id="create-wallet-btn" class="modal-btn">
+                    Create Wallet for free
+                </button>
+
+                <button id="go-to-login-btn" class="modal-btn modal-btn-secondary" style="margin-top: 12px;">
+                    Already in Satolink · Access Wallet
+                </button>
+            </div>
+
+            <!-- View 2: Traditional Login Form -->
+            <div id="login-form-view" class="auth-view">
+                <button id="back-to-options-btn" class="back-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Back
+                </button>
+                <div class="modal-title" style="text-align: left; margin-bottom: 4px;">Log in</div>
+                <div class="modal-subtitle" style="text-align: left; margin-bottom: 20px;">Enter your details to proceed
+                    with the payment</div>
+
+                <form id="login-form" class="modal-form">
+                    <div class="modal-field">
+                        <label class="modal-label">Satolink handle/link</label>
+                        <input type="text" id="email" class="modal-input" required
+                            placeholder="username or username@satolink.com" />
+                    </div>
+                    <div class="modal-field">
+                        <label class="modal-label">Password</label>
+                        <input type="password" id="password" class="modal-input" required placeholder="••••••••" />
+                    </div>
+                    <button type="submit" id="login-btn" class="modal-btn">
+                        <span id="btn-text">Access Wallet</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal (Overlay for user verification fallback) -->
+    <div id="error-overlay" class="modal-overlay">
+        <div class="modal-box" style="text-align: center;">
+            <!-- Confused / Lock Graphic -->
+            <div
+                style="width: 72px; height: 72px; margin: 0 auto 20px; color: var(--accent); display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" style="width:100%; height:100%;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+            </div>
+
+            <div class="modal-title">User not found</div>
+            <div class="modal-subtitle">
+                The account <strong id="display-bad-user"
+                    style="font-family: var(--mono); color: var(--text); background: var(--bg-soft); padding: 3px 8px; border-radius: 6px;">@...</strong>
+                is not registered.
+            </div>
+
+            <!-- Retry Controls -->
+            <div id="retry-container" style="display: flex; flex-direction: column; gap: 14px;">
+                <div class="modal-field" style="text-align: left;">
+                    <label class="modal-label">Verify username</label>
+                    <input type="text" id="retry-handle-input" class="modal-input" placeholder="enter_correct_username"
+                        style="text-align: center; text-transform: lowercase;" />
+                </div>
+                <p style="font-size: 13px; color: var(--muted); margin: 0;">
+                    Attempts remaining: <span id="attempts-left"
+                        style="font-weight: 700; color: var(--accent);">3</span>
+                </p>
+                <button id="retry-handle-btn" class="modal-btn">
+                    <span id="retry-btn-text">Verify account</span>
+                </button>
+            </div>
+
+            <!-- Lock out (Failed verification) -->
+            <div id="failed-container" style="display: none; flex-direction: column; gap: 14px;">
+                <p
+                    style="color: var(--accent); font-weight: 600; font-size: 14px; background: var(--accent-soft); padding: 12px; border-radius: 12px; margin: 0; line-height: 1.4;">
+                    Verification limit reached. We could not verify the target user.
+                </p>
+                <a href="https://satolink.com" class="modal-btn" style="text-decoration: none;">
+                    Go to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span id="toast-icon">ℹ️</span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script is:inline>
+        // Config and State Variables
+        var SATOLINK_CONFIG = {
+            btcPrice: { live: true, value: 98000, endpoint: "https://api.coindesk.com/v1/bpi/currentprice/BTC.json" },
+            baseLang: "en",
+            autoTranslate: true
+        };
+
+        var BTC_USD = SATOLINK_CONFIG.btcPrice.value;
+        var isLoggedIn = false;
+        var retryAttempts = 3;
+
+        // Allowed mock usernames for verification
+        var ALLOWED_MOCK_USERS = ["satolink", "satoshi", "joel", "pedro", "juan", "gregorio"];
+
+        // Extract handle from Nginx placeholder or URL param
+        var targetHandle = "og-image.png";
+        if (targetHandle === "{" + "{handle}}") {
+            // Check query param fallback (e.g. ?user=joel)
+            var urlParams = new URLSearchParams(window.location.search);
+            targetHandle = urlParams.get('user') || urlParams.get('handle') || "satolink";
+        }
+        targetHandle = targetHandle.toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+        // Recipient details
+        var recipientData = {
+            handle: targetHandle,
+            fullName: "",
+            avatarUrl: ""
+        };
+
+        // Initialize Google Translate Element
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement(
+                { pageLanguage: SATOLINK_CONFIG.baseLang, autoDisplay: false },
+                "google_translate_element"
+            );
+        }
+        (function () {
+            var s = document.createElement("script");
+            s.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+            document.head.appendChild(s);
+        })();
+
+        // Set Lang cookie and reload helper
+        function setLang(lang) {
+            if (lang === SATOLINK_CONFIG.baseLang) {
+                document.cookie = "googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                location.reload();
+                return;
+            }
+            var tries = 0;
+            (function go() {
+                var combo = document.querySelector(".goog-te-combo");
+                if (combo) {
+                    combo.value = lang;
+                    combo.dispatchEvent(new Event("change"));
+                } else if (tries++ < 20) {
+                    setTimeout(go, 250);
+                }
+            })();
+        }
+
+        // Auto-detect Language
+        (function () {
+            if (SATOLINK_CONFIG.autoTranslate && !sessionStorage.getItem("langChecked")) {
+                sessionStorage.setItem("langChecked", "1");
+                var nav = (navigator.language || "en").slice(0, 2).toLowerCase();
+                var supported = ["es", "pt", "fr", "ar"];
+                if (nav !== SATOLINK_CONFIG.baseLang && supported.indexOf(nav) > -1) {
+                    setTimeout(function () {
+                        setLang(nav);
+                    }, 800);
+                }
+            }
+        })();
+
+        // Theme selection loader
+        var root = document.body,
+            mqDark = window.matchMedia("(prefers-color-scheme: dark)"),
+            manual = false;
+        var iSun = document.getElementById("iSun"),
+            iMoon = document.getElementById("iMoon");
+
+        function ico() {
+            var d = root.dataset.theme === "dark";
+            if (iSun && iMoon) {
+                iSun.style.display = d ? "block" : "none";
+                iMoon.style.display = d ? "none" : "block";
+            }
+        }
+        function auto() {
+            if (!manual) root.dataset.theme = mqDark.matches ? "dark" : "light";
+            ico();
+        }
+        mqDark.addEventListener("change", auto);
+        window.addEventListener("DOMContentLoaded", auto);
+
+        // Header Navigation Event Handlers
+        document.addEventListener("DOMContentLoaded", function () {
+            var langBtn = document.getElementById("langBtn");
+            var langMenu = document.getElementById("langMenu");
+
+            if (langBtn && langMenu) {
+                langBtn.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    langMenu.classList.toggle("open");
+                });
+
+                document.addEventListener("click", function () {
+                    langMenu.classList.remove("open");
+                });
+
+                langMenu.querySelectorAll("button").forEach(function (b) {
+                    b.addEventListener("click", function () {
+                        setLang(b.dataset.lang);
+                        langMenu.classList.remove("open");
+                    });
+                });
+            }
+
+            var themeBtn = document.getElementById("themeBtn");
+            if (themeBtn) {
+                themeBtn.addEventListener("click", function () {
+                    manual = true;
+                    var targetTheme = root.dataset.theme === "dark" ? "light" : "dark";
+                    root.dataset.theme = targetTheme;
+                    ico();
+                });
+            }
+
+            // Scrolled Navigation Styling
+            var navEl = document.getElementById("nav");
+            window.addEventListener("scroll", function () {
+                if (navEl) navEl.classList.toggle("scrolled", window.scrollY > 24);
+            }, { passive: true });
+        });
+    </script>
+
+    <!-- Main Payment Flow Javascript -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Elements
+            const mainWrapper = document.getElementById("main-content-wrapper");
+            const loginModal = document.getElementById("login-modal");
+            const loginForm = document.getElementById("login-form");
+            const emailInput = document.getElementById("email");
+            const passwordInput = document.getElementById("password");
+            const loginBtn = document.getElementById("login-btn");
+            const btnText = document.getElementById("btn-text");
+
+            const authOptionsView = document.getElementById("auth-options-view");
+            const loginFormView = document.getElementById("login-form-view");
+            const createWalletBtn = document.getElementById("create-wallet-btn");
+            const goToLoginBtn = document.getElementById("go-to-login-btn");
+            const backToOptionsBtn = document.getElementById("back-to-options-btn");
+            const modalRecipientDisplay = document.getElementById("modal-recipient-display");
+            const navAuthBtn = document.getElementById("nav-auth-btn");
+
+            const errorOverlay = document.getElementById("error-overlay");
+            const retryInput = document.getElementById("retry-handle-input");
+            const retryBtn = document.getElementById("retry-handle-btn");
+            const attemptsSpan = document.getElementById("attempts-left");
+            const retryContainer = document.getElementById("retry-container");
+            const failedContainer = document.getElementById("failed-container");
+            const displayBadUser = document.getElementById("display-bad-user");
+
+            const payBtn = document.getElementById("pay-btn");
+            const amountInput = document.getElementById("amt");
+            const amountSub = document.getElementById("amtSub");
+            const getTxt = document.getElementById("getTxt");
+            const aBtc = document.getElementById("aBtc");
+            const aUsdt = document.getElementById("aUsdt");
+            const failSwitch = document.getElementById("fail-switch");
+
+            var asset = "btc";
+
+            // Pre-fill amount and asset from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const amtParam = urlParams.get('amount') || urlParams.get('amt');
+            if (amtParam) {
+                const cleanAmt = amtParam.toString().replace(/,/g, '.');
+                if (!isNaN(parseFloat(cleanAmt))) {
+                    const parsedAmt = parseFloat(cleanAmt);
+                    if (parsedAmt > 0) {
+                        amountInput.value = parsedAmt.toFixed(2);
+                    }
+                }
+            }
+
+            const assetParam = (urlParams.get('asset') || urlParams.get('token') || "").toLowerCase();
+            if (assetParam === "btc" || assetParam === "usdt") {
+                asset = assetParam;
+                if (asset === "btc") {
+                    if (aBtc) aBtc.classList.add("on");
+                    if (aUsdt) aUsdt.classList.remove("on");
+                } else {
+                    if (aUsdt) aUsdt.classList.add("on");
+                    if (aBtc) aBtc.classList.remove("on");
+                }
+            }
+
+            // Live price check (coindesk or coingecko)
+            if (SATOLINK_CONFIG.btcPrice.live) {
+                fetch(SATOLINK_CONFIG.btcPrice.endpoint)
+                    .then(r => r.json())
+                    .then(j => {
+                        if (j && j.bpi && j.bpi.USD && j.bpi.USD.rate_float) {
+                            BTC_USD = j.bpi.USD.rate_float;
+                        }
+                        calc();
+                    })
+                    .catch(() => {
+                        // Fallback price if API fails
+                        BTC_USD = 98000;
+                        calc();
+                    });
+            }
+
+            // Calculation Sats/USDT to USD
+            function nf(n, d) {
+                return n.toLocaleString("en-US", {
+                    minimumFractionDigits: d || 0,
+                    maximumFractionDigits: d || 0,
+                });
+            }
+
+            function calc() {
+                if (!amountInput || !amountSub || !getTxt) return;
+                var rawVal = amountInput.value.toString().replace(/,/g, '.');
+                var v = parseFloat(rawVal) || 0;
+                if (asset === "btc") {
+                    var sats = Math.round((v / BTC_USD) * 1e8);
+                    amountSub.textContent = "≈ " + nf(v, 2) + " USD · " + nf(sats) + " sats";
+                    getTxt.textContent = nf(sats) + " sats (" + nf(v, 2) + " USD)";
+                } else {
+                    amountSub.textContent = "≈ " + nf(v, 2) + " USD · " + nf(v, 2) + " USDT";
+                    getTxt.textContent = nf(v, 2) + " USDT";
+                }
+            }
+
+            // Asset switch events
+            if (amountInput) amountInput.addEventListener("input", calc);
+
+            if (aBtc) {
+                aBtc.addEventListener("click", function () {
+                    asset = "btc";
+                    aBtc.classList.add("on");
+                    if (aUsdt) aUsdt.classList.remove("on");
+                    calc();
+                });
+            }
+
+            if (aUsdt) {
+                aUsdt.addEventListener("click", function () {
+                    asset = "usdt";
+                    aUsdt.classList.add("on");
+                    if (aBtc) aBtc.classList.remove("on");
+                    calc();
+                });
+            }
+
+            amountInput.addEventListener("blur", function (e) {
+                let rawVal = e.target.value.toString().replace(/,/g, '.');
+                let val = parseFloat(rawVal);
+                if (!isNaN(val)) {
+                    e.target.value = val.toFixed(2);
+                }
+            });
+
+            // Recipient validation
+            const verifyRecipient = async (handle, isRetry = false) => {
+                // Formatting handle
+                const cleanHandle = handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+                /*
+                // Real API call logic - commented out for demo
+                // API Endpoint: GET https://satolink.com/api/v1/user/public/info?user=[username]
+                try {
+                    const response = await fetch("/api/v1/user/public/info?user=" + cleanHandle);
+                    const result = await response.json();
+                    if (result?.success) { ... }
+                } catch (err) { ... }
+                */
+
+                // Mock verification check against valid usernames list
+                const exists = ALLOWED_MOCK_USERS.includes(cleanHandle);
+
+                if (exists) {
+                    recipientData.handle = cleanHandle;
+                    recipientData.fullName = cleanHandle;
+
+                    // Update UI elements
+                    const displayNameEl = document.getElementById("user-display-name");
+                    if (displayNameEl) {
+                        displayNameEl.textContent = cleanHandle;
+                    }
+
+                    if (isRetry) {
+                        // Dynamically update URL using window.history.replaceState
+                        updateUrl(cleanHandle);
+                        hideErrorModal();
+                        showToast("✅ Account found and updated successfully!");
+                    }
+                    return true;
+                } else {
+                    handleUserNotFound(cleanHandle, isRetry);
+                    return false;
+                }
+            };
+
+            const handleUserNotFound = (badHandle, isRetry) => {
+                const displayNameEl = document.getElementById("user-display-name");
+                if (displayNameEl) {
+                    displayNameEl.textContent = "Not found";
+                }
+                displayBadUser.textContent = `@${badHandle}`;
+
+                if (!isRetry) {
+                    // Reset retries and open the blocker modal
+                    retryAttempts = 3;
+                    attemptsSpan.textContent = retryAttempts;
+                    showErrorModal();
+                } else {
+                    retryAttempts--;
+                    attemptsSpan.textContent = retryAttempts;
+
+                    if (retryAttempts <= 0) {
+                        retryContainer.style.display = "none";
+                        failedContainer.style.display = "flex";
+                        showToast("⚠️ Limit of attempts reached.", "error");
+                    } else {
+                        showToast(`❌ Handle not found. Attempts left: ${retryAttempts}`, "error");
+                        // Shake input effect
+                        retryInput.style.borderColor = "var(--accent)";
+                        setTimeout(() => retryInput.style.borderColor = "var(--line)", 1000);
+                    }
+                }
+            };
+
+            const updateUrl = (newHandle) => {
+                try {
+                    const currentUrl = new URL(window.location.href);
+                    // Check search parameter structure (e.g. ?user=xxx)
+                    if (currentUrl.searchParams.has('user')) {
+                        currentUrl.searchParams.set('user', newHandle);
+                    } else if (currentUrl.searchParams.has('handle')) {
+                        currentUrl.searchParams.set('handle', newHandle);
+                    } else {
+                        // Replaces the last element in paths (e.g. /joel -> /maria)
+                        const pathParts = currentUrl.pathname.split('/').filter(Boolean);
+                        if (pathParts.length > 0) {
+                            pathParts[pathParts.length - 1] = newHandle;
+                            currentUrl.pathname = '/' + pathParts.join('/');
+                        } else {
+                            // If no path segments, set as query param
+                            currentUrl.searchParams.set('user', newHandle);
+                        }
+                    }
+                    window.history.replaceState({}, '', currentUrl);
+                } catch (e) {
+                    console.log("Error updating URL:", e);
+                }
+            };
+
+            // Error modal event listeners
+            retryBtn.addEventListener("click", () => {
+                const retryHandle = retryInput.value.trim().toLowerCase();
+                if (!retryHandle) {
+                    showToast("⚠️ Please enter a username to check", "error");
+                    return;
+                }
+                verifyRecipient(retryHandle, true);
+            });
+
+            retryInput.addEventListener("keypress", (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    retryBtn.click();
+                }
+            });
+
+            const showErrorModal = () => {
+                errorOverlay.classList.add("open");
+                mainWrapper.classList.add("blur-content");
+            };
+
+            const hideErrorModal = () => {
+                errorOverlay.classList.remove("open");
+                mainWrapper.classList.remove("blur-content");
+                retryInput.value = "";
+            };
+
+            // Show Login Flow
+            const showLoginFlow = () => {
+                if (modalRecipientDisplay) {
+                    modalRecipientDisplay.textContent = `@${recipientData.handle}`;
+                }
+                // Reset views to default (auth options screen active, form hidden)
+                if (authOptionsView) authOptionsView.classList.add("active");
+                if (loginFormView) loginFormView.classList.remove("active");
+
+                loginModal.classList.add("open");
+                mainWrapper.classList.add("blur-content");
+            };
+
+            // Switch views inside the auth modal
+            if (goToLoginBtn) {
+                goToLoginBtn.addEventListener("click", () => {
+                    if (authOptionsView) authOptionsView.classList.remove("active");
+                    if (loginFormView) loginFormView.classList.add("active");
+                });
+            }
+
+            if (backToOptionsBtn) {
+                backToOptionsBtn.addEventListener("click", () => {
+                    if (loginFormView) loginFormView.classList.remove("active");
+                    if (authOptionsView) authOptionsView.classList.add("active");
+                });
+            }
+
+            // Redirect to registration/wallet wizard with numeric tracking serial
+            if (createWalletBtn) {
+                createWalletBtn.addEventListener("click", () => {
+                    const serial = Math.floor(1000000 + Math.random() * 9000000);
+                    window.location.href = `https://app.satolink.com/login?u=${serial}`;
+                });
+            }
+
+            // Handle Login Submission
+            loginForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!email || !password) {
+                    showToast("⚠️ Email and password are required.", "error");
+                    return;
+                }
+
+                // Show spinner in button
+                btnText.innerHTML = '<span class="spinner"></span> Logging in...';
+                loginBtn.disabled = true;
+
+                // Simulated authentication delay
+                setTimeout(() => {
+                    localStorage.setItem("token", "mock_user_session_token_xyz789");
+                    isLoggedIn = true;
+                    updateNavAuthBtn();
+
+                    // Clean UI
+                    loginModal.classList.remove("open");
+                    mainWrapper.classList.remove("blur-content");
+                    btnText.textContent = "Log in";
+                    loginBtn.disabled = false;
+
+                    showToast("✅ Successful login!");
+
+                    // Verify Recipient after login
+                    verifyRecipient(recipientData.handle);
+                }, 1200);
+            });
+
+            // Send Payment Flow
+            payBtn.addEventListener("click", () => {
+                if (!isLoggedIn) {
+                    showLoginFlow();
+                    return;
+                }
+
+                const rawVal = amountInput.value.toString().replace(/,/g, '.');
+                const amount = parseFloat(rawVal);
+                if (isNaN(amount) || amount <= 0) {
+                    showToast("⚠️ Please enter a valid amount greater than 0.", "error");
+                    return;
+                }
+
+                // Set loading status
+                const originalText = payBtn.textContent;
+                payBtn.innerHTML = '<span class="spinner"></span> Sending Payment...';
+                payBtn.disabled = true;
+
+                /*
+                // Real Transfer Endpoint - Commented for demo
+                // API Endpoint: POST https://satolink.com/api/v1/stablecoin/transfer
+                try {
+                    const response = await fetch("/api/v1/stablecoin/transfer", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${localStorage.getItem("token")}`
+                        },
+                        body: JSON.stringify({
+                            receiverID: recipientData.handle,
+                            amount: amount,
+                            label: "@" + recipientData.handle
+                        })
+                    });
+                    const data = await response.json();
+                } catch(e) {}
+                */
+
+                setTimeout(() => {
+                    const failSimulated = failSwitch.checked;
+
+                    // Reset button states
+                    payBtn.textContent = originalText;
+                    payBtn.disabled = false;
+
+                    if (failSimulated) {
+                        // Failure case
+                        showToast("❌ Transaction failed: Liquidity issues on Lightning nodes.", "error");
+                    } else {
+                        // Success case: show a beautiful success card
+                        showToast("✅ Payment sent successfully!");
+                        renderSuccessState(amount);
+                    }
+                }, 1500);
+            });
+
+            const renderSuccessState = (amountSent) => {
+                const card = document.getElementById("payments-card");
+                const cleanAmount = nf(amountSent, 2);
+                const assetSymbol = asset === "btc" ? "sats" : "USDT";
+
+                var displayAmount = "";
+                if (asset === "btc") {
+                    var sats = Math.round((amountSent / BTC_USD) * 1e8);
+                    displayAmount = `${nf(sats)} sats (~$${cleanAmount} USD)`;
+                } else {
+                    displayAmount = `${cleanAmount} USDT`;
+                }
+
+                const timestamp = new Date().toLocaleString();
+
+                card.innerHTML = `
+                    <div class="success-box">
+                        <div class="success-icon">
+                            <!-- Green Checkmark SVG -->
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <h2 class="success-title">Payment Sent</h2>
+                        <p class="success-text">Your money has arrived instantly at the recipient's wallet.</p>
+
+                        <div class="success-details">
+                            <div class="success-detail-row">
+                                <span class="k">Recipient</span>
+                                <span class="v">@${recipientData.handle}</span>
+                            </div>
+                            <div class="success-detail-row">
+                                <span class="k">Amount sent</span>
+                                <span class="v">${displayAmount}</span>
+                            </div>
+                            <div class="success-detail-row">
+                                <span class="k">Network Fee</span>
+                                <span class="v" style="color: var(--green);">Free (0 sats)</span>
+                            </div>
+                            <div class="success-detail-row">
+                                <span class="k">Date & Time</span>
+                                <span class="v">${timestamp}</span>
+                            </div>
+                            <div class="success-detail-row" style="border-bottom:none;">
+                                <span class="k">Status</span>
+                                <span class="v" style="color: var(--green);">COMPLETED</span>
+                            </div>
+                        </div>
+
+                        <button id="success-done-btn" class="modal-btn">Send another payment</button>
+                        <a href="https://satolink.com" style="text-decoration:none; display:block; width:100%; margin-top:10px;">
+                            <button class="btn btn-ghost" style="width:100%; border-radius:14px; min-height:46px;">Back to Home</button>
+                        </a>
+                    </div>
+                `;
+
+                // Success button handler to reset card
+                document.getElementById("success-done-btn").addEventListener("click", () => {
+                    location.reload();
+                });
+            };
+
+            // Display standard toast
+            function showToast(message, type = "info") {
+                const toast = document.getElementById("toast");
+                const icon = document.getElementById("toast-icon");
+                const msg = document.getElementById("toast-message");
+
+                msg.textContent = message;
+
+                if (type === "error") {
+                    icon.textContent = "⚠️";
+                    toast.style.borderColor = "var(--accent)";
+                } else {
+                    icon.textContent = "ℹ️";
+                    toast.style.borderColor = "var(--line)";
+                }
+
+                toast.classList.add("show");
+                setTimeout(() => {
+                    toast.classList.remove("show");
+                }, 3500);
+            }
+
+            // Update Navigation Auth button based on login state
+            const updateNavAuthBtn = () => {
+                if (!navAuthBtn) return;
+                if (isLoggedIn) {
+                    navAuthBtn.textContent = "Logout";
+                    navAuthBtn.href = "#";
+                    navAuthBtn.className = ""; // remove btn btn-nav
+                    navAuthBtn.style.cssText = "font-family: var(--body); font-size: 14px; color: var(--muted); text-decoration: none; font-weight: 500; padding: 10px 14px; cursor: pointer; transition: color 0.2s;";
+                    navAuthBtn.onmouseover = () => navAuthBtn.style.color = "var(--text)";
+                    navAuthBtn.onmouseout = () => navAuthBtn.style.color = "var(--muted)";
+                } else {
+                    navAuthBtn.textContent = "Create account";
+                    navAuthBtn.href = "https://app.satolink.com/login";
+                    navAuthBtn.className = "btn btn-nav";
+                    navAuthBtn.style.cssText = "";
+                    navAuthBtn.onmouseover = null;
+                    navAuthBtn.onmouseout = null;
+                }
+            };
+
+            if (navAuthBtn) {
+                navAuthBtn.addEventListener("click", (e) => {
+                    if (isLoggedIn) {
+                        e.preventDefault();
+                        localStorage.removeItem("token");
+                        isLoggedIn = false;
+                        updateNavAuthBtn();
+                        showToast("ℹ️ Logged out successfully");
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                });
+            }
+
+            // Core Page Boot Execution
+            const initPage = () => {
+                calc();
+                const sessionToken = localStorage.getItem("token");
+
+                if (sessionToken) {
+                    isLoggedIn = true;
+                }
+
+                updateNavAuthBtn();
+
+                // Always verify recipient to load profile, regardless of auth status
+                verifyRecipient(recipientData.handle);
+            };
+
+            // Run boot
+            initPage();
+        });
+    </script>
+</body>
+
+</html>

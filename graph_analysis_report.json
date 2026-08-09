@@ -1,0 +1,5960 @@
+{
+  "summary": {
+    "nodes": 1744,
+    "edges": 4707,
+    "isolates": 234,
+    "communities": 47
+  },
+  "betweenness_top": [
+    {
+      "name": "Freestyle",
+      "score": 0.15822918118007492,
+      "degree": 45,
+      "subsectors": [
+        "Productivity Tools",
+        "Uncategorized"
+      ]
+    },
+    {
+      "name": "Agentice",
+      "score": 0.0749186921172229,
+      "degree": 13,
+      "subsectors": [
+        "Productivity Tools",
+        "Internal Audit Automation"
+      ]
+    },
+    {
+      "name": "Mirendil",
+      "score": 0.068482549436723,
+      "degree": 22,
+      "subsectors": [
+        "AI Model Development Platforms",
+        "General Purpose AI Models"
+      ]
+    },
+    {
+      "name": "Together AI",
+      "score": 0.05800141290335422,
+      "degree": 26,
+      "subsectors": [
+        "AI Compute & Cloud Infrastructure",
+        "AI Model Development Platforms",
+        "API Infrastructure",
+        "AI Code Generation And Repair"
+      ]
+    },
+    {
+      "name": "Fluidstack",
+      "score": 0.055121527216912686,
+      "degree": 13,
+      "subsectors": [
+        "AI Compute & Cloud Infrastructure",
+        "AI Data & Training Infrastructure",
+        "Uncategorized"
+      ]
+    },
+    {
+      "name": "Conifers",
+      "score": 0.054945726582340426,
+      "degree": 21,
+      "subsectors": [
+        "SOC & Incident Response",
+        "Threat Detection & Intelligence"
+      ]
+    },
+    {
+      "name": "Mindflow",
+      "score": 0.05442151639529128,
+      "degree": 16,
+      "subsectors": [
+        "SOC & Incident Response",
+        "AI Security And Guardrails",
+        "Productivity Tools"
+      ]
+    },
+    {
+      "name": "Twenty",
+      "score": 0.05394967015759804,
+      "degree": 4,
+      "subsectors": [
+        "Threat Detection & Intelligence",
+        "SOC & Incident Response",
+        "Military And Defense Automation"
+      ]
+    },
+    {
+      "name": "Audrey AI",
+      "score": 0.05252497330552024,
+      "degree": 8,
+      "subsectors": [
+        "Internal Audit Automation"
+      ]
+    },
+    {
+      "name": "7AI",
+      "score": 0.05017140300998642,
+      "degree": 26,
+      "subsectors": [
+        "SOC & Incident Response",
+        "Threat Detection & Intelligence"
+      ]
+    },
+    {
+      "name": "Supafax",
+      "score": 0.04427458817045497,
+      "degree": 36,
+      "subsectors": [
+        "Productivity Tools"
+      ]
+    },
+    {
+      "name": "Cortea",
+      "score": 0.03858547765549918,
+      "degree": 12,
+      "subsectors": [
+        "Internal Audit Automation",
+        "Financial Compliance Automation"
+      ]
+    },
+    {
+      "name": "CoLab",
+      "score": 0.0373541179845866,
+      "degree": 3,
+      "subsectors": [
+        "Productivity Tools",
+        "Enterprise Project Management"
+      ]
+    },
+    {
+      "name": "Freeda",
+      "score": 0.036609529000472346,
+      "degree": 4,
+      "subsectors": [
+        "Enterprise Project Management",
+        "Construction Project Intelligence"
+      ]
+    },
+    {
+      "name": "Arrakis Technologies",
+      "score": 0.03639685107873875,
+      "degree": 12,
+      "subsectors": [
+        "Field & Industrial Operations",
+        "Productivity Tools"
+      ]
+    },
+    {
+      "name": "CuspAI",
+      "score": 0.03604113172058127,
+      "degree": 9,
+      "subsectors": [
+        "AI For Material Discovery"
+      ]
+    },
+    {
+      "name": "Klassif.ai",
+      "score": 0.03457283612073653,
+      "degree": 16,
+      "subsectors": [
+        "Productivity Tools",
+        "Supply Chain & Logistics Automation"
+      ]
+    },
+    {
+      "name": "Locus",
+      "score": 0.034007734360162356,
+      "degree": 22,
+      "subsectors": [
+        "Embedded Financial Services",
+        "Payment And Fraud Solutions",
+        "API Infrastructure"
+      ]
+    },
+    {
+      "name": "Tadata",
+      "score": 0.03280615484404402,
+      "degree": 24,
+      "subsectors": [
+        "CRM & Sales",
+        "Productivity Tools",
+        "Uncategorized"
+      ]
+    },
+    {
+      "name": "Scait",
+      "score": 0.0313011146362308,
+      "degree": 3,
+      "subsectors": [
+        "Field & Industrial Operations",
+        "Enterprise Project Management"
+      ]
+    }
+  ],
+  "betweenness_all": {
+    "Mecka": 0.00042456782241902794,
+    "lemlist": 0.00047435815564884134,
+    "Anthropic": 0.000832598409132423,
+    "Noah AI": 0.0,
+    "Tandem Health": 0.000189437812097805,
+    "Midnight Labs": 0.0,
+    "Gomboc": 0.0010421309822458336,
+    "Corvic AI": 0.00011331539733641034,
+    "XDOF": 0.0,
+    "Frontier AI": 0.0001015551070782658,
+    "Zero": 0.0,
+    "Fin": 0.0,
+    "DentalMonitoring": 0.000877381923956281,
+    "Greenlyte Carbon Technologies": 0.0026281936010402115,
+    "Keith": 0.0,
+    "CyberOrigin": 0.0066584686593181685,
+    "Dealism": 0.0017001211138606203,
+    "Qualia": 0.006628370986968639,
+    "Qorelo": 7.276292771629447e-05,
+    "Robocurve": 0.0,
+    "OpenAI": 0.0002199800404477021,
+    "Spiko": 9.706604743468616e-06,
+    "Bodyguard": 0.0,
+    "Elastic": 0.0005632342478826332,
+    "NANO Corp": 0.0,
+    "Kraftblock": 0.015709172676896126,
+    "Deduction": 0.0,
+    "Delend": 0.0014050012963464995,
+    "Runlayer": 0.029227008134010992,
+    "Lakera": 0.003699591940822147,
+    "Abacum": 0.00018870883823230512,
+    "Deus Robotics": 1.670890000327152e-05,
+    "Linkup": 0.0001410445602233744,
+    "Isar Aerospace": 0.00023756937980998403,
+    "NanoCo": 0.0,
+    "MaiaSpace": 6.586951381053161e-07,
+    "Kinisi": 0.00023088492247451734,
+    "Maisa": 0.0,
+    "Zazume": 0.0,
+    "Quandela": 0.0,
+    "BLP Digital": 0.005994013207500573,
+    "Tribe AI": 0.0,
+    "Digital Mirror": 0.0,
+    "Investrio": 0.0,
+    "Dialogue AI": 0.0,
+    "Dodge AI": 0.001588968153323058,
+    "Volteum": 0.0035925844477749315,
+    "Manako": 0.0,
+    "Prelude": 0.0,
+    "Intuos": 0.0,
+    "Stairling": 0.0,
+    "Bayshore": 0.0065968379246780645,
+    "Poindexter Labs": 0.0020997887404589784,
+    "spotixx": 9.605970764035861e-08,
+    "BeatpulseLabs": 3.202167637633235e-05,
+    "Perk": 0.004212830187438523,
+    "GuardianSphere": 0.0,
+    "Tagbase": 6.586951381053161e-07,
+    "Doctolib": 0.0,
+    "Gigaton": 0.007849011265662948,
+    "Modelia": 0.0,
+    "Zapier": 0.007493730200546759,
+    "GNOMI": 0.0,
+    "Zenline": 0.0,
+    "Tadata": 0.03280615484404402,
+    "NanoTherma": 0.0,
+    "Jack & Jill": 0.0013010428743724374,
+    "Rocapine": 0.0,
+    "forward earth": 0.0,
+    "Cytix": 0.0003151098330830913,
+    "Detesia": 6.352748665282384e-05,
+    "Periphery Security": 0.0024686339593180816,
+    "Sensity AI": 0.005523282380113618,
+    "CloudFence": 9.238983472805752e-06,
+    "Dowsers": 0.0,
+    "enclaive": 0.0017981662512956554,
+    "OverSOC (OverView)": 3.848661592643916e-06,
+    "Geoforge": 0.0017534464576363516,
+    "Alice & Bob": 0.003631221622590044,
+    "1KOMMA5°": 3.019019382982699e-06,
+    "C12": 0.0024831159968724706,
+    "Emproof": 0.0,
+    "Fonoa": 0.0017531171100672988,
+    "Maneva": 0.000806354766528741,
+    "doinstruct": 0.0020404456077649626,
+    "CoolSem Technologies": 0.0,
+    "Sono": 0.0001361558228308692,
+    "Conifers": 0.054945726582340426,
+    "Donnerstag.ai": 0.008301563865329029,
+    "Batuta": 0.0,
+    "Ayari": 0.00044062024903361314,
+    "Helmet Security": 0.0028778124306277145,
+    "Elyos": 0.007455450674394231,
+    "Skyfora": 0.0,
+    "Throxy": 0.0,
+    "Edgee": 0.01662314307970731,
+    "P0 Security": 5.8442342571442595e-05,
+    "RunPod": 0.000591886756148789,
+    "FlowGen Labs": 0.0002509049823380171,
+    "Mitiga": 0.0018475755706855882,
+    "Nullify": 0.003909836845766572,
+    "Vast.ai": 0.007718260469966894,
+    "Nekuda (AgentLane)": 0.00016525854498483094,
+    "Skyfire": 2.5635874774833606e-05,
+    "Alpic": 0.0016871561192536605,
+    "Revic AI": 9.196011456653171e-05,
+    "Catena": 0.008158554094709485,
+    "Terra": 0.004179959808636182,
+    "cubic": 0.00013966658994285638,
+    "Tuskira": 3.426266222084916e-05,
+    "Lucis": 0.003502940744444071,
+    "Porters": 0.0010241289088430978,
+    "Vectra AI": 0.0008735666910451558,
+    "Flare": 0.0,
+    "Freeda": 0.036609529000472346,
+    "Factorial": 0.0024119894685312006,
+    "SquareX": 0.0016045621746430551,
+    "Nevermined": 1.0978252301755268e-07,
+    "FalkorDB": 0.000877381923956281,
+    "Bavest": 9.136702755527739e-05,
+    "Aiceberg": 0.005705252436230302,
+    "Fundamento": 0.00023508829478978738,
+    "Quideos": 0.0,
+    "revel8": 0.0,
+    "Invisix Measuring Systems": 0.0,
+    "Payman AI": 0.0,
+    "SecureIQx": 0.0006949950889158787,
+    "Yutori": 0.0003097493220038995,
+    "Qualifyze": 0.015668464255481115,
+    "Frammer AI": 0.0007522327229728262,
+    "Shifted": 0.027249363038505094,
+    "Greenboard": 0.008009021135139,
+    "Bullfinch": 0.0,
+    "Hale": 0.000877381923956281,
+    "Sponge": 0.0019289046806591306,
+    "GrowthFactor": 0.0,
+    "Heim": 0.0,
+    "Context64.ai (C64AI)": 0.0,
+    "Korbit": 0.0016930714586835657,
+    "Trajectory": 0.0007335476939632825,
+    "Ricursive Intelligence": 0.0,
+    "Robeauté": 6.586951381053161e-07,
+    "Interchecks": 0.0028181518451767884,
+    "Plenful": 0.0,
+    "Quatt": 1.0429339686667506e-06,
+    "Kaiko": 0.00029281289461150406,
+    "Dust": 0.0014524877522896153,
+    "Novellia": 0.0,
+    "Halo Privacy": 0.000877381923956281,
+    "Alkera": 0.0002712225103347734,
+    "Locus": 0.034007734360162356,
+    "QOSMIC": 0.0,
+    "Umbra Ai": 0.003417476206193579,
+    "Centrical": 0.0023913079562051867,
+    "Natural": 0.008267353978273438,
+    "LangWatch": 0.001343712944647211,
+    "PhysicsX": 0.004523936225631599,
+    "Straia": 2.6347805524212646e-06,
+    "Benchling": 0.0,
+    "herocon.ai": 0.0,
+    "Tartan App": 0.0,
+    "Apoha": 0.00300688318135127,
+    "Qualio": 0.0,
+    "JOOC": 0.02860111025101837,
+    "Xaira Therapeutics": 0.020099641743903766,
+    "Airweave": 0.004815084577189736,
+    "Coval": 0.0,
+    "InOrbit": 0.0032080904498062337,
+    "Cradle": 0.0003391602215497283,
+    "Swan": 0.0006138164063262395,
+    "Vocca": 6.489545530571032e-05,
+    "Triomics": 0.0,
+    "Cleavr": 0.0,
+    "Fenergo": 6.791491429403419e-05,
+    "Well": 0.0,
+    "Outpost": 0.0,
+    "mdhub": 0.0,
+    "Viewz": 0.006445693254784514,
+    "InferaHealth": 0.0,
+    "Aqemia": 0.006846560752373398,
+    "Town": 8.51521681364299e-06,
+    "Corgi": 0.0008776014890023163,
+    "Blaise Technologies": 0.0005758890937228264,
+    "Ledger": 0.0,
+    "Airalo": 0.0,
+    "Saveria": 0.0,
+    "Jimini.ai": 0.005544113162429532,
+    "Alea Health": 3.952170828631897e-06,
+    "Strada": 0.0005168322429097237,
+    "WithCoverage": 1.3173902762106323e-06,
+    "Farmless": 2.3054329833686066e-06,
+    "Finovox": 0.00139733744756573,
+    "Wassist": 0.002557995756893371,
+    "Companion.energy": 0.02169548226216926,
+    "K-Dense": 0.0,
+    "Meilisearch": 0.00038826692946634613,
+    "Ekili": 0.0,
+    "Evertrace": 0.0,
+    "Fini": 0.0,
+    "Gail": 0.001183706660303883,
+    "Pace": 0.001228117047445069,
+    "Comulate": 0.0,
+    "Coverflow": 0.00010279181469436965,
+    "Sahar": 0.0022471399709122885,
+    "Konvo AI": 0.00780417599286537,
+    "Intric": 0.0006205943776904274,
+    "Korl": 0.0004861232925202753,
+    "Hydryx": 0.0,
+    "Cedar": 0.003206841066809725,
+    "New Dawn Bio": 0.0,
+    "Magie": 0.00045660785493644004,
+    "Dialog": 0.0011513719786671118,
+    "Leni": 0.0,
+    "Makora": 5.70869119691274e-07,
+    "asap.work": 0.0,
+    "LevelPlane": 0.000910314076131355,
+    "Klassif.ai": 0.03457283612073653,
+    "Baobab Risk Solutions": 0.005570411714263534,
+    "Hummink": 0.0,
+    "ENAPI": 0.0,
+    "Pylon": 3.105277079639347e-06,
+    "PointFive": 0.0,
+    "Tilla": 0.0,
+    "Marketeam.ai": 0.0014407630998555451,
+    "Trippz": 0.0,
+    "Neurometric": 0.0001296982101911284,
+    "Neko Health": 0.0,
+    "Definic": 0.00011715799514881008,
+    "METYCLE": 0.0,
+    "Reebelo": 0.0,
+    "EliseAI": 0.0,
+    "Meshed Cover": 0.0,
+    "Bitstack": 0.0,
+    "Delair": 5.7635824584215165e-06,
+    "Supabase": 0.0,
+    "AssemblyAI": 8.890957765245687e-05,
+    "EDGE Boost": 0.000877381923956281,
+    "Ovom Care": 2.6347805524212646e-06,
+    "PhantomBuster": 0.0,
+    "Mind Lab": 0.0,
+    "Greptile": 0.001219927198410117,
+    "Filigran": 2.1407591988422776e-06,
+    "Linexa": 0.0,
+    "MyelinZ": 0.0,
+    "Infinite Orbits": 0.0,
+    "OurMind": 0.0010363791994237497,
+    "Orthogonal": 0.028419707989072424,
+    "Amplemarket": 0.021172298870570157,
+    "Hamming AI": 0.0012951571978297878,
+    "Lemrock": 0.0,
+    "ProcurePro": 1.3173902762106323e-06,
+    "Waypoint": 0.0,
+    "Kpler": 6.586951381053161e-07,
+    "Glimpse": 0.0,
+    "ML6": 0.00039549988703616436,
+    "ResQoos": 0.0,
+    "Armory": 4.764561498961787e-06,
+    "Shama AI": 0.002704311912356878,
+    "Utexo": 0.0,
+    "Nimblemind": 1.8567000150512388e-05,
+    "Matr": 0.00037256886930174863,
+    "NationGraph": 0.0,
+    "Nolana": 0.0035025455273612082,
+    "Buildots": 0.0,
+    "Acumino": 0.006212126191086796,
+    "Slary": 0.0006578843157567434,
+    "Assyro": 1.9760854143159486e-06,
+    "Attio": 0.00018755187922920032,
+    "Taxnova": 0.0,
+    "Fyxer": 0.007313806027886825,
+    "Helio.AI": 6.586951381053161e-07,
+    "Apheris": 0.011391351285304116,
+    "OBORTECH": 0.0,
+    "SOUS": 0.0,
+    "BlpDigital": 0.0,
+    "OllyGarden": 0.0,
+    "Tally": 0.0,
+    "Ekiden": 0.0034205249072760957,
+    "Octen": 0.0022455391744862236,
+    "Outcome": 0.0,
+    "PandasAI": 0.0,
+    "Pheiron": 4.6806562849412286e-05,
+    "QA.tech": 0.0,
+    "Product Genius": 0.0,
+    "Quidkey": 0.0015066806766655207,
+    "NoticeIA": 0.0,
+    "WindBorne Systems": 0.0,
+    "SlogK": 0.0,
+    "Eunice.ai": 0.0035509979939045895,
+    "Cellbyte": 3.2934756905265805e-06,
+    "Sumbios": 0.00035803953572738226,
+    "Raily": 0.0,
+    "Replify": 0.0,
+    "Relief": 9.057058148948096e-06,
+    "Harmattan AI": 0.021561319387651334,
+    "Healf": 0.0,
+    "Fuse Energy": 0.0,
+    "Apron": 0.0018962469302294868,
+    "Yaspa": 0.0017534464576363516,
+    "MedForceAI": 0.0,
+    "Piing.ai": 0.0,
+    "ResiQuant": 0.0017541051527744569,
+    "Solar Foods": 2.9641281214739225e-06,
+    "Omnii": 0.0,
+    "Lawhive": 0.0,
+    "Altrove": 0.0,
+    "Arden": 0.004539943029462776,
+    "Avanoo": 0.0003480214756844979,
+    "Rubric AI": 0.0,
+    "All Ears": 0.0,
+    "Arize AI": 0.005291655323602827,
+    "CommerceClarity": 0.0,
+    "Silveray": 0.0,
+    "Alan": 0.006782179149082181,
+    "Tremau": 0.0,
+    "wilo": 0.0,
+    "Capi Money": 0.0017541051527744569,
+    "Omnea": 0.003080435954460288,
+    "Audrey AI": 0.05252497330552024,
+    "DataBahn": 0.0009399212495354504,
+    "Codag": 0.00017335783417675104,
+    "Cargofy": 0.00026728065606558104,
+    "Petrarch": 1.8567000150512388e-05,
+    "Kling AI": 0.0010464235581674718,
+    "Kota": 0.007267615436245974,
+    "Round": 0.001136971003374582,
+    "Huzzle": 0.0,
+    "AICE": 0.000351336769952437,
+    "Merge": 0.008198402412961565,
+    "Salespeak": 0.0,
+    "Satlyt": 0.020693566458716613,
+    "Adya": 0.00822884767690536,
+    "NPCO": 0.000877381923956281,
+    "Genmo": 0.0,
+    "Nuclera": 0.0,
+    "Flowdesk": 0.0011054032707333932,
+    "Descartes Underwriting": 0.0,
+    "Motorica": 0.0,
+    "Foaster": 4.131116341150509e-05,
+    "Sei": 0.0006366660195915605,
+    "Context.dev": 0.0005386749740826346,
+    "AG2": 0.028711267784696296,
+    ".TXT": 0.00012267804866772153,
+    "Swayable": 0.0,
+    "ShopVision": 0.0,
+    "Scan.com": 0.0,
+    "Qontrol": 0.000877381923956281,
+    "Qonto": 0.0,
+    "Smart Bricks": 0.01300067142862534,
+    "Fluidstack": 0.055121527216912686,
+    "Armature": 0.0,
+    "Smooth": 0.0006329806125285172,
+    "Dorobo": 0.0,
+    "River Markets": 0.000877381923956281,
+    "Latitude": 0.0,
+    "Pennylane": 0.00426611613327615,
+    "Magic": 0.0,
+    "Curvestone AI": 0.0009548810663718048,
+    "Sightline Climate": 0.0,
+    "Dovetail": 0.0,
+    "Macrodata Labs": 0.0,
+    "Delfa": 0.0,
+    "charles": 0.0018851237459479116,
+    "Yonder": 0.0005135122015507827,
+    "Syntetica": 1.9760854143159486e-06,
+    "Doctronic": 0.0035016233541678606,
+    "Eleos Health": 0.0,
+    "PocDoc": 0.0,
+    "Bioptimus": 0.0,
+    "Chip": 3.80961250982838e-05,
+    "Selling at Scale": 1.5761633661805778e-06,
+    "Spitze.AI": 9.880427071579743e-07,
+    "Lucas": 0.0,
+    "Finexer": 0.0034586035359023427,
+    "Hello Patient": 0.0009556590572387399,
+    "Phlo Digital Pharmacy": 0.0,
+    "Klared": 0.0,
+    "Stardust": 0.0,
+    "Dattak": 0.00017353923807386236,
+    "Tomo": 5.928256242947845e-06,
+    "Zo": 0.0,
+    "Homaio": 0.0,
+    "Shinka": 0.000877381923956281,
+    "byoRNA": 0.0,
+    "Konvu": 0.0009025627070452124,
+    "Coadjute": 0.0012369431290879236,
+    "JUPUS": 0.0,
+    "Superframe": 0.0,
+    "Salient": 0.0011723035355107353,
+    "Subconscious": 0.00038203219225449854,
+    "Zama": 0.0,
+    "Glimmer": 0.0004329276395088876,
+    "Mimica": 0.0,
+    "SuperDial": 0.017799558714418153,
+    "Tessel": 0.002135459228678925,
+    "wamo": 0.0,
+    "Towergy": 0.0,
+    "Trade Republic": 0.0025067650234353402,
+    "Genesis": 0.000374249933448308,
+    "Ahron": 0.0,
+    "Mendo": 0.0006698135230634915,
+    "FlexAI": 0.001688907061067787,
+    "FortoLabs": 0.014719971811578548,
+    "Ash (Slingshot AI)": 3.2934756905265805e-06,
+    "Theremia": 0.0017534464576363516,
+    "BoostSecurity": 0.0,
+    "New Lantern": 0.0,
+    "Flagright": 0.004111665846031745,
+    "Thesis Care": 0.004044744752412113,
+    "ActInside": 0.0011026443542131311,
+    "SolarDew": 0.0,
+    "Ozly": 0.00013476824109547448,
+    "Alden": 0.0,
+    "Roon": 0.0,
+    "Subtle Medical": 0.002897129981294266,
+    "Tofu": 0.0002286826828967846,
+    "Zep": 0.0014421108356749035,
+    "Treater": 0.0,
+    "Tangany": 0.0,
+    "Veris AI": 0.0036912117414638333,
+    "Swap": 6.586951381053161e-07,
+    "SuppCo": 0.0,
+    "Commure": 0.009870570126363918,
+    "Picogrid": 0.024928141849558858,
+    "Visceral": 0.0,
+    "Forage": 0.0,
+    "Trustap": 0.0,
+    "Almure": 0.001022397358935517,
+    "Bought": 0.0,
+    "Figr": 0.0,
+    "Stilla": 0.01624643722432022,
+    "AKASA": 8.716732327593685e-06,
+    "Vocci": 0.0,
+    "Dalma": 0.0,
+    "Podero": 3.2824974382248256e-05,
+    "Superlog": 0.0035066843284789705,
+    "Mobioos": 0.0005796726626494755,
+    "Poppins": 0.0,
+    "Gobano Robotics": 0.002707234331717879,
+    "Aaru": 0.0,
+    "Qwen": 0.001485983424596542,
+    "Together AI": 0.05800141290335422,
+    "Catalog": 0.0031496291241838227,
+    "Black Forest Labs": 0.000263681072555413,
+    "Periodic Labs": 0.0,
+    "Sardine": 0.02018429689191949,
+    "Phantomic AI": 0.0020304184547926952,
+    "Vertoro": 0.0,
+    "Arsen": 0.0016606903041397885,
+    "Probably": 0.0,
+    "LunaLift": 0.0,
+    "Space Forge": 0.008712560591719017,
+    "Rally": 0.0,
+    "Mitiga Solutions": 0.0,
+    "Lassie": 0.0027435746673939083,
+    "Canals": 0.0012192015907180884,
+    "Zocket": 0.0,
+    "Arctic Health": 0.01832726587280582,
+    "Probabl (Skore)": 0.0,
+    "Rosebud AI": 0.0,
+    "Xplora": 0.0,
+    "Model ML": 0.0030697553050842382,
+    "Warren": 0.0004439660122091341,
+    "Palma.ai": 0.00023357923470416342,
+    "Zingroll": 0.0,
+    "Geordie AI": 0.0006902255232728728,
+    "Willow": 0.004543993740263072,
+    "XSpan": 0.003483179890300912,
+    "Enera": 0.000877381923956281,
+    "Limbic": 0.0,
+    "Macadam": 0.0,
+    "Maven AGI": 0.0024783245993310376,
+    "Contrario": 2.0309766758247245e-06,
+    "WNSTN": 0.0,
+    "VUGENE": 0.0,
+    "Applied Atomics": 0.002045860586067349,
+    "Ongo": 0.0,
+    "VARM": 0.0,
+    "LinqAlpha": 0.0011156797976093209,
+    "VhAT": 0.0035016233541678606,
+    "OASYS NOW": 0.0008777112715253338,
+    "Tangy Market": 0.0,
+    "Coram AI": 0.0,
+    "Pigment": 0.0,
+    "Spendbase": 0.0,
+    "Morpho": 0.0,
+    "Turnout": 0.0,
+    "Capsa AI": 0.0035292122791515776,
+    "Tolmo": 0.0004051312026387573,
+    "DatumLocus": 0.0,
+    "SSenStone": 0.0,
+    "H Company": 4.284271187666813e-05,
+    "Arcads": 0.0002558204102503993,
+    "Epoch Biodesign": 0.0,
+    "The Prompting Company": 0.0,
+    "SolvaPay": 0.0,
+    "mAI Edge": 0.0,
+    "Variant": 0.0006267164685577162,
+    "Soource": 0.0013854157067518225,
+    "Silmaril Technologies": 0.0,
+    "EthicHub": 0.0,
+    "Unastella": 0.0,
+    "Clay": 0.00023698326707805975,
+    "Pensero": 0.0,
+    "Convey": 0.01915777467227337,
+    "Paynest": 0.003475084605006729,
+    "Kamaé": 0.003971143774894317,
+    "Goldfish": 0.0,
+    "Atoms": 0.00014507760416769598,
+    "Omio": 0.0,
+    "HarfangLab": 0.0014688950052748092,
+    "Dalatea": 4.8846006269269933e-05,
+    "Wispr Flow": 0.0,
+    "Naboo": 0.0,
+    "happyhotel": 0.0,
+    "Qwarks": 0.0,
+    "Linc": 0.001945532439148696,
+    "Ollie": 0.0017534464576363512,
+    "AlpSemi": 0.000877381923956281,
+    "Bionyra Pharma": 1.3173902762106323e-06,
+    "Ainwater": 0.006982168463916351,
+    "Maxed": 0.0,
+    "Yazen": 0.0,
+    "Roger": 0.0017534464576363516,
+    "Proxima Fusion": 0.0,
+    "Gladia": 0.004734400576043691,
+    "Saltfoss Energy": 0.0,
+    "Concord": 6.586951381053161e-07,
+    "Didit": 0.0,
+    "Satolink": 0.002629510991316422,
+    "Manicule": 0.0026849179757229753,
+    "Cense": 0.001568702150234115,
+    "Capch": 0.0,
+    "ICEYE": 1.9760854143159486e-06,
+    "Flease": 0.0,
+    "Cajal Technologies": 0.0,
+    "Traversal": 0.00022095169564088964,
+    "NexDash": 0.0035016233541678606,
+    "NewCore": 0.0007272339952162052,
+    "Isometric": 0.0,
+    "Odyssey": 0.00037578557628908287,
+    "OpenMind": 0.00014414169810562705,
+    "PrunaAI": 9.467764347681285e-05,
+    "ai-coustics": 0.0,
+    "Solafune": 0.0,
+    "Formulary Financial": 0.0,
+    "Simile": 0.0,
+    "Brain Co.": 0.0,
+    "Festina Finance": 0.008874499357190513,
+    "Tokura": 2.0668983728042994e-05,
+    "Guild.ai": 0.0002118849505785958,
+    "Arqh": 0.0012182467252213173,
+    "Sereact": 0.0020292349892117477,
+    "Comand AI": 0.004555463090521811,
+    "State Affairs": 0.00032745519340351655,
+    "2501.ai": 2.0818683915968806e-05,
+    "Smash Fit": 0.0,
+    "Asilla": 0.0,
+    "GALVANY Energy GmbH": 8.782601841404214e-07,
+    "Seqana": 0.0,
+    "BforeAI": 0.0,
+    "Alta Ares": 0.0028339621136583104,
+    "Plakar": 0.0,
+    "QunaSys": 1.351622462933379e-05,
+    "Glydways": 0.0,
+    "Jedify": 6.656263948929167e-05,
+    "Agenta": 0.003555332605908741,
+    "Orbio AI": 0.00020962267025410693,
+    "Monument Technology": 0.0,
+    "AgentPhone": 0.0,
+    "Axiom Math": 0.0,
+    "Baseten": 0.0016799368468166805,
+    "ETHIQAIS": 0.0037103598517598587,
+    "Aquila Systems Corporation": 3.679348189585299e-05,
+    "Cernel": 0.0017534464576363516,
+    "CopilotKit": 0.0008438820648274523,
+    "Corelayer": 0.02305289528440347,
+    "Eclipse": 0.0256659148177614,
+    "Aavuus": 0.0,
+    "Dome Systems": 8.81084635010833e-05,
+    "Flumes": 0.001218400823285878,
+    "VirtualMetric": 0.0,
+    "Realta Fusion": 0.0,
+    "Rose": 0.0,
+    "Kessaku": 0.0,
+    "Galtea": 3.033100828579934e-05,
+    "Eraser": 0.0,
+    "InsForge": 0.003946444510698329,
+    "01Health": 0.0,
+    "Cybenta": 0.0006085522613501012,
+    "Paper Clue": 0.0,
+    "Reonic": 0.000877381923956281,
+    "Tisura": 0.0008760645336800705,
+    "Frontier Health (Juno)": 0.0,
+    "Higgsfield AI": 0.01162253947433122,
+    "Science Corporation": 0.0,
+    "EverDye": 0.0,
+    "Accordance": 0.017788186457155672,
+    "Gradient Labs": 0.005954945218666855,
+    "HoudiniBio": 0.0,
+    "Dreamdata": 0.0,
+    "Waiv": 0.004436670225350397,
+    "Entalpic": 0.002628742513655299,
+    "Legora": 0.0006027382762801778,
+    "Underdog": 0.0,
+    "Finary": 0.0024228662809583053,
+    "Nijta": 0.0,
+    "POWER.xyz": 0.000912274149793398,
+    "GitGuardian": 0.0,
+    "Polaron": 0.0,
+    "Inato": 0.006982168463916351,
+    "Naftiko": 0.005300158876047956,
+    "Flowscope": 0.01589527625119044,
+    "ZML": 0.004093258505922777,
+    "Mem0": 0.0020604293191392696,
+    "Nourished": 6.586951381053161e-07,
+    "Parkeo": 0.0,
+    "Cortea": 0.03858547765549918,
+    "Novelgen": 0.0,
+    "Translucent": 0.008107480745423935,
+    "Sola": 0.0,
+    "11x AI": 0.004732999603446126,
+    "Jimmy Energy": 0.0077792702769091445,
+    "Human-Mob": 1.9760854143159486e-06,
+    "Bounti.ai": 0.02044353516332606,
+    "Clarifeye": 1.1147916200964212e-05,
+    "Terra AI": 0.0,
+    "Tallano Technologies": 0.0,
+    "Gataca": 0.005776873622125497,
+    "Dataiku": 0.005590867355962933,
+    "kelvin°": 0.0,
+    "Protai": 0.0,
+    "Rainbow Crops": 0.0,
+    "Durin": 0.0,
+    "SYNRA Inc.": 0.0,
+    "TextCortex": 0.006737602291852364,
+    "Terray Therapeutics": 8.56303679536911e-06,
+    "Raindrop": 0.008423830062466857,
+    "Adomate": 0.001574282636708557,
+    "Limitless Labs": 0.0,
+    "CodeWords": 0.00908039801013119,
+    "Cosmian": 8.687777386759539e-05,
+    "Upvest": 0.0,
+    "Stoïk": 0.0008383943797761286,
+    "Cariqa": 0.0,
+    "AI Verse": 0.0,
+    "Kerys Software": 0.0010817942070918548,
+    "Moonwatt": 0.019512207559857102,
+    "Earth AI": 0.0,
+    "Iabako": 0.0,
+    "Edison Scientific": 0.0017939048360870312,
+    "カウシェ (Kauche)": 0.0,
+    "haddock": 0.0,
+    "KoBold Metals": 0.02966957364968854,
+    "Parallel Bio": 0.0,
+    "Yona Robotics": 0.0,
+    "Giga": 0.017937763789832476,
+    "DaltonTx": 4.42958558375198e-05,
+    "WaniWani": 0.0,
+    "Phylo": 0.0,
+    "Amboras": 0.0,
+    "Salt AI": 9.880427071579743e-07,
+    "Flaunt": 2.6347805524212646e-06,
+    "Mindflow": 0.05442151639529128,
+    "Tinct": 0.0017830240999291307,
+    "Fleet (fleet.ai)": 0.0054472954574553934,
+    "VerAI Discoveries": 0.0,
+    "Sandstone": 3.622823259579239e-06,
+    "Datarock": 0.0,
+    "Embat": 0.0002513162309062328,
+    "CultuLink": 0.0,
+    "Day AI": 0.007207490070880849,
+    "Tamarind Bio": 0.0,
+    "CellType": 4.385153803147247e-05,
+    "Parloa": 0.001612730059481084,
+    "Atlar": 0.010420737297233479,
+    "Helical": 0.00016217833644719694,
+    "Stratum AI": 0.0,
+    "Thomas": 0.0,
+    "Nosis Bio": 0.0,
+    "Manas AI": 0.006573806112670144,
+    "Cogent Security": 0.0006398956320778029,
+    "Remedy Skin": 0.0,
+    "Vivodyne": 0.0,
+    "Endra": 0.0,
+    "Causa Prima": 0.002887587539928887,
+    "OWLO": 0.0,
+    "Cavroc": 0.0,
+    "Playabl": 0.0,
+    "Murphy": 0.001385690842287115,
+    "Lesto": 0.0,
+    "Tilt Energy": 0.027924707213492102,
+    "Orus Energy": 5.8502161501661575e-05,
+    "Rayon": 0.0,
+    "CORE": 1.7335836625789618e-05,
+    "Zelara": 0.000877381923956281,
+    "DEScycle": 1.3173902762106323e-06,
+    "Neotis": 0.0,
+    "Spore.Bio": 0.0,
+    "Quivr": 0.001505676927576596,
+    "Plume": 0.000877381923956281,
+    "Karavela": 0.0,
+    "Banxware": 0.0,
+    "Slite": 0.0012044974822513436,
+    "Qevlar AI": 0.0005762429079986297,
+    "Allude": 0.000552429025979617,
+    "Enzai": 0.0,
+    "baCta": 0.0,
+    "VirtualBrowser": 0.0018142440188834714,
+    "HermineIA": 0.0,
+    "Okthx": 0.0,
+    "Tomorrow.io": 1.9760854143159486e-06,
+    "Eskimoz": 0.0,
+    "Verso": 1.3173902762106323e-06,
+    "Arkion": 0.0,
+    "Wilgo": 0.0,
+    "Gr3n": 0.0,
+    "Wordsmith": 0.0010984320028432663,
+    "Ingenix": 8.233689226316451e-07,
+    "Contraline": 0.0,
+    "GetMint": 0.0014021365895265983,
+    "Kahoona": 0.0,
+    "60fps": 0.0,
+    "IMU Biosciences": 0.0035812692456783438,
+    "Partiful": 0.0,
+    "Annette": 0.0,
+    "Fresha": 8.087508569179376e-05,
+    "Galvanick": 4.8304310127723185e-06,
+    "Virgil": 0.0,
+    "Qred Bank": 0.0,
+    "Cure51": 0.004245530357700651,
+    "Klarna": 0.00018561192553537197,
+    "Ornadyne": 0.0,
+    "Cignara": 0.002332001366886456,
+    "Rembrandt": 0.0,
+    "Juno": 0.023542914550057675,
+    "Maki People": 0.0036984838061211974,
+    "Omi": 3.489222583711669e-05,
+    "Monumental": 0.0,
+    "Corma": 0.015544134638923401,
+    "Framewise Health": 0.0019762614759819865,
+    "Semble": 0.0016284117298710945,
+    "SpaceX": 0.0,
+    "Panacea": 0.0,
+    "Hogo Business Services": 0.0,
+    "Alma": 0.00658413692514535,
+    "Nabla": 0.0007509532106504749,
+    "PanicSafe": 2.1956504603510536e-07,
+    "Airis": 1.1944338504309735e-05,
+    "Mister IA": 0.0,
+    "Parahelp": 0.0016301322270392553,
+    "KugelAudio": 0.0,
+    "TrueFan AI": 0.00021036585715437844,
+    "Mobilerun": 0.0,
+    "Prilow": 0.0,
+    "Flinn": 0.0,
+    "Cambrium": 2.821410841551104e-05,
+    "Klaimee": 0.0,
+    "Modern": 0.0,
+    "Vara AI": 0.0,
+    "Graph Therapeutics": 0.001096083363067709,
+    "Mochatrade": 0.0,
+    "Augur": 0.0017537758052054043,
+    "Hey Pongo": 0.0,
+    "Gravy": 0.0,
+    "Plena Health": 0.004557553890715539,
+    "Ocean": 0.001154965326674168,
+    "Stacksync": 0.0,
+    "AquaShield": 0.0,
+    "Astraea": 2.6347805524212646e-06,
+    "Asendia AI": 1.3722815377194084e-06,
+    "Eden Robotics": 0.0009660477786714076,
+    "DFNS": 0.00260162296902168,
+    "Foresight": 0.03099229639898243,
+    "LightTable": 0.005970158184187241,
+    "Aseon Labs": 0.0,
+    "NewLimit": 0.0008773819239562809,
+    "tday": 0.0,
+    "ZOE": 0.000877381923956281,
+    "AbInitio Bio": 0.02797656438947,
+    "Veyro.ai": 0.0004981079572177793,
+    "Cocoon": 0.0,
+    "Kela Technologies": 0.026878655697193707,
+    "Novella": 0.0,
+    "VoltSeal": 0.003185468386260541,
+    "Xpanner": 2.2316719488720414e-05,
+    "Renasens": 1.9760854143159486e-06,
+    "Impulse Space": 0.01988073665829465,
+    "Actionable": 0.0,
+    "Decart": 0.0,
+    "August Robotics": 0.0002799519095115539,
+    "The Exploration Company": 0.000877381923956281,
+    "Lyrie.ai": 9.750888984337081e-05,
+    "RadleyCare": 0.0,
+    "Nansen": 6.862583929915085e-05,
+    "Enjamb": 0.0,
+    "Saudara": 0.0,
+    "Edmund": 0.000877381923956281,
+    "DataMasque": 0.0001377723208327626,
+    "Cleo Labs": 0.0026281936010402115,
+    "Phytolon": 0.0,
+    "Equal AI": 0.0017534464576363516,
+    "Davis AI": 0.0,
+    "Moonfare": 0.00013188041234190201,
+    "Wayco AI": 0.0,
+    "myenergi": 0.0,
+    "Axelera AI": 0.0016814350358587125,
+    "Complir": 0.0005204789416262236,
+    "Hades": 0.000877381923956281,
+    "Synthesia": 0.002641407248712394,
+    "Zanskar": 0.0,
+    "Tines": 0.0036191485076908884,
+    "Herd Security": 0.0,
+    "Contimo": 0.0017534464576363516,
+    "Origami Robotics": 0.0,
+    "Hackuity": 3.2934756905265807e-07,
+    "Yuka": 0.0,
+    "Brightside AI": 0.006022934076861821,
+    "Sekoia.io": 9.618844726995471e-05,
+    "Upwind": 0.0007524701070954888,
+    "Opal": 0.0015396185479866216,
+    "Tenable": 0.0003224174403561461,
+    "Nuclearn": 0.0,
+    "Ramify": 0.0021176950670421316,
+    "BeeSafe AI": 0.0026154598707186596,
+    "Conduct AI": 0.004388040161013567,
+    "Copperlane": 0.0005092919998468342,
+    "Agency": 0.0008785017056910603,
+    "Phagos": 0.0,
+    "Brumby": 0.0,
+    "Innovorder": 0.0,
+    "Welcome to the Jungle": 0.0,
+    "Abound": 0.0,
+    "Anyfin": 0.0,
+    "Alight": 0.01837978278411472,
+    "EchoVision": 0.0,
+    "Acast": 0.0,
+    "Kreditz": 0.0064908273090883255,
+    "Steady Energy": 0.0,
+    "Tendium": 0.0,
+    "Matera": 0.0,
+    "Rejoni": 0.0,
+    "Alva Labs": 0.0004110634058998911,
+    "Knok": 0.0,
+    "Fed10": 0.004373735717019299,
+    "Chift": 0.00746972445338197,
+    "Aalo Atomics": 7.318834867836845e-08,
+    "Aikido Security": 0.0007925725309465355,
+    "Twikey": 0.0,
+    "Abby Care": 0.0,
+    "Semgrep": 0.001049339245278024,
+    "wehave": 0.0,
+    "CybelAngel": 0.0,
+    "OOrion": 1.3173902762106323e-06,
+    "Pasqal": 0.00043726378917891234,
+    "Avea Robotics": 0.0,
+    "Allie Systems": 0.0047188911276473565,
+    "NYXIUM": 0.030328125857541615,
+    "Armadin": 0.000576276728487162,
+    "Emerald AI": 0.0005646846195921037,
+    "CollegeVine": 0.0,
+    "Nymiz": 0.0012613826816071745,
+    "Lorica.ai": 0.0016827128679855544,
+    "Multiverse Computing": 0.0,
+    "Moment Energy": 5.5586269327572105e-05,
+    "DroneDeploy": 0.000524302905455098,
+    "Birdi": 0.0,
+    "Saporo": 0.0,
+    "Claroty": 0.005569100539316236,
+    "TerraFirma": 0.0013027442452197215,
+    "Watney": 0.0,
+    "GridAstra": 0.0,
+    "Cyera": 0.0008707839661466063,
+    "Chainguard": 0.0,
+    "Anya by AnySoft": 0.0006941508891666154,
+    "Ona Therapeutics": 0.0,
+    "SimpleHash": 0.0003212405930956038,
+    "Rubie": 0.0,
+    "Tessera Labs": 0.002278026640908328,
+    "Plato": 0.0,
+    "Whisper Security": 0.0,
+    "Argil": 0.0001808776107864129,
+    "Hupso": 1.81241412565807e-05,
+    "Nolej": 0.0,
+    "Docshield": 0.0,
+    "GetWhys": 0.0,
+    "Verda": 0.0,
+    "Dropzone AI": 0.014959511218768401,
+    "Prophet Security": 0.017952931325393554,
+    "Torq": 0.00019040104208746379,
+    "Tomorro": 0.0,
+    "Synquery": 0.0,
+    "HeyHelp": 0.00014868302856852869,
+    "AFFiNE": 2.4910652495619227e-06,
+    "Aleno": 0.0003167037822272675,
+    "Koah": 0.0,
+    "BotRank.ai": 0.0019390171398534206,
+    "Boonty": 0.000877381923956281,
+    "Clira": 0.0,
+    "Diabeloop": 0.0,
+    "AI-Stroke": 0.0,
+    "Formel AI": 0.0025652123087362907,
+    "Vooma": 0.001119166183300068,
+    "Kikleo": 0.0,
+    "Dataships": 0.00016525854498483094,
+    "avi medical": 0.0,
+    "Skio": 0.0,
+    "Intelligems": 0.0,
+    "ClipHow": 0.0,
+    "Cofactr": 3.2934756905265805e-06,
+    "Rote": 0.0,
+    "FYYYRE": 0.002209446072004512,
+    "OpusClip": 5.269561104842529e-06,
+    "Tavus": 4.436073406828778e-05,
+    "Sampl": 0.0,
+    "Tumbleweed": 0.0,
+    "Builder.io": 0.0,
+    "Pinata": 0.0008806013445484048,
+    "Granola": 2.881025519176266e-06,
+    "Kyber": 1.5969014054187297e-05,
+    "Cogna": 0.006825525685129829,
+    "Fireworks AI": 0.028221815242096826,
+    "Paraform": 0.0,
+    "Profound": 0.006836788453063882,
+    "Phantom": 0.000877381923956281,
+    "Rutter": 0.00407283868955367,
+    "Sonomind": 0.0,
+    "Axe": 0.0009778186366613227,
+    "Kunik": 0.0,
+    "Ravical": 0.00877411914604234,
+    "Piñata": 0.0,
+    "Stilta": 0.0,
+    "Tekst": 0.0,
+    "Martini": 0.000877381923956281,
+    "Crescent": 6.0350955014908365e-05,
+    "Blackwall": 0.000877381923956281,
+    "Spike": 0.0,
+    "Distyl": 0.0013700997888669898,
+    "Arkimedes": 0.00013988410666808686,
+    "Freestyle": 0.15822918118007492,
+    "Viktor": 8.57654849050973e-06,
+    "telli": 8.887394249739152e-07,
+    "Airspeed": 0.00100072444801612,
+    "Ayna": 0.0,
+    "MAHI": 9.836043565845503e-05,
+    "The Better Money Company": 0.0,
+    "MaintainX": 0.0029396169784898633,
+    "Zymbly": 0.0,
+    "Curity": 1.2225155427360815e-05,
+    "Novaleum": 0.0,
+    "Humble Robotics": 0.0,
+    "Runwise": 0.0,
+    "Bitmovin": 0.0,
+    "Noah": 0.0035035994395821767,
+    "Powernaut": 0.0008467526000343839,
+    "Comet": 0.0,
+    "10x Science": 0.0,
+    "Prediko": 0.000877381923956281,
+    "Harmonic": 0.0,
+    "Domyno": 0.00776350949286955,
+    "CodeIntegrity": 2.3415019631198446e-05,
+    "Neuronostics": 0.0,
+    "Bardo": 0.0,
+    "CroíValve": 0.0,
+    "Riot": 0.0010337468405730889,
+    "Animaj": 0.0,
+    "Leadbay": 0.0013983469414362139,
+    "Peec AI": 0.0,
+    "QFEX": 0.0,
+    "Capsule": 0.0005700530444199703,
+    "Lemma": 0.013615093535980347,
+    "Trilobio": 0.0,
+    "Aona": 2.527671011451277e-05,
+    "Symbiotic Security": 0.0009678438157737868,
+    "Quobly": 0.00043726378917891234,
+    "Bota": 0.000877381923956281,
+    "Exein": 0.0,
+    "Skyld": 0.0,
+    "Mimo": 0.00017691453584278615,
+    "Limnos": 0.002033963479008311,
+    "Nativ": 0.010165754425942116,
+    "Pancake": 0.00012048978871109069,
+    "Tenacy": 0.006395938571478969,
+    "Galink": 7.684776611228687e-07,
+    "Carecode": 0.0007314724770488153,
+    "Shade": 0.0,
+    "CloudQuery": 0.000877381923956281,
+    "mimic robotics": 0.000130803856829436,
+    "Lysk": 0.0,
+    "MARSO": 0.0004804380487774524,
+    "Exaforce": 0.007187425288137151,
+    "PrismML": 0.0,
+    "Mitrity": 0.00042180485896002487,
+    "Oscar Health": 0.0,
+    "DeepIP": 0.0,
+    "Tenderbolt": 0.0,
+    "Terramate": 0.0,
+    "Kuli": 0.0,
+    "Reevo": 0.002776575408027207,
+    "MokN": 0.0,
+    "TerraSpark": 0.0,
+    "Brilliant Harvest": 0.0,
+    "WhyBrilliant": 0.000719799306256011,
+    "OpsMill": 0.0,
+    "FullEnrich": 0.0,
+    "xmemory": 0.00020500481288368357,
+    "GetVocal": 5.1952411297535547e-05,
+    "Parallel": 0.0,
+    "Deltia": 0.0,
+    "Tuboolar": 0.00013493931886050459,
+    "Tessl": 2.4141648404815556e-05,
+    "Snorkel AI": 0.007356431922404961,
+    "sunday": 0.0,
+    "Recursive": 0.0005569120068050499,
+    "Agentio": 0.0,
+    "Calibrant Energy": 0.003225354836150322,
+    "7AI": 0.05017140300998642,
+    "ConfidentialMind": 0.005664628026806708,
+    "Sea12 Technologies": 0.0005267024262263933,
+    "Peregrine Technologies": 0.0,
+    "Poolside": 0.001258544325119782,
+    "EdBuild AI": 0.002476402696541344,
+    "Dema": 6.586951381053161e-07,
+    "Solstice Health": 0.0,
+    "Aztelia": 0.0,
+    "Neoprime": 0.0002394686174581883,
+    "Disco": 0.00034043800840090956,
+    "Fulcrum": 0.005081803993439455,
+    "Carla": 0.0,
+    "Drotek": 0.0,
+    "Mirage": 0.003731843709256422,
+    "Pasito": 0.004873233584186284,
+    "pyannote.ai": 0.0003965330892893006,
+    "Board": 0.0,
+    "Grai": 0.0,
+    "n8n": 0.0,
+    "Clarity": 9.441834376475345e-06,
+    "Certo": 0.0007282972576984346,
+    "DuckDuckGoose": 0.027643403039745083,
+    "Opereit": 0.005222335204025043,
+    "AMI Labs": 0.017452931687406973,
+    "DeepSeek": 0.003291995128226879,
+    "Crossmint": 3.6453791848582868e-06,
+    "Supafax": 0.04427458817045497,
+    "Coralogix": 0.0013315076237376921,
+    "Giskard": 2.1956504603510536e-07,
+    "Condor": 4.215648883874023e-05,
+    "Arlequin AI": 0.0,
+    "Seapoint": 0.002935941988619474,
+    "FYLD": 9.64737795290912e-05,
+    "Senpilot": 0.0,
+    "Afori": 0.0009885591205087655,
+    "Cookiy": 0.0,
+    "Bravi": 0.004257342566000914,
+    "KAWA AI": 9.785486940951506e-06,
+    "Highbeam": 0.0006399592069070044,
+    "Revnu": 0.01276850683932958,
+    "Strawberry": 0.007628068563871271,
+    "THEKER ROBOTICS": 0.0,
+    "Databricks": 0.004741324479329131,
+    "Hydra Host": 0.0035172115001222545,
+    "Destinus": 0.010616937932296507,
+    "Scait": 0.0313011146362308,
+    "Mimir": 0.00638132490063196,
+    "Sybilla Technologies": 0.000877381923956281,
+    "CardNexus": 0.0,
+    "Bland AI": 0.0001536879620720845,
+    "Foundation Alloy": 0.0,
+    "Traysar": 0.0,
+    "Andera": 0.0014140908813703643,
+    "Triveni Bio": 0.000657363094568615,
+    "Kvasir Technologies": 0.0017534464576363516,
+    "Green-Got": 0.0013170181919182078,
+    "Gate2Brain": 0.0,
+    "Leyden Labs": 0.0,
+    "Almetra": 0.001933478817132834,
+    "Cactos": 0.0022316064527765607,
+    "Caplight": 4.7724031077487554e-05,
+    "Mirendil": 0.068482549436723,
+    "Hang Ten Systems": 0.0019004683486048392,
+    "Astral Systems": 0.0,
+    "Onyx": 0.0,
+    "Partly": 1.3731028583402803e-05,
+    "Ubotica Technologies": 0.024119439872002362,
+    "Ora Computing": 0.001313326007758781,
+    "Blueprint Biomed": 0.0017534464576363516,
+    "CycloTech": 0.0,
+    "Whispeak": 0.0010404542172865205,
+    "PointFit": 0.0,
+    "Connie Health": 0.0,
+    "Protex AI": 0.0,
+    "Architect Labs": 0.0,
+    "Tetrix": 0.002367604543693418,
+    "Allium": 0.0025828706126303507,
+    "Cadence": 0.005738621714196856,
+    "Syntax Bio": 0.0,
+    "Superlight": 3.2934756905265805e-06,
+    "Prosper AI": 0.001092312932236808,
+    "FOMO": 0.0,
+    "Nura Bio": 0.0,
+    "Vivici": 0.0,
+    "Secfix": 0.00021714600665011222,
+    "Clair Health": 6.586951381053161e-07,
+    "CollimateHealth": 0.0030134219774789967,
+    "BodyWision": 0.00609984632642428,
+    "Wakeline": 0.0,
+    "CoTrainer": 0.0,
+    "Superhuman": 0.0027311091499729596,
+    "Kyrok": 0.006462607030446254,
+    "OneSoil": 1.9760854143159486e-06,
+    "GATE Space": 0.0017409312500123505,
+    "Rama": 0.0003838967258894591,
+    "Moss": 0.0010253422792462733,
+    "Neubond": 0.0,
+    "Senso": 0.005544407291324181,
+    "Isentroniq": 0.0,
+    "Ascendance Flight Technologies": 1.3173902762106323e-06,
+    "Keepit": 0.0,
+    "Telum Therapeutics": 0.0008773819239562813,
+    "Build": 0.005375062109462397,
+    "geoSurge": 0.0010902024730686864,
+    "Codeplain": 0.0007709441441820855,
+    "Jabbr": 0.0,
+    "PostSig": 0.000877381923956281,
+    "Fuzed": 0.0,
+    "Candle": 0.0,
+    "Ogyre": 0.0,
+    "Neuronova": 0.0,
+    "Apeiroon": 2.2724982264633405e-05,
+    "Agentice": 0.0749186921172229,
+    "Blumana": 0.0,
+    "FairPatterns": 0.0,
+    "IQM Quantum Computers": 0.0,
+    "HIVE": 0.009881750260099884,
+    "Skello": 0.019888886084042292,
+    "Sherpa.ai": 0.013127167247743106,
+    "CurifyLabs": 0.0,
+    "Worldmodeldata": 0.0,
+    "alqem": 2.4371720109896698e-05,
+    "Virtuosis AI": 0.0,
+    "Exobiosphere": 0.0017544345003435095,
+    "Aily Labs": 4.6075724910466854e-05,
+    "Wandelbots": 0.02457158929882131,
+    "Inbolt": 4.361913392590129e-05,
+    "Enchanted Tools": 0.0,
+    "Generative Bionics": 6.58695138105316e-07,
+    "Galaxea Dynamics": 2.4687490553597566e-05,
+    "RLWRLD": 0.0,
+    "VAir": 1.3173902762106323e-06,
+    "Spirit AI": 0.0,
+    "Astribot": 0.0017541051527744569,
+    "ROBOTERA": 0.0,
+    "Persona AI": 0.00010473252695874526,
+    "Physicl": 0.0013430121483737698,
+    "Cobot": 2.4250540823570796e-05,
+    "DYNA Robotics": 0.0009735245286448563,
+    "The Bot Company": 0.0,
+    "Viam": 0.0,
+    "Bedrock Robotics": 0.0005561465358815227,
+    "Machina Labs": 0.00010506481376018206,
+    "Ailos": 0.0,
+    "Alizé": 0.00530559172889689,
+    "Altilia": 8.4364226087928e-05,
+    "Anixi Health": 0.0,
+    "Aptus.AI": 0.0025449405586024324,
+    "Bookvik AI": 5.269561104842529e-06,
+    "ClickNCrypt": 0.004373735717019299,
+    "CYTO365": 0.0,
+    "Datox": 0.00650728836486193,
+    "Aristotl": 0.004675969007852147,
+    "Athana": 0.0,
+    "DESILO": 0.012344442735464214,
+    "Drone Radio Beacon (DRB)": 0.004490455872330973,
+    "Figen AI": 0.014988028557099539,
+    "Frameway": 0.0013116625066732779,
+    "Tether": 0.0017534464576363516,
+    "Bondio": 0.0,
+    "Elora": 7.194295294783861e-05,
+    "Lightbringer": 0.0,
+    "Candela Technology AB": 0.0,
+    "Flox Intelligence": 0.0,
+    "Natural Cycles": 0.0,
+    "Pit": 0.0,
+    "Reactional Music": 0.0,
+    "PlayReplay": 6.586951381053161e-07,
+    "Blykalla": 0.0018378816526718402,
+    "Camphouse": 0.0,
+    "Polar": 9.958510091359209e-05,
+    "Spermosens AB": 1.9760854143159486e-06,
+    "Sportway": 0.0,
+    "HAGA.BIO": 0.0,
+    "Fika Jobs": 0.0130224028803421,
+    "Greater Than": 0.0026281936010402115,
+    "SIBS AB": 0.0,
+    "XReality Factory (XRF)": 0.0,
+    "Aeon": 0.000877381923956281,
+    "Oska Health": 0.0,
+    "Gamma": 0.0215823335076407,
+    "Higharc": 0.006725136211097112,
+    "Wayve": 0.0,
+    "Aligned": 0.00036430251116200427,
+    "EquiLibre Technologies": 0.002543401655341788,
+    "Taxwire": 0.0,
+    "STARK Defence": 0.00020415419367303668,
+    "General Intuition": 0.0,
+    "Seltz": 0.007440681244193154,
+    "Zylio": 0.0011763309473343123,
+    "Acodyne": 0.0,
+    "Talentir": 0.0,
+    "Blueprints": 0.0017534464576363516,
+    "Edviro": 0.00019130900902217726,
+    "Experiential Labs": 0.0011018555517429444,
+    "Salem Robotics": 0.0,
+    "Coasty": 0.0018034147499270676,
+    "Amulet": 0.0,
+    "Loumo": 0.0,
+    "InSoil": 6.586951381053161e-07,
+    "Openchip": 0.0,
+    "Eye Security": 5.8376268493924574e-05,
+    "Gaussion": 0.0,
+    "Fusion Bionic": 0.0,
+    "Musthad": 2.6347805524212646e-06,
+    "Lua": 0.0011054666380059554,
+    "Justinian": 0.0035016233541678606,
+    "One Biosciences": 0.0,
+    "Axle Energy": 0.0020767715171245253,
+    "Cyllene Therapeutics": 0.0,
+    "Luffy AI": 0.0,
+    "Whering": 0.0,
+    "Naaia": 0.0,
+    "AML Factory": 0.009787813926149691,
+    "Blue Capsule": 0.0002159385633580926,
+    "Porelio": 0.000877381923956281,
+    "Hexana": 0.017969438904091764,
+    "Otrera": 0.007841860467205898,
+    "Eole Stab": 0.0,
+    "Kolektivolt": 0.0,
+    "Fulcana": 0.0,
+    "Quantum Systems": 0.0012584978567446283,
+    "Theo": 0.001471426870892522,
+    "Six Robotics": 0.0,
+    "BRYM": 0.004430800110581927,
+    "NeuroBell": 0.000877381923956281,
+    "Xylo": 0.0007948383419440051,
+    "StirlingX": 0.0003394766645409082,
+    "Alva Industries": 0.0,
+    "Polysense Intelligence": 0.0,
+    "Bohr Energie": 0.0,
+    "Kord": 0.004356163668655147,
+    "Straiker": 0.0017381572627817215,
+    "Reed Semiconductor": 0.002629510991316422,
+    "8090": 0.0013644664810707333,
+    "Omen AI": 0.0,
+    "Nebex": 0.0,
+    "CyberRant": 1.0039945000315459e-05,
+    "Strand Intelligence": 3.507143079043936e-06,
+    "Sekur Private Data Ltd": 0.0,
+    "incalmo": 3.2934756905265807e-07,
+    "Aryon": 0.0,
+    "Ⓐ Security": 0.0007061978390581481,
+    "Tripo 3D": 0.0,
+    "SOND": 0.0,
+    "INTU Diagnostics": 1.3173902762106323e-06,
+    "Nexcade": 0.004011936255388544,
+    "Senra Systems": 0.0,
+    "Touchlab": 0.0,
+    "Bubble": 0.00011531673841895541,
+    "Meticulous": 0.0003884847705375943,
+    "Draig Therapeutics": 0.000877381923956281,
+    "Nopan": 0.00038914686925489576,
+    "Prolo": 3.45814947505291e-06,
+    "Claimyr": 0.0,
+    "Walden Robotics": 0.0005656657348519892,
+    "Obligo": 0.0,
+    "Scorecard": 0.0024960452436872892,
+    "Valarian": 0.009260312325086437,
+    "Feel Reformed": 0.0,
+    "Augmodo": 0.000877381923956281,
+    "Oxylabs": 0.00018441804358794447,
+    "Aardaia": 0.0,
+    "Aylight": 0.0035066184589651593,
+    "Project Q (Hydris)": 0.0005863406138279599,
+    "Visibuilt": 0.0,
+    "Doctorsa": 0.0,
+    "CCRAFT": 0.0,
+    "MazeBolt": 0.0,
+    "8Layers": 5.279065119791295e-05,
+    "Savi Security": 0.0029161835556327353,
+    "Panora": 0.0,
+    "Twinsight": 0.0,
+    "Rivage": 0.0,
+    "Sirona Technologies": 0.0,
+    "QIZ": 0.0008760645336800705,
+    "Alchemab Therapeutics": 0.000877381923956281,
+    "Catalyxx": 0.0,
+    "e-peas": 0.0,
+    "Pixel-Flo": 0.0,
+    "EfficientIP": 0.0,
+    "InsectBiotech": 0.0,
+    "Clawvisor": 1.3173902762106322e-07,
+    "Tenet Security": 0.0005311801851128038,
+    "Magnitude": 0.0012207282461489401,
+    "ReOrbit": 0.0,
+    "Twenty": 0.05394967015759804,
+    "Nebulock": 0.0005448168002648213,
+    "Upside": 0.000877381923956281,
+    "Syntonym": 0.0,
+    "NeuralTrust": 0.008315054389088791,
+    "Akrites": 0.0,
+    "Mitigata": 0.0,
+    "IDfy": 0.011731187758237411,
+    "Oratomic": 0.00027269978717559966,
+    "Tangos": 0.0,
+    "ValueGrain": 0.0,
+    "Greyparrot": 0.0,
+    "Wultra": 0.0,
+    "RapidPulse": 0.0,
+    "Etched": 0.0004062434139145775,
+    "Dominion Dynamics": 0.0013344465594831764,
+    "1001": 0.0,
+    "Jota": 0.005010463746569084,
+    "Queue": 0.0,
+    "PROPCORN AI": 0.0,
+    "Prime Intellect": 0.004621072227695607,
+    "Kaon AI": 0.0,
+    "WrxFlo": 0.0002063195707709798,
+    "Lantern": 0.0,
+    "NeoCem": 0.0,
+    "Chai Discovery": 0.0007934226258760118,
+    "InstaLILY": 0.0024250797615441196,
+    "TYLsemi": 0.0,
+    "Skalar": 0.009557092567544282,
+    "Lissi GmbH": 0.005583442234407367,
+    "Dawnguard": 1.514713668231792e-05,
+    "CYTUR": 0.0007492062311170696,
+    "Singularity Defense": 0.0005423256637067094,
+    "OXMIQ Labs": 0.0009636927475869373,
+    "Venice AI": 1.3649286987010302e-05,
+    "Bespoke Labs": 0.010115567343478864,
+    "Katalyze": 0.0,
+    "Gyre Energy": 9.880427071579743e-07,
+    "Marker AI": 0.007421667351827599,
+    "Marker": 0.0,
+    "En Carta Diagnostics": 0.0,
+    "Veilio": 3.2934756905265807e-07,
+    "Aampere": 0.0,
+    "Orbital (by Applied Computing Technologies)": 0.0,
+    "kausable": 0.02075582952585847,
+    "Subra": 8.953789497484241e-05,
+    "ORiS": 0.0,
+    "Xentra": 0.0,
+    "Valar Atomics": 7.318834867836845e-08,
+    "microAGI": 0.0023697549453553127,
+    "CuspAI": 0.03604113172058127,
+    "Flow Labs": 0.0,
+    "Self Inspection": 0.0,
+    "Trellis Bioscience": 0.0,
+    "KnowYi": 0.0,
+    "Ryflo": 0.0001639269818761609,
+    "BeCaps": 0.0,
+    "Ticketeame": 0.0,
+    "Infinity": 0.0002533309184219863,
+    "Convexity": 0.0036471607516664153,
+    "BlockComp": 0.0,
+    "Empirical Security": 0.0008345198989848032,
+    "Circular Materials": 0.00524980025069937,
+    "deltaVision": 0.0009274427544522852,
+    "Neo": 0.0005745411174380102,
+    "Immitra Bio": 0.0,
+    "Proveye": 0.0,
+    "Greenjets": 0.0,
+    "Engo Eyewear": 0.0,
+    "SMG (Silicon Microgravity)": 0.0,
+    "Modo Energy": 0.0,
+    "Brenus Pharma": 0.0,
+    "Datapizza": 0.0,
+    "Ponda": 0.0,
+    "Meshy": 0.007964831725515608,
+    "Humanoid": 0.0009550560638811006,
+    "Crystalys Therapeutics": 0.0,
+    "Candid Health": 0.009765646826932805,
+    "Cashea": 4.281518397684555e-06,
+    "Genius AI": 0.0003997461168441547,
+    "Assured": 0.0,
+    "Caution": 6.586951381053161e-07,
+    "Tucuvi": 0.0,
+    "CoLab": 0.0373541179845866,
+    "Glow Security": 0.007310892064692877,
+    "NordSpace": 0.0017795746981145292,
+    "June": 0.0,
+    "Theneo": 0.0,
+    "Pricepoint": 0.0017541051527744569,
+    "Prava": 0.006699192526932815,
+    "Scispot": 0.0,
+    "Astrix Security": 3.468282031164163e-05,
+    "Vody": 0.0,
+    "Exowatt": 0.016485609570937764,
+    "Heron Power": 0.0,
+    "Owkin": 5.677294099063842e-05,
+    "Gojiberry": 0.002671919285213785,
+    "Acurion": 0.0016135507617708442,
+    "Pila Energy": 0.006114172945678071,
+    "ANELLO Photonics": 0.000877381923956281,
+    "OWL": 0.0,
+    "Rivvun": 0.0038402281510478437,
+    "Luel": 0.00036382363799440605,
+    "AfterQuery": 6.586951381053161e-07,
+    "Harmonic Security": 0.007868450799224228,
+    "Liminal": 0.012845417594390708,
+    "FILTAR AI": 0.0028521406360255772,
+    "MATVIS": 0.006232547496590345,
+    "ThirdLayer": 0.0006794624062547651,
+    "Offroad": 0.00010355688933267393,
+    "Archestra": 0.002289184435834397,
+    "Wodan AI": 0.00583804047311969,
+    "Silmaril": 0.000208563720472783,
+    "Oplane": 0.0015025251162602944,
+    "Calvin Risk": 5.9093704184167843e-05,
+    "Hodor": 0.00029432931768220066,
+    "Secludy": 4.6773200368391374e-05,
+    "White Circle": 0.005238520138059064,
+    "Critical Cloud": 0.0013401575521532272,
+    "Devana": 0.010278174017438899,
+    "Empion": 0.00013232557995833372,
+    "Pave": 0.014746866751901818,
+    "Pactos": 0.0,
+    "Raison": 0.0010479331536035618,
+    "Upstream": 0.0014370826915672294,
+    "In Parallel": 0.007212287731685761,
+    "Noota": 0.0014132955398015621,
+    "Nexos.ai": 0.013235576530572897,
+    "Twin": 0.024625514923943055,
+    "Maestro Labs": 5.340523399278136e-05,
+    "fonio.ai": 5.9904776701854757e-05,
+    "screenpipe": 9.49059163547427e-05,
+    "Lindy": 0.0006804424281579051,
+    "Adaptive ML": 0.0016005227719138226,
+    "Memory Store": 0.005950334745519395,
+    "HousApp": 0.02300821957480061,
+    "Config Intelligence Inc.": 0.019963066423573247,
+    "CoreThink AI": 0.0025662198600291865,
+    "Gigacatalyst": 0.0,
+    "Pi": 0.0035745650089495434,
+    "Abacus.AI": 0.012008185375686039,
+    "Kodesage": 0.0028262867092393447,
+    "PlayerZero": 0.0018966087972311914,
+    "Holmes": 0.000913945273297152,
+    "Cursor": 1.289944645456244e-06,
+    "Deepgram": 0.0007642184645101814,
+    "Resolve.ai": 0.020854926716867724,
+    "Undo": 0.0,
+    "ReasonBlocks": 5.3505600460562034e-05,
+    "Positive Carbon": 1.9760854143159486e-06,
+    "Zaro": 8.516462391664692e-07,
+    "Reson8": 0.0,
+    "Stimulus": 0.002937416320578474,
+    "Marquee AI": 0.0,
+    "Aiffin": 0.0,
+    "DualEntry": 0.004839595208247618,
+    "Agave": 8.569623746750162e-05,
+    "Arrakis Technologies": 0.03639685107873875,
+    "Bonx": 0.0017541051527744569,
+    "Briink": 0.0,
+    "Payhawk": 0.00718057238895038,
+    "gaiia": 0.0,
+    "Moselle": 0.007472176279214906,
+    "Sopht": 0.0,
+    "Qureight": 0.0034963537930630183,
+    "Zefir": 0.013341381045568578,
+    "Dili": 0.020386345490072736,
+    "AGON": 0.012039170634134717,
+    "Nuclear Turbines": 0.00011067725058014483,
+    "Atomic One": 0.0008767232288181758,
+    "Sigvi": 0.0,
+    "Kinematic Trees": 0.0009671314890057667,
+    "Plend": 0.0,
+    "Xeltis": 0.0,
+    "Beelzebub": 0.0025347023131196376,
+    "Aptimiz": 0.0,
+    "Cato": 6.586951381053161e-07,
+    "NotFossil": 0.006114008271893545,
+    "Xata": 0.0,
+    "PILL.AR": 0.023134420839357274,
+    "Oncoliq": 0.0,
+    "AdMagica": 0.0012856537674259612,
+    "Adsmom": 0.0,
+    "UserJourneys": 0.0,
+    "askPepper": 0.000877381923956281,
+    "Ask ilia": 0.0023176152744862196,
+    "Freigo": 0.0008151951726968854,
+    "Claym": 0.0,
+    "Madrone": 0.0,
+    "Pairio": 7.904341657263795e-06,
+    "Stellar Cyber": 0.0008961119483373846,
+    "Krea.ai": 0.0012259541542678088,
+    "WisdomAI": 0.0002261994901446842,
+    "Laminar": 0.0,
+    "Archetype AI": 0.023339627371318696,
+    "Julius": 0.005353551830529246,
+    "Binti": 0.0,
+    "Maxima": 0.004418932804853852,
+    "Spotwise": 0.0011651553779718725,
+    "Hilbert": 0.0,
+    "Parasail": 0.014967421370086843,
+    "Articul8": 0.004397126180058099,
+    "Delve": 0.007163479876008666,
+    "SignalRank": 0.0016616629060265335,
+    "MarqVision": 0.0,
+    "ChipAgents": 6.586951381053161e-07,
+    "Earth Fire Alliance": 2.6347805524212646e-06,
+    "Sparrow": 0.0,
+    "Quadric": 0.007189804283305274,
+    "Sumble": 0.0017574370523480397,
+    "Stand Insurance": 0.0,
+    "Defakto Security": 0.00039658915467375236,
+    "Hadron Energy": 4.0253591773102656e-07,
+    "Meteoria": 0.0,
+    "Sable": 0.012886669593988775,
+    "Ineffable Intelligence": 0.006399687156502622,
+    "Mistral AI": 0.0028587662230443946,
+    "Coverbase": 0.0012263524353708938,
+    "Corner Health": 0.0017534464576363516,
+    "Bacca": 0.0021249202865260084,
+    "TierZero": 0.005912854255557563,
+    "EdVisorly": 4.610865966737213e-06,
+    "Aegis AI": 0.002655719139995701,
+    "TidalSense": 0.0,
+    "OneAI": 8.233689226316452e-08,
+    "Cosine": 0.0004714605885101054,
+    "Curant.ai": 0.0,
+    "WindWaves": 0.0,
+    "Balance Theory": 0.0,
+    "Discern Security": 0.0007775003275535676,
+    "Smallest AI": 0.005905260607388019,
+    "pQCee": 0.003502282049305966,
+    "Boom Supersonic": 0.0,
+    "InLustro": 0.0,
+    "Deyta": 0.0009556737662441895,
+    "Fundra": 0.0010639794074729677,
+    "KomboAI": 7.497617516172956e-05,
+    "Marble": 0.0,
+    "Audun": 0.0,
+    "Last Accounting Company": 0.0016886467899726511,
+    "Rence": 1.905510935233236e-06,
+    "Replit": 0.0014576108850820138,
+    "Suno": 0.0,
+    "Blink Health": 0.0,
+    "Writer": 0.002265670622913293,
+    "Mercor": 0.0011548328209282773,
+    "Speak": 5.928256242947845e-06,
+    "You.com": 0.001119047218602989,
+    "Lightmatter": 0.002002712668481328,
+    "d-Matrix": 2.6177863787116606e-05,
+    "Cornelis Networks": 3.622823259579239e-06,
+    "Positron": 0.00016077636039986583,
+    "ClickHouse": 0.0010581472277586032,
+    "Koala": 0.0,
+    "Astronomer": 0.000877381923956281,
+    "Temporal": 0.0,
+    "Redpanda": 0.0,
+    "Sigma Computing": 1.5589118268492483e-06,
+    "Hex": 3.2934756905265807e-07,
+    "Render": 0.0,
+    "Sanity": 0.0,
+    "RevenueCat": 0.0,
+    "LiveKit": 0.00123916084747701,
+    "Exa": 0.0020572920293881365,
+    "Huntress": 0.005595828726998186,
+    "Obsidian Security": 0.0,
+    "Censys": 0.001757952531194754,
+    "Cyberhaven": 0.0005189108427818897,
+    "TRM Labs": 0.004937057585811764,
+    "Oligo Security": 0.0006329226229407959,
+    "VulnCheck": 6.861407688597043e-06,
+    "Stacklok": 0.00015210682580844772,
+    "Vanta": 0.003958100809312197,
+    "Peregrine": 0.0,
+    "Axiom Space": 0.0,
+    "CHAOS Inc.": 9.657934491597501e-05,
+    "CesiumAstro": 0.0,
+    "Hermeus": 0.0,
+    "Performance Drone Works": 0.008456252000558766,
+    "Overland AI": 2.074889685031746e-05,
+    "Onebrief": 8.058037189488368e-06,
+    "Quartermaster": 0.0,
+    "Electric Hydrogen": 0.0,
+    "Base Power": 0.0008744177958348072,
+    "Zeno Power": 0.0,
+    "Endurance Energy": 0.0,
+    "Infravision": 0.004119963144074739,
+    "Phaidra": 3.2934756905265807e-07,
+    "Agility Robotics": 5.00581242661983e-05,
+    "Mytra": 0.0,
+    "Nimble": 2.8893177979254076e-05,
+    "Hadrian": 0.009918207708505496,
+    "Gather AI": 3.9137469455757535e-06,
+    "AgZen": 0.0,
+    "Headway": 1.9760854143159486e-06,
+    "Garner Health": 0.027410787037952397,
+    "Talkiatry": 3.2934756905265805e-06,
+    "Thyme Care": 0.0,
+    "Pomelo Care": 1.9760854143159486e-06,
+    "Pelago": 0.0,
+    "Carbon Robotics": 0.0,
+    "Cohere Health": 0.0,
+    "Truveta": 0.007849011265662948,
+    "Rad AI": 0.006341776206016015,
+    "Imagine Pediatrics": 0.0,
+    "Hera": 0.0,
+    "Actualyze AI": 0.0003234222988708816,
+    "Episurf Medical": 0.000877381923956281,
+    "Formation Bio": 0.011294962699589956,
+    "Herdr": 0.0,
+    "Allbionics": 0.0,
+    "River AI": 0.00047774060541548423,
+    "Oxide Computer Company": 0.0,
+    "NavVis": 9.994600895517996e-05,
+    "Relu": 0.0,
+    "Dubsof": 0.0012132759856368657,
+    "Speed-Deed": 0.0,
+    "Full Health Medical": 4.756444245744729e-05,
+    "Chargepoly": 0.0026281936010402115,
+    "Naked Energy": 0.0,
+    "HappyRobot": 0.013032189274705324,
+    "Ore Energy": 0.0,
+    "Patlytics": 0.0,
+    "Pine": 0.000877381923956281,
+    "Auditoria.AI": 0.0019889570287935972,
+    "Exclaim Robotics": 0.0,
+    "Arcjet": 0.00014549573133173352,
+    "Wild Bioscience": 0.0,
+    "Wayflyer": 0.0,
+    "Everseen": 0.0,
+    "Remedy": 0.0,
+    "Keiron Technologies": 0.0,
+    "Pstryk": 0.0,
+    "Rocket Factory Augsburg (RFA)": 0.006928594592683785,
+    "SUPASO": 0.0,
+    "Subatron": 5.1707568341267316e-05,
+    "Ellis": 0.0037255288167780632,
+    "AB2 Bio Ltd.": 0.0,
+    "Skan AI": 3.5170328283077775e-06,
+    "Ratio Therapeutics": 0.0,
+    "Whatnot": 0.0,
+    "Inforcer": 0.0,
+    "Vaderis Therapeutics": 0.0,
+    "Cellares": 0.0,
+    "Beacon Biosignals": 0.002628522948609264,
+    "Kardigan": 0.0,
+    "Evvy": 0.0,
+    "Imprint": 6.257603812000503e-06,
+    "Farther": 0.0,
+    "Rho": 0.0004173774663920567,
+    "Cardless": 0.000882322137492071,
+    "Tabs": 0.004779536502887328,
+    "Closinglock": 0.001439149787447515,
+    "Evolved Intelligence (EIQ)": 6.91629895010582e-06,
+    "Engine": 0.0,
+    "Steno": 0.0,
+    "Owner": 0.004376699845140773,
+    "Scribe": 0.00031661517109464823,
+    "ShopMy": 0.0,
+    "Nectar": 0.0,
+    "Eight Sleep": 6.586951381053161e-07,
+    "Transcendent Mobility": 0.0,
+    "Sequen": 0.0,
+    "ZutaCore": 0.0,
+    "Engram": 5.570914973709451e-06,
+    "Rylo": 1.3173902762106323e-06,
+    "PhoenixAI": 0.00022700416917106542,
+    "Brickanta": 0.0061666349592163555,
+    "Sail Research": 0.0052259701852331855,
+    "Oblenio Bio": 0.0,
+    "Poetic": 0.0,
+    "Probook": 0.006692023009330172,
+    "Ornn": 0.0,
+    "Ploy": 0.0026929696152798045,
+    "Penemue": 0.0,
+    "MONA AI": 1.1197817347790375e-06,
+    "Beglaubigt.de": 0.0,
+    "TentrisDB": 0.0,
+    "Kalshi": 0.0,
+    "Mariana Minerals": 0.0,
+    "Podium Automation": 0.0,
+    "Braiin": 0.0,
+    "Buena": 0.0,
+    "notarity": 0.0,
+    "Dynatrace": 0.0010160551492427474,
+    "NEURA Robotics": 5.448379361485733e-05,
+    "CodeRabbit": 0.0023390573903574164,
+    "Qodia": 0.0018870999859490153,
+    "Aisot Technologies": 0.00015699359826149212,
+    "Mindgard": 4.8895840650343436e-05,
+    "Millow": 0.0,
+    "Cambridge Aerospace": 0.0,
+    "Origin Robotics": 2.6347805524212646e-06,
+    "TYTAN Technologies": 0.0017320388656479368,
+    "Alpine Eagle": 0.0,
+    "Quartr": 0.0,
+    "Edgify": 0.008277126417070372,
+    "Visoid": 0.0,
+    "Shipd": 0.002395147333213398,
+    "Edge": 0.0,
+    "Talkadot": 0.0,
+    "Naive": 0.0,
+    "Panthalassa": 0.0,
+    "Harvey": 1.0319557163649953e-05,
+    "felmo": 0.0,
+    "Jurilo": 0.0,
+    "Mironid": 0.0,
+    "Dumbo Health": 0.0,
+    "Uptio": 0.000589455336355761,
+    "Saptiva": 0.00027617527128115843,
+    "Twiggy": 0.0017534464576363516,
+    "10x Banking": 0.0,
+    "Aavalynx": 0.0,
+    "Fish Audio": 0.0,
+    "Claros Technologies": 0.0,
+    "Hush Security": 0.00223431172411679,
+    "ZuriQ": 1.5369553222457374e-06,
+    "Epitel": 0.0017534464576363516,
+    "Array Labs": 0.0,
+    "Tiger Technology": 0.0,
+    "CORE Biomedicine": 0.0,
+    "Enpal": 3.8423883056143445e-07,
+    "Brevo": 0.002742195373332473,
+    "VREY": 0.0,
+    "Safe Superintelligence Inc.": 0.0,
+    "Dwelly": 0.004795966793825121,
+    "5U AI": 0.0010645298639362902,
+    "valuemize": 0.0,
+    "DITTO": 0.0,
+    "Antares": 1.9760854143159486e-06,
+    "WAY Security": 0.0,
+    "Flourish Health": 0.0,
+    "Enigma": 0.0,
+    "Ahead Health": 0.00263049903402358,
+    "Intropy": 0.00030560733510472723,
+    "Terminal": 1.5369553222457374e-06,
+    "Encore-AI": 0.0,
+    "Freehand": 0.015837314754801043,
+    "Eliyan": 0.002292605588312291,
+    "ThreatLocker": 0.0,
+    "Generalist AI": 0.0013718559161268419
+  },
+  "communities": [
+    {
+      "id": 0,
+      "size": 175,
+      "members": [
+        ".TXT",
+        "2501.ai",
+        "8090",
+        "AG2",
+        "Abacus.AI",
+        "ActInside",
+        "Adaptive ML",
+        "Adya",
+        "Agenta",
+        "Aily Labs",
+        "Airweave",
+        "Alkera",
+        "AlpSemi",
+        "Alpic",
+        "Altilia",
+        "Anthropic",
+        "Archestra",
+        "Arize AI",
+        "Arlequin AI",
+        "Armature",
+        "Articul8",
+        "Astronomer",
+        "Augmodo",
+        "Axelera AI",
+        "Aylight",
+        "BLP Digital",
+        "Bacca",
+        "Baseten",
+        "Bespoke Labs",
+        "Builder.io",
+        "CCRAFT",
+        "ClickHouse",
+        "CloudQuery",
+        "Coasty",
+        "Codag",
+        "Codeplain",
+        "ConfidentialMind",
+        "Context.dev",
+        "Context64.ai (C64AI)",
+        "CoolSem Technologies",
+        "CopilotKit",
+        "Coralogix",
+        "CoreThink AI",
+        "Cornelis Networks",
+        "Corvic AI",
+        "Cosine",
+        "Cursor",
+        "Databricks",
+        "Dataiku",
+        "Decart",
+        "DeepSeek",
+        "Deyta",
+        "Distyl",
+        "Dubsof",
+        "Edgee",
+        "Edgify",
+        "Elastic",
+        "Eliyan",
+        "Eraser",
+        "Etched",
+        "Everseen",
+        "Exa",
+        "Experiential Labs",
+        "FalkorDB",
+        "Fireworks AI",
+        "FlexAI",
+        "Fluidstack",
+        "Flumes",
+        "Foaster",
+        "Formel AI",
+        "Greptile",
+        "Guild.ai",
+        "Hamming AI",
+        "Hang Ten Systems",
+        "Herdr",
+        "Holmes",
+        "Hydra Host",
+        "Ineffable Intelligence",
+        "Infinity",
+        "InsForge",
+        "Jedify",
+        "Kodesage",
+        "Korbit",
+        "LangWatch",
+        "Lemma",
+        "Lightmatter",
+        "Linkup",
+        "Lua",
+        "ML6",
+        "Maisa",
+        "Makora",
+        "Manicule",
+        "Matr",
+        "Meilisearch",
+        "Mem0",
+        "Meticulous",
+        "Mind Lab",
+        "Mister IA",
+        "Mistral AI",
+        "Mobilerun",
+        "Mobioos",
+        "Multiverse Computing",
+        "Naftiko",
+        "Neurometric",
+        "Nexos.ai",
+        "Noah AI",
+        "OXMIQ Labs",
+        "Octen",
+        "OpenAI",
+        "Ora Computing",
+        "Ornn",
+        "Orthogonal",
+        "Oxylabs",
+        "Parasail",
+        "Pensero",
+        "Peregrine Technologies",
+        "PhoenixAI",
+        "Piing.ai",
+        "PlayerZero",
+        "PointFive",
+        "Poolside",
+        "Positron",
+        "Prime Intellect",
+        "PrismML",
+        "PrunaAI",
+        "QA.tech",
+        "Quadric",
+        "Qwen",
+        "Raindrop",
+        "ReasonBlocks",
+        "Recursive",
+        "Redpanda",
+        "Reed Semiconductor",
+        "Replit",
+        "Resolve.ai",
+        "River AI",
+        "RunPod",
+        "Safe Superintelligence Inc.",
+        "Sail Research",
+        "Scorecard",
+        "Seltz",
+        "Smooth",
+        "Spitze.AI",
+        "Subconscious",
+        "Supabase",
+        "Superlog",
+        "TYLsemi",
+        "Temporal",
+        "TentrisDB",
+        "Tessl",
+        "The Prompting Company",
+        "Theneo",
+        "TierZero",
+        "Together AI",
+        "Trajectory",
+        "Traversal",
+        "Treater",
+        "Tribe AI",
+        "Undo",
+        "UserJourneys",
+        "Valarian",
+        "Vast.ai",
+        "Verda",
+        "Veris AI",
+        "You.com",
+        "Yutori",
+        "ZML",
+        "Zep",
+        "cubic",
+        "d-Matrix",
+        "e-peas",
+        "kausable",
+        "n8n",
+        "screenpipe",
+        "xmemory"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Agent Platforms And Automation",
+          72
+        ],
+        [
+          "AI Model Development Platforms",
+          52
+        ],
+        [
+          "AI Driven Developer Productivity",
+          48
+        ],
+        [
+          "AI Compute & Cloud Infrastructure",
+          32
+        ],
+        [
+          "MLOps & Model Serving",
+          32
+        ],
+        [
+          "AI Data & Training Infrastructure",
+          24
+        ],
+        [
+          "Observability & Monitoring",
+          23
+        ],
+        [
+          "API Infrastructure",
+          23
+        ],
+        [
+          "Search Infrastructure",
+          17
+        ],
+        [
+          "Semiconductor & Chips",
+          16
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "size": 105,
+      "members": [
+        "10x Banking",
+        "Abacum",
+        "Abound",
+        "Accordance",
+        "Agave",
+        "Alma",
+        "Anyfin",
+        "Apron",
+        "Atlar",
+        "Auditoria.AI",
+        "Banxware",
+        "Bondio",
+        "Bonx",
+        "Boonty",
+        "Brain Co.",
+        "Capi Money",
+        "Cardless",
+        "Catena",
+        "Causa Prima",
+        "Chift",
+        "Crescent",
+        "Crossmint",
+        "Curvestone AI",
+        "DFNS",
+        "Deduction",
+        "Digital Mirror",
+        "Donnerstag.ai",
+        "DualEntry",
+        "EDGE Boost",
+        "Embat",
+        "Encore-AI",
+        "FOMO",
+        "Finexer",
+        "Fonoa",
+        "Forage",
+        "Freehand",
+        "Glimpse",
+        "Highbeam",
+        "Imprint",
+        "Interchecks",
+        "Investrio",
+        "Jota",
+        "Klarna",
+        "Kreditz",
+        "Last Accounting Company",
+        "Linc",
+        "Locus",
+        "Magie",
+        "Maxed",
+        "Maxima",
+        "Merge",
+        "Mimo",
+        "Morpho",
+        "Moss",
+        "Naive",
+        "Natural",
+        "Nevermined",
+        "Noah",
+        "Nopan",
+        "Onyx",
+        "Outpost",
+        "Payhawk",
+        "Paynest",
+        "Pennylane",
+        "Perk",
+        "Phantom",
+        "Pigment",
+        "Pinata",
+        "Polar",
+        "PostSig",
+        "Prava",
+        "Qonto",
+        "Quidkey",
+        "Ravical",
+        "RevenueCat",
+        "Rho",
+        "Rivvun",
+        "Round",
+        "Rutter",
+        "Satolink",
+        "Saveria",
+        "Seapoint",
+        "ShopVision",
+        "Skalar",
+        "SolvaPay",
+        "Spiko",
+        "Sponge",
+        "Swan",
+        "Tabs",
+        "Talentir",
+        "Taxwire",
+        "The Better Money Company",
+        "Translucent",
+        "Trippz",
+        "Twikey",
+        "Uptio",
+        "Utexo",
+        "VhAT",
+        "Viewz",
+        "Well",
+        "Yaspa",
+        "Yonder",
+        "Zylio",
+        "herocon.ai",
+        "wamo"
+      ],
+      "dominant_subsectors": [
+        [
+          "Payment And Fraud Solutions",
+          40
+        ],
+        [
+          "Embedded Financial Services",
+          40
+        ],
+        [
+          "Financial Compliance Automation",
+          20
+        ],
+        [
+          "Financial Planning Analytics",
+          18
+        ],
+        [
+          "Corporate Treasury Management",
+          15
+        ],
+        [
+          "Tax Compliance Automation",
+          14
+        ],
+        [
+          "API Infrastructure",
+          11
+        ],
+        [
+          "ERP & Business Operations",
+          10
+        ],
+        [
+          "Digital Asset Liquidity",
+          6
+        ],
+        [
+          "Uncategorized",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "size": 86,
+      "members": [
+        "7AI",
+        "Aegis AI",
+        "Aikido Security",
+        "Akrites",
+        "Armadin",
+        "Aryon",
+        "Asilla",
+        "Augur",
+        "Baobab Risk Solutions",
+        "Batuta",
+        "Beelzebub",
+        "BforeAI",
+        "Blackwall",
+        "BoostSecurity",
+        "Censys",
+        "Claroty",
+        "CloudFence",
+        "CodeRabbit",
+        "Cogent Security",
+        "Conifers",
+        "Coram AI",
+        "Corelayer",
+        "Corgi",
+        "Corma",
+        "CybelAngel",
+        "CyberRant",
+        "Cytix",
+        "DataBahn",
+        "Dattak",
+        "Dawnguard",
+        "Discern Security",
+        "Dropzone AI",
+        "Dynatrace",
+        "Empirical Security",
+        "Exaforce",
+        "Eye Security",
+        "Filigran",
+        "Galvanick",
+        "GitGuardian",
+        "Gomboc",
+        "Hackuity",
+        "HarfangLab",
+        "Huntress",
+        "Kerys Software",
+        "Konvu",
+        "Lesto",
+        "Lyrie.ai",
+        "MazeBolt",
+        "Meshed Cover",
+        "Mindflow",
+        "Mitiga",
+        "Mitigata",
+        "NANO Corp",
+        "Nebulock",
+        "Nullify",
+        "Ocean",
+        "Oligo Security",
+        "OllyGarden",
+        "OverSOC (OverView)",
+        "PanicSafe",
+        "Pi",
+        "Prophet Security",
+        "Qevlar AI",
+        "SecureIQx",
+        "Sekoia.io",
+        "Semgrep",
+        "SquareX",
+        "Stellar Cyber",
+        "Stoïk",
+        "Strand Intelligence",
+        "Symbiotic Security",
+        "Tenable",
+        "ThreatLocker",
+        "Tines",
+        "Tolmo",
+        "Torq",
+        "Tuskira",
+        "Vectra AI",
+        "VirtualBrowser",
+        "VirtualMetric",
+        "VulnCheck",
+        "Whisper Security",
+        "WithCoverage",
+        "Xentra",
+        "incalmo",
+        "Ⓐ Security"
+      ],
+      "dominant_subsectors": [
+        [
+          "Threat Detection & Intelligence",
+          41
+        ],
+        [
+          "SOC & Incident Response",
+          38
+        ],
+        [
+          "AppSec / DevSecOps",
+          18
+        ],
+        [
+          "Cybersecurity Risk Management",
+          15
+        ],
+        [
+          "Cloud Security",
+          11
+        ],
+        [
+          "External Attack Surface Management",
+          10
+        ],
+        [
+          "Endpoint Security",
+          9
+        ],
+        [
+          "Commercial Insurance Brokerage",
+          7
+        ],
+        [
+          "Network Security",
+          7
+        ],
+        [
+          "AI Security And Guardrails",
+          7
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "size": 84,
+      "members": [
+        "Afori",
+        "Aisot Technologies",
+        "Alan",
+        "Aleno",
+        "Allium",
+        "Arctic Health",
+        "Arkimedes",
+        "Assured",
+        "Bavest",
+        "Bitstack",
+        "Blaise Technologies",
+        "Blueprints",
+        "Bounti.ai",
+        "Buena",
+        "Caplight",
+        "Capsa AI",
+        "Cense",
+        "Chip",
+        "Closinglock",
+        "Comulate",
+        "Coverflow",
+        "Curant.ai",
+        "Dalatea",
+        "Datox",
+        "Descartes Underwriting",
+        "Dwelly",
+        "Ekiden",
+        "EliseAI",
+        "Ellis",
+        "EquiLibre Technologies",
+        "Eunice.ai",
+        "Evertrace",
+        "Evolved Intelligence (EIQ)",
+        "Farther",
+        "Festina Finance",
+        "Figen AI",
+        "Finary",
+        "Flowdesk",
+        "Formulary Financial",
+        "Fulcrum",
+        "Fundra",
+        "GNOMI",
+        "Garner Health",
+        "Gravy",
+        "Greater Than",
+        "Green-Got",
+        "Greenboard",
+        "HousApp",
+        "Kalshi",
+        "Kota",
+        "Lantern",
+        "Leni",
+        "LinqAlpha",
+        "Matera",
+        "Model ML",
+        "Moonfare",
+        "Nansen",
+        "Nolana",
+        "Oscar Health",
+        "Outcome",
+        "PROPCORN AI",
+        "Pace",
+        "Panora",
+        "Pasito",
+        "QFEX",
+        "Quartr",
+        "Ramify",
+        "ResiQuant",
+        "Rivage",
+        "River Markets",
+        "Ryflo",
+        "Senso",
+        "SignalRank",
+        "SimpleHash",
+        "Smart Bricks",
+        "Stand Insurance",
+        "Strada",
+        "Tetrix",
+        "Theo",
+        "Trade Republic",
+        "Upvest",
+        "WNSTN",
+        "Warren",
+        "Zefir"
+      ],
+      "dominant_subsectors": [
+        [
+          "Investment Intelligence",
+          24
+        ],
+        [
+          "WealthTech",
+          19
+        ],
+        [
+          "Insurance Backoffice Automation",
+          14
+        ],
+        [
+          "Real Estate Agent Software",
+          12
+        ],
+        [
+          "Trading Infrastructure",
+          10
+        ],
+        [
+          "Uncategorized",
+          9
+        ],
+        [
+          "Financial Planning Analytics",
+          7
+        ],
+        [
+          "Financial Compliance Automation",
+          7
+        ],
+        [
+          "Insurance Claims Automation",
+          5
+        ],
+        [
+          "Crypto Compliance Solutions",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "size": 81,
+      "members": [
+        "1001",
+        "5U AI",
+        "Allie Systems",
+        "Almetra",
+        "Archetype AI",
+        "Arqh",
+        "Arrakis Technologies",
+        "Aseon Labs",
+        "Atomic One",
+        "Briink",
+        "Canals",
+        "Cargofy",
+        "Catalog",
+        "Cernel",
+        "Chargepoly",
+        "Cofactr",
+        "Cogna",
+        "CommerceClarity",
+        "Conduct AI",
+        "Convexity",
+        "Definic",
+        "Deltia",
+        "Dema",
+        "Dodge AI",
+        "Enera",
+        "FYLD",
+        "FlowGen Labs",
+        "FortoLabs",
+        "Freigo",
+        "Gather AI",
+        "Glimmer",
+        "InstaLILY",
+        "Intropy",
+        "Kpler",
+        "Kyber",
+        "Kyrok",
+        "Laminar",
+        "LevelPlane",
+        "Limitless Labs",
+        "Limnos",
+        "Manako",
+        "Maneva",
+        "Moselle",
+        "Nativ",
+        "NavVis",
+        "NexDash",
+        "Nexcade",
+        "OBORTECH",
+        "Omnea",
+        "Opereit",
+        "Partly",
+        "Phantomic AI",
+        "PhysicsX",
+        "Plato",
+        "Prediko",
+        "Prolo",
+        "Protex AI",
+        "Qorelo",
+        "Rama",
+        "Relief",
+        "Saudara",
+        "Sea12 Technologies",
+        "Senpilot",
+        "Silmaril Technologies",
+        "Skio",
+        "Soource",
+        "Sopht",
+        "State Affairs",
+        "Stimulus",
+        "Terminal",
+        "Tessera Labs",
+        "Tether",
+        "Tilla",
+        "Tuboolar",
+        "Vody",
+        "Volteum",
+        "Vooma",
+        "WrxFlo",
+        "Xylo",
+        "Zenline",
+        "valuemize"
+      ],
+      "dominant_subsectors": [
+        [
+          "Supply Chain & Logistics Automation",
+          42
+        ],
+        [
+          "Field & Industrial Operations",
+          24
+        ],
+        [
+          "Uncategorized",
+          11
+        ],
+        [
+          "ERP Modernization & Migration",
+          11
+        ],
+        [
+          "Retail Commerce Automation",
+          8
+        ],
+        [
+          "AI Powered Commerce",
+          8
+        ],
+        [
+          "EV Charging Networks",
+          4
+        ],
+        [
+          "ERP & Business Operations",
+          3
+        ],
+        [
+          "AI Model Development Platforms",
+          3
+        ],
+        [
+          "CRM & Sales",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "size": 75,
+      "members": [
+        "01Health",
+        "AKASA",
+        "AbInitio Bio",
+        "Abby Care",
+        "Acurion",
+        "Aeon",
+        "Ahead Health",
+        "Alden",
+        "Anixi Health",
+        "Annette",
+        "Aquila Systems Corporation",
+        "Ask ilia",
+        "BodyWision",
+        "Cadence",
+        "Candid Health",
+        "Carecode",
+        "CollimateHealth",
+        "Commure",
+        "Corner Health",
+        "DentalMonitoring",
+        "Diabeloop",
+        "Doctolib",
+        "Doctronic",
+        "Framewise Health",
+        "Fresha",
+        "Frontier Health (Juno)",
+        "Full Health Medical",
+        "Hale",
+        "Hello Patient",
+        "Hera",
+        "IMU Biosciences",
+        "Juno",
+        "Kaiko",
+        "Knok",
+        "Lassie",
+        "Lucis",
+        "MedForceAI",
+        "Nabla",
+        "Natural Cycles",
+        "Neko Health",
+        "New Lantern",
+        "Novellia",
+        "Oncoliq",
+        "One Biosciences",
+        "Oska Health",
+        "OurMind",
+        "PILL.AR",
+        "Parallel",
+        "Plena Health",
+        "PocDoc",
+        "Prosper AI",
+        "Qodia",
+        "Rad AI",
+        "Roger",
+        "Scan.com",
+        "Semble",
+        "Subtle Medical",
+        "SuperDial",
+        "Tandem Health",
+        "Tessel",
+        "Thesis Care",
+        "TidalSense",
+        "Tokura",
+        "Triomics",
+        "Tucuvi",
+        "Upside",
+        "Vara AI",
+        "Vocca",
+        "Waiv",
+        "XSpan",
+        "Xeltis",
+        "Yazen",
+        "Yuka",
+        "ZOE",
+        "avi medical"
+      ],
+      "dominant_subsectors": [
+        [
+          "Healthcare Practice Management",
+          23
+        ],
+        [
+          "AI Chronic Care Management",
+          17
+        ],
+        [
+          "Personal Health Insights",
+          17
+        ],
+        [
+          "Medical Practice Software",
+          15
+        ],
+        [
+          "Specialty Practice Workflow Automation",
+          12
+        ],
+        [
+          "AI Ambient Clinical Assistants",
+          10
+        ],
+        [
+          "Uncategorized",
+          9
+        ],
+        [
+          "Medical Imaging AI",
+          9
+        ],
+        [
+          "AI Precision Oncology Diagnostics",
+          6
+        ],
+        [
+          "Lifestyle & Wellness",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 6,
+      "size": 74,
+      "members": [
+        "11x AI",
+        "Agency",
+        "Airspeed",
+        "Aligned",
+        "Amplemarket",
+        "Amulet",
+        "Anya by AnySoft",
+        "Attio",
+        "BotRank.ai",
+        "Brevo",
+        "Cedar",
+        "Clay",
+        "Claym",
+        "Cybenta",
+        "Dataships",
+        "Day AI",
+        "Dealism",
+        "Dialog",
+        "Dorobo",
+        "Dreamdata",
+        "Eskimoz",
+        "Frontier AI",
+        "FullEnrich",
+        "GetMint",
+        "Gigacatalyst",
+        "Gojiberry",
+        "GuardianSphere",
+        "Innovorder",
+        "Intelligems",
+        "Kahoona",
+        "KomboAI",
+        "Konvo AI",
+        "Korl",
+        "Leadbay",
+        "Lemrock",
+        "LunaLift",
+        "Meteoria",
+        "Nekuda (AgentLane)",
+        "Noota",
+        "OneAI",
+        "Owner",
+        "Peec AI",
+        "PhantomBuster",
+        "Ploy",
+        "Pricepoint",
+        "Product Genius",
+        "Profound",
+        "Reevo",
+        "Rembrandt",
+        "Rence",
+        "Revic AI",
+        "Revnu",
+        "Rose",
+        "SOUS",
+        "Salespeak",
+        "Selling at Scale",
+        "Sumbios",
+        "Sumble",
+        "Superframe",
+        "Tadata",
+        "Talkadot",
+        "Throxy",
+        "Tofu",
+        "Twiggy",
+        "Veyro.ai",
+        "Wassist",
+        "Zero",
+        "askPepper",
+        "charles",
+        "geoSurge",
+        "haddock",
+        "happyhotel",
+        "lemlist",
+        "sunday"
+      ],
+      "dominant_subsectors": [
+        [
+          "CRM & Sales",
+          35
+        ],
+        [
+          "AI Lead Generation",
+          25
+        ],
+        [
+          "Outbound Sales Automation",
+          17
+        ],
+        [
+          "SEO & Content",
+          12
+        ],
+        [
+          "AI Powered Commerce",
+          11
+        ],
+        [
+          "Web Data Intelligence",
+          10
+        ],
+        [
+          "Uncategorized",
+          8
+        ],
+        [
+          "Automated Marketing Assets",
+          6
+        ],
+        [
+          "Restaurant Management",
+          5
+        ],
+        [
+          "Consumer Insights Automation",
+          5
+        ]
+      ]
+    },
+    {
+      "id": 7,
+      "size": 72,
+      "members": [
+        "8Layers",
+        "Actualyze AI",
+        "Aiceberg",
+        "Almure",
+        "Aona",
+        "Arcjet",
+        "Astrix Security",
+        "Calvin Risk",
+        "Clawvisor",
+        "ClickNCrypt",
+        "CodeIntegrity",
+        "Cosmian",
+        "Critical Cloud",
+        "Curity",
+        "Cyberhaven",
+        "Cyera",
+        "DESILO",
+        "DataMasque",
+        "Defakto Security",
+        "Devana",
+        "Dome Systems",
+        "ETHIQAIS",
+        "FILTAR AI",
+        "Galtea",
+        "Geordie AI",
+        "Giskard",
+        "Glow Security",
+        "Halo Privacy",
+        "Harmonic Security",
+        "Helmet Security",
+        "Hodor",
+        "Hush Security",
+        "Intric",
+        "KAWA AI",
+        "Lakera",
+        "Liminal",
+        "Lorica.ai",
+        "MATVIS",
+        "Mindgard",
+        "Mitrity",
+        "Neo",
+        "NeuralTrust",
+        "NewCore",
+        "Nymiz",
+        "Obsidian Security",
+        "Offroad",
+        "Opal",
+        "Oplane",
+        "P0 Security",
+        "Palma.ai",
+        "Runlayer",
+        "Salt AI",
+        "Saporo",
+        "Saptiva",
+        "Secludy",
+        "Sekur Private Data Ltd",
+        "Sherpa.ai",
+        "Silmaril",
+        "Skyfire",
+        "Stacklok",
+        "Straiker",
+        "Syntonym",
+        "Tenet Security",
+        "Terra",
+        "Upwind",
+        "Veilio",
+        "Venice AI",
+        "WAY Security",
+        "White Circle",
+        "Willow",
+        "Wodan AI",
+        "enclaive"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Security And Guardrails",
+          49
+        ],
+        [
+          "Data Security & Privacy",
+          21
+        ],
+        [
+          "Secrets And Non Human Identity Security",
+          14
+        ],
+        [
+          "IAM / PAM",
+          11
+        ],
+        [
+          "MLOps & Model Serving",
+          10
+        ],
+        [
+          "Cybersecurity Risk Management",
+          8
+        ],
+        [
+          "Cloud Security",
+          8
+        ],
+        [
+          "AI Data & Training Infrastructure",
+          5
+        ],
+        [
+          "AI Model Development Platforms",
+          5
+        ],
+        [
+          "Uncategorized",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 8,
+      "size": 69,
+      "members": [
+        "AML Factory",
+        "Allude",
+        "Aristotl",
+        "Arsen",
+        "Audun",
+        "BRYM",
+        "BeeSafe AI",
+        "Brightside AI",
+        "Cashea",
+        "Centrical",
+        "Claimyr",
+        "Cleavr",
+        "ClipHow",
+        "Coadjute",
+        "Copperlane",
+        "Delend",
+        "Detesia",
+        "Didit",
+        "Disco",
+        "DuckDuckGoose",
+        "EdBuild AI",
+        "Edmund",
+        "Equal AI",
+        "FYYYRE",
+        "Fenergo",
+        "Finovox",
+        "Flagright",
+        "Fundamento",
+        "Gail",
+        "Gataca",
+        "Gradient Labs",
+        "Herd Security",
+        "Hupso",
+        "IDfy",
+        "InLustro",
+        "Kamaé",
+        "Kord",
+        "Kunik",
+        "Linexa",
+        "Lissi GmbH",
+        "MaintainX",
+        "Marker AI",
+        "Nijta",
+        "Nolej",
+        "NoticeIA",
+        "Pairio",
+        "Payman AI",
+        "Pine",
+        "Porters",
+        "Prelude",
+        "Prilow",
+        "Raison",
+        "Riot",
+        "Sahar",
+        "Salient",
+        "Sardine",
+        "Savi Security",
+        "Sei",
+        "Sensity AI",
+        "Shama AI",
+        "TRM Labs",
+        "Tangos",
+        "Tartan App",
+        "Umbra Ai",
+        "Whispeak",
+        "Wultra",
+        "doinstruct",
+        "revel8",
+        "spotixx"
+      ],
+      "dominant_subsectors": [
+        [
+          "Financial Compliance Automation",
+          19
+        ],
+        [
+          "Cybersecurity Risk Management",
+          13
+        ],
+        [
+          "Identity Verification And Onboarding",
+          13
+        ],
+        [
+          "Corporate Learning",
+          12
+        ],
+        [
+          "Payment And Fraud Solutions",
+          12
+        ],
+        [
+          "Threat Detection & Intelligence",
+          9
+        ],
+        [
+          "Mortgage And Lending Tech",
+          9
+        ],
+        [
+          "Biometric & Deepfake Protection",
+          9
+        ],
+        [
+          "Uncategorized",
+          7
+        ],
+        [
+          "Field & Industrial Operations",
+          7
+        ]
+      ]
+    },
+    {
+      "id": 9,
+      "size": 68,
+      "members": [
+        "AMI Labs",
+        "Aaru",
+        "Acumino",
+        "AfterQuery",
+        "Agility Robotics",
+        "Ailos",
+        "Astribot",
+        "Atoms",
+        "BeatpulseLabs",
+        "Brumby",
+        "Carbon Robotics",
+        "Cobot",
+        "Config Intelligence Inc.",
+        "CyberOrigin",
+        "DYNA Robotics",
+        "Deus Robotics",
+        "Eden Robotics",
+        "Enigma",
+        "Fleet (fleet.ai)",
+        "Galaxea Dynamics",
+        "General Intuition",
+        "Generalist AI",
+        "Generative Bionics",
+        "Genesis",
+        "Gobano Robotics",
+        "Hadrian",
+        "Humanoid",
+        "InOrbit",
+        "Inbolt",
+        "Kinematic Trees",
+        "Kinisi",
+        "KnowYi",
+        "Luel",
+        "MARSO",
+        "Machina Labs",
+        "Macrodata Labs",
+        "Mecka",
+        "Mercor",
+        "Mytra",
+        "NEURA Robotics",
+        "Nimble",
+        "Nimblemind",
+        "Odyssey",
+        "OpenMind",
+        "Origami Robotics",
+        "Persona AI",
+        "Petrarch",
+        "Physicl",
+        "Poindexter Labs",
+        "Qualia",
+        "RLWRLD",
+        "ROBOTERA",
+        "Rubric AI",
+        "Sereact",
+        "Shipd",
+        "Snorkel AI",
+        "Spirit AI",
+        "Synquery",
+        "THEKER ROBOTICS",
+        "The Bot Company",
+        "Touchlab",
+        "Viam",
+        "Walden Robotics",
+        "Wandelbots",
+        "Worldmodeldata",
+        "XDOF",
+        "microAGI",
+        "mimic robotics"
+      ],
+      "dominant_subsectors": [
+        [
+          "Robot Foundation Models",
+          28
+        ],
+        [
+          "General Purpose Robotics",
+          19
+        ],
+        [
+          "AI Data & Training Infrastructure",
+          18
+        ],
+        [
+          "Industrial Automation Robotics",
+          14
+        ],
+        [
+          "Logistics And Warehouse Robotics",
+          12
+        ],
+        [
+          "Industrial Robotics",
+          11
+        ],
+        [
+          "AI Model Development Platforms",
+          5
+        ],
+        [
+          "AI World Models",
+          4
+        ],
+        [
+          "Autonomous Industrial Robotics",
+          2
+        ],
+        [
+          "Industrial Asset Inspection",
+          2
+        ]
+      ]
+    },
+    {
+      "id": 10,
+      "size": 67,
+      "members": [
+        "10x Science",
+        "Alchemab Therapeutics",
+        "Apheris",
+        "Apoha",
+        "Aqemia",
+        "Astraea",
+        "Beacon Biosignals",
+        "Bionyra Pharma",
+        "Bioptimus",
+        "Blueprint Biomed",
+        "CORE",
+        "Cambrium",
+        "CellType",
+        "Chai Discovery",
+        "Clira",
+        "Cradle",
+        "Cure51",
+        "CuspAI",
+        "DaltonTx",
+        "Delfa",
+        "Draig Therapeutics",
+        "Edison Scientific",
+        "Entalpic",
+        "Episurf Medical",
+        "Epitel",
+        "Exobiosphere",
+        "Formation Bio",
+        "Graph Therapeutics",
+        "Helical",
+        "HoudiniBio",
+        "Inato",
+        "Ingenix",
+        "KoBold Metals",
+        "Manas AI",
+        "Mirendil",
+        "Neotis",
+        "NeuroBell",
+        "Neuronostics",
+        "NewLimit",
+        "Nosis Bio",
+        "OASYS NOW",
+        "Owkin",
+        "Parallel Bio",
+        "Periodic Labs",
+        "Phagos",
+        "Pheiron",
+        "Phylo",
+        "Polaron",
+        "Protai",
+        "QunaSys",
+        "Qureight",
+        "Rainbow Crops",
+        "Sonomind",
+        "Stratum AI",
+        "Tamarind Bio",
+        "Telum Therapeutics",
+        "Terra AI",
+        "Terray Therapeutics",
+        "Theremia",
+        "Trellis Bioscience",
+        "Triveni Bio",
+        "Truveta",
+        "Twinsight",
+        "VUGENE",
+        "Vivodyne",
+        "Xaira Therapeutics",
+        "alqem"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI For Drug Discovery",
+          38
+        ],
+        [
+          "AI Foundation Models For Biology",
+          9
+        ],
+        [
+          "Clinical Trial Optimization",
+          8
+        ],
+        [
+          "AI For Material Discovery",
+          6
+        ],
+        [
+          "Uncategorized",
+          6
+        ],
+        [
+          "AI Clinical Trial Optimization",
+          6
+        ],
+        [
+          "Therapeutics & Drug Development",
+          6
+        ],
+        [
+          "Computational Immune Engineering",
+          5
+        ],
+        [
+          "AI Industrial Operations",
+          4
+        ],
+        [
+          "Immune System Analytics",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 11,
+      "size": 52,
+      "members": [
+        "AFFiNE",
+        "Agentice",
+        "Ayari",
+        "Clarifeye",
+        "CoLab",
+        "Convey",
+        "Dust",
+        "Engram",
+        "Flowscope",
+        "Freestyle",
+        "Fyxer",
+        "Genius AI",
+        "Goldfish",
+        "Granola",
+        "H Company",
+        "Hex",
+        "HeyHelp",
+        "In Parallel",
+        "Julius",
+        "Klassif.ai",
+        "Lindy",
+        "Lucas",
+        "Maestro Labs",
+        "Marker",
+        "Memory Store",
+        "Mendo",
+        "Naboo",
+        "NanoCo",
+        "Ollie",
+        "Pancake",
+        "PandasAI",
+        "Scribe",
+        "Sigma Computing",
+        "Skan AI",
+        "Slite",
+        "Stilla",
+        "Strawberry",
+        "Supafax",
+        "Superhuman",
+        "Tally",
+        "TextCortex",
+        "ThirdLayer",
+        "Town",
+        "Twin",
+        "Upstream",
+        "Viktor",
+        "Visoid",
+        "WisdomAI",
+        "Wispr Flow",
+        "Writer",
+        "Zapier",
+        "Zaro"
+      ],
+      "dominant_subsectors": [
+        [
+          "Productivity Tools",
+          49
+        ],
+        [
+          "Uncategorized",
+          9
+        ],
+        [
+          "Enterprise Project Management",
+          4
+        ],
+        [
+          "CRM & Sales",
+          3
+        ],
+        [
+          "Personal Productivity",
+          3
+        ],
+        [
+          "AI Agent Memory & State",
+          2
+        ],
+        [
+          "Supply Chain & Logistics Automation",
+          1
+        ],
+        [
+          "AI Model Development Platforms",
+          1
+        ],
+        [
+          "Internal Audit Automation",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 12,
+      "size": 50,
+      "members": [
+        "AICE",
+        "ANELLO Photonics",
+        "Airis",
+        "Alpine Eagle",
+        "Alta Ares",
+        "Apeiroon",
+        "Arkion",
+        "Armory",
+        "August Robotics",
+        "Bedrock Robotics",
+        "Bubble",
+        "CHAOS Inc.",
+        "Comand AI",
+        "Delair",
+        "Destinus",
+        "Dominion Dynamics",
+        "Drone Radio Beacon (DRB)",
+        "DroneDeploy",
+        "HIVE",
+        "Harmattan AI",
+        "Hermeus",
+        "Infravision",
+        "Kela Technologies",
+        "Lysk",
+        "MAHI",
+        "Monumental",
+        "NPCO",
+        "Neoprime",
+        "Onebrief",
+        "Orbital (by Applied Computing Technologies)",
+        "Origin Robotics",
+        "Ornadyne",
+        "Overland AI",
+        "Performance Drone Works",
+        "Picogrid",
+        "Project Q (Hydris)",
+        "Quantum Systems",
+        "Quartermaster",
+        "SMG (Silicon Microgravity)",
+        "STARK Defence",
+        "Singularity Defense",
+        "Solafune",
+        "StirlingX",
+        "Subatron",
+        "TYTAN Technologies",
+        "TerraFirma",
+        "Twenty",
+        "XReality Factory (XRF)",
+        "Xpanner",
+        "Yona Robotics"
+      ],
+      "dominant_subsectors": [
+        [
+          "Aerospace Defense",
+          25
+        ],
+        [
+          "Military And Defense Automation",
+          17
+        ],
+        [
+          "Defense And Security Robotics",
+          14
+        ],
+        [
+          "Autonomous Industrial Robotics",
+          12
+        ],
+        [
+          "Industrial Asset Inspection",
+          10
+        ],
+        [
+          "Sensors & IoT Devices",
+          9
+        ],
+        [
+          "Drone Defense Systems",
+          8
+        ],
+        [
+          "Biomimetic Surveillance Drones",
+          7
+        ],
+        [
+          "Industrial Automation Robotics",
+          7
+        ],
+        [
+          "AI Aerospace Defense Simulation",
+          5
+        ]
+      ]
+    },
+    {
+      "id": 13,
+      "size": 47,
+      "members": [
+        "Axle Energy",
+        "Bohr Energie",
+        "Brickanta",
+        "Build",
+        "Buildots",
+        "Cactos",
+        "Calibrant Energy",
+        "Companion.energy",
+        "Condor",
+        "Davis AI",
+        "Eclipse",
+        "Edviro",
+        "Emerald AI",
+        "Exowatt",
+        "Foresight",
+        "Freeda",
+        "Fulcana",
+        "Fuse Energy",
+        "Fuzed",
+        "Geoforge",
+        "GridAstra",
+        "GrowthFactor",
+        "Gyre Energy",
+        "Heron Power",
+        "Higharc",
+        "JOOC",
+        "LightTable",
+        "Moment Energy",
+        "Moonwatt",
+        "NYXIUM",
+        "Ore Energy",
+        "Orus Energy",
+        "Phaidra",
+        "Plume",
+        "Podero",
+        "Powernaut",
+        "Probook",
+        "ProcurePro",
+        "Reonic",
+        "SIBS AB",
+        "Scait",
+        "Shifted",
+        "Tenderbolt",
+        "Tilt Energy",
+        "VoltSeal",
+        "Zanskar",
+        "kelvin°"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Energy Infrastructure",
+          19
+        ],
+        [
+          "Energy Storage Systems",
+          11
+        ],
+        [
+          "Field & Industrial Operations",
+          10
+        ],
+        [
+          "Energy Efficiency Software",
+          9
+        ],
+        [
+          "Demand Response Management",
+          8
+        ],
+        [
+          "Construction Project Intelligence",
+          7
+        ],
+        [
+          "Enterprise Project Management",
+          7
+        ],
+        [
+          "Grid Resilience Technology",
+          6
+        ],
+        [
+          "AI Engineering Design",
+          5
+        ],
+        [
+          "Renewable Energy Forecasting",
+          5
+        ]
+      ]
+    },
+    {
+      "id": 14,
+      "size": 46,
+      "members": [
+        "AGON",
+        "Alizé",
+        "Andera",
+        "Aptus.AI",
+        "Arden",
+        "Audrey AI",
+        "Avanoo",
+        "Balance Theory",
+        "Bayshore",
+        "CYTUR",
+        "Certo",
+        "Cleo Labs",
+        "Complir",
+        "Cortea",
+        "Coverbase",
+        "DeepIP",
+        "Delve",
+        "Dili",
+        "Domyno",
+        "Emproof",
+        "Exein",
+        "Fed10",
+        "Galink",
+        "Harvey",
+        "HermineIA",
+        "Inforcer",
+        "Isometric",
+        "JUPUS",
+        "Jimini.ai",
+        "Jurilo",
+        "Justinian",
+        "Keith",
+        "Lawhive",
+        "Legora",
+        "Lightbringer",
+        "Magnitude",
+        "MarqVision",
+        "Naaia",
+        "Periphery Security",
+        "Qontrol",
+        "Qualifyze",
+        "Sandstone",
+        "Secfix",
+        "Tenacy",
+        "Vanta",
+        "Wordsmith"
+      ],
+      "dominant_subsectors": [
+        [
+          "Cybersecurity Risk Management",
+          13
+        ],
+        [
+          "Legal Compliance Automation",
+          12
+        ],
+        [
+          "Internal Audit Automation",
+          12
+        ],
+        [
+          "Uncategorized",
+          8
+        ],
+        [
+          "Vendor Risk Management",
+          7
+        ],
+        [
+          "Regulatory Document Automation",
+          7
+        ],
+        [
+          "Policy Intelligence And News",
+          6
+        ],
+        [
+          "Threat Detection & Intelligence",
+          3
+        ],
+        [
+          "Product Compliance Management",
+          3
+        ],
+        [
+          "Device & Firmware Security",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 15,
+      "size": 42,
+      "members": [
+        "60fps",
+        "AdMagica",
+        "Adomate",
+        "All Ears",
+        "Animaj",
+        "Arcads",
+        "Argil",
+        "Axiom Math",
+        "Black Forest Labs",
+        "Capsule",
+        "Contimo",
+        "Flaunt",
+        "Frameway",
+        "Frammer AI",
+        "Gamma",
+        "Genmo",
+        "Hey Pongo",
+        "Higgsfield AI",
+        "Kaon AI",
+        "Kling AI",
+        "Koah",
+        "Krea.ai",
+        "Magic",
+        "Marketeam.ai",
+        "Martini",
+        "Meshy",
+        "Mirage",
+        "Motorica",
+        "Omi",
+        "OpusClip",
+        "POWER.xyz",
+        "Shinka",
+        "Spotwise",
+        "Suno",
+        "Synthesia",
+        "Tinct",
+        "Tripo 3D",
+        "TrueFan AI",
+        "Variant",
+        "Zelara",
+        "Zocket",
+        "tday"
+      ],
+      "dominant_subsectors": [
+        [
+          "Automated Marketing Assets",
+          23
+        ],
+        [
+          "Generative Media Tools",
+          11
+        ],
+        [
+          "AI Content Production",
+          10
+        ],
+        [
+          "Video Ad Automation",
+          8
+        ],
+        [
+          "Personalized Media Experiences",
+          7
+        ],
+        [
+          "Ad Tech",
+          6
+        ],
+        [
+          "AI Model Development Platforms",
+          6
+        ],
+        [
+          "AI Data & Training Infrastructure",
+          5
+        ],
+        [
+          "Social Media",
+          3
+        ],
+        [
+          "Brand Safety And Marketing",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 16,
+      "size": 42,
+      "members": [
+        "1KOMMA5°",
+        "Aalo Atomics",
+        "Ainwater",
+        "Alight",
+        "Antares",
+        "Applied Atomics",
+        "Base Power",
+        "Blue Capsule",
+        "Blykalla",
+        "Catalyxx",
+        "Circular Materials",
+        "Claros Technologies",
+        "DEScycle",
+        "Electric Hydrogen",
+        "Enpal",
+        "GALVANY Energy GmbH",
+        "Gigaton",
+        "Greenlyte Carbon Technologies",
+        "Hades",
+        "Hadron Energy",
+        "Hexana",
+        "Jimmy Energy",
+        "Kraftblock",
+        "Kvasir Technologies",
+        "Mariana Minerals",
+        "NotFossil",
+        "Nuclear Turbines",
+        "Otrera",
+        "Pila Energy",
+        "Porelio",
+        "Proxima Fusion",
+        "Pstryk",
+        "Quatt",
+        "Realta Fusion",
+        "Remedy",
+        "Saltfoss Energy",
+        "Steady Energy",
+        "Subra",
+        "Valar Atomics",
+        "Vertoro",
+        "Zeno Power",
+        "myenergi"
+      ],
+      "dominant_subsectors": [
+        [
+          "Nuclear Energy",
+          16
+        ],
+        [
+          "Energy Storage Systems",
+          14
+        ],
+        [
+          "Decarbonized Industrial Heat",
+          13
+        ],
+        [
+          "Sustainable Metal Recovery",
+          6
+        ],
+        [
+          "Uncategorized",
+          5
+        ],
+        [
+          "Pollution Control Technology",
+          5
+        ],
+        [
+          "Grid Resilience Technology",
+          4
+        ],
+        [
+          "Sustainable Biomanufacturing",
+          4
+        ],
+        [
+          "Energy Efficiency Software",
+          4
+        ],
+        [
+          "Demand Response Management",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 17,
+      "size": 41,
+      "members": [
+        "AgentPhone",
+        "AssemblyAI",
+        "Axe",
+        "Bland AI",
+        "Bota",
+        "Bravi",
+        "Brilliant Harvest",
+        "Cignara",
+        "Clarity",
+        "CodeWords",
+        "Coval",
+        "Deepgram",
+        "Dovetail",
+        "Elora",
+        "Elyos",
+        "Fin",
+        "GetVocal",
+        "Giga",
+        "Gladia",
+        "HappyRobot",
+        "KugelAudio",
+        "LiveKit",
+        "Maven AGI",
+        "Mimir",
+        "Murphy",
+        "Parahelp",
+        "Parloa",
+        "Pylon",
+        "Quivr",
+        "Replify",
+        "Rubie",
+        "Sable",
+        "Smallest AI",
+        "Sono",
+        "Tavus",
+        "Tremau",
+        "Vocci",
+        "ai-coustics",
+        "fonio.ai",
+        "pyannote.ai",
+        "telli"
+      ],
+      "dominant_subsectors": [
+        [
+          "Customer Support",
+          31
+        ],
+        [
+          "API Infrastructure",
+          8
+        ],
+        [
+          "Uncategorized",
+          7
+        ],
+        [
+          "Speech & Audio AI",
+          7
+        ],
+        [
+          "Productivity Tools",
+          5
+        ],
+        [
+          "AI Agent Platforms And Automation",
+          2
+        ],
+        [
+          "Supply Chain & Logistics Automation",
+          2
+        ],
+        [
+          "Sensors & IoT Devices",
+          2
+        ],
+        [
+          "Consumer Electronics",
+          2
+        ],
+        [
+          "Field & Industrial Operations",
+          2
+        ]
+      ]
+    },
+    {
+      "id": 18,
+      "size": 29,
+      "members": [
+        "Aavuus",
+        "Alice & Bob",
+        "Axiom Space",
+        "C12",
+        "CesiumAstro",
+        "GATE Space",
+        "IQM Quantum Computers",
+        "Impulse Space",
+        "Infinite Orbits",
+        "Isar Aerospace",
+        "Isentroniq",
+        "Latitude",
+        "MaiaSpace",
+        "NordSpace",
+        "Oratomic",
+        "Pasqal",
+        "QOSMIC",
+        "Quandela",
+        "Quobly",
+        "Rocket Factory Augsburg (RFA)",
+        "Satlyt",
+        "Space Forge",
+        "SpaceX",
+        "Sybilla Technologies",
+        "The Exploration Company",
+        "Ubotica Technologies",
+        "Unastella",
+        "ZuriQ",
+        "deltaVision"
+      ],
+      "dominant_subsectors": [
+        [
+          "In Space Mobility",
+          10
+        ],
+        [
+          "Launch And Propulsion Systems",
+          10
+        ],
+        [
+          "Quantum Processors & Systems",
+          9
+        ],
+        [
+          "Aerospace Defense",
+          7
+        ],
+        [
+          "Semiconductor & Chips",
+          6
+        ],
+        [
+          "Dedicated Small Satellite Launch",
+          6
+        ],
+        [
+          "Space Based Data Services",
+          5
+        ],
+        [
+          "Reusable Space Vehicles",
+          5
+        ],
+        [
+          "Industrial Asset Inspection",
+          1
+        ],
+        [
+          "Autonomous Industrial Robotics",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 19,
+      "size": 24,
+      "members": [
+        "Ahron",
+        "Alva Labs",
+        "Asendia AI",
+        "BlockComp",
+        "Contrario",
+        "Datapizza",
+        "Empion",
+        "Factorial",
+        "Fika Jobs",
+        "Helio.AI",
+        "Huzzle",
+        "Jack & Jill",
+        "MONA AI",
+        "Maki People",
+        "Orbio AI",
+        "Ozly",
+        "Pactos",
+        "Paraform",
+        "Pave",
+        "Skello",
+        "Slary",
+        "Sparrow",
+        "Welcome to the Jungle",
+        "WhyBrilliant"
+      ],
+      "dominant_subsectors": [
+        [
+          "Recruiting And Talent Acquisition",
+          16
+        ],
+        [
+          "HR Management Platforms",
+          9
+        ],
+        [
+          "Uncategorized",
+          8
+        ],
+        [
+          "Workforce Compliance Platforms",
+          6
+        ],
+        [
+          "ERP & Business Operations",
+          1
+        ],
+        [
+          "Investment Intelligence",
+          1
+        ],
+        [
+          "Mortgage And Lending Tech",
+          1
+        ],
+        [
+          "Embedded Financial Services",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 20,
+      "size": 7,
+      "members": [
+        "Bookvik AI",
+        "Capch",
+        "Ekili",
+        "Marble",
+        "Speak",
+        "Tomo",
+        "Wilgo"
+      ],
+      "dominant_subsectors": [
+        [
+          "Personal Productivity",
+          4
+        ],
+        [
+          "AI For Education And Creativity",
+          4
+        ],
+        [
+          "Lifestyle & Wellness",
+          3
+        ],
+        [
+          "K-12 Education",
+          3
+        ],
+        [
+          "Uncategorized",
+          2
+        ],
+        [
+          "Gaming & Entertainment",
+          1
+        ],
+        [
+          "Social & Community",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 21,
+      "size": 7,
+      "members": [
+        "Alea Health",
+        "Ash (Slingshot AI)",
+        "Flourish Health",
+        "Headway",
+        "Limbic",
+        "Talkiatry",
+        "wilo"
+      ],
+      "dominant_subsectors": [
+        [
+          "Mental Health",
+          7
+        ],
+        [
+          "Lifestyle & Wellness",
+          2
+        ],
+        [
+          "AI Chronic Care Management",
+          1
+        ],
+        [
+          "Medical Practice Software",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 22,
+      "size": 6,
+      "members": [
+        "CollegeVine",
+        "EdVisorly",
+        "Klared",
+        "Loumo",
+        "Paper Clue",
+        "Straia"
+      ],
+      "dominant_subsectors": [
+        [
+          "Higher Education",
+          6
+        ],
+        [
+          "AI For Education And Creativity",
+          5
+        ],
+        [
+          "Uncategorized",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 23,
+      "size": 6,
+      "members": [
+        "Aardaia",
+        "Farmless",
+        "InsectBiotech",
+        "Millow",
+        "Solar Foods",
+        "Vivici"
+      ],
+      "dominant_subsectors": [
+        [
+          "Uncategorized",
+          6
+        ],
+        [
+          "Sustainable Biomanufacturing",
+          3
+        ],
+        [
+          "Industrial Byproduct Upcycling",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 24,
+      "size": 5,
+      "members": [
+        "Array Labs",
+        "Earth Fire Alliance",
+        "ICEYE",
+        "Tomorrow.io",
+        "WindBorne Systems"
+      ],
+      "dominant_subsectors": [
+        [
+          "Space Based Data Services",
+          5
+        ],
+        [
+          "Aerospace Defense",
+          2
+        ],
+        [
+          "AI Energy Infrastructure",
+          1
+        ],
+        [
+          "AI Weather And Climate",
+          1
+        ],
+        [
+          "Pollution Control Technology",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 25,
+      "size": 5,
+      "members": [
+        "Epoch Biodesign",
+        "Gr3n",
+        "Musthad",
+        "Renasens",
+        "Syntetica"
+      ],
+      "dominant_subsectors": [
+        [
+          "Textile Waste Recycling",
+          5
+        ],
+        [
+          "Retail Commerce Automation",
+          1
+        ],
+        [
+          "Pollution Control Technology",
+          1
+        ],
+        [
+          "Enzyme Based Recycling",
+          1
+        ],
+        [
+          "Sustainable Biomanufacturing",
+          1
+        ],
+        [
+          "Industrial Byproduct Upcycling",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 26,
+      "size": 5,
+      "members": [
+        "Assyro",
+        "Cellbyte",
+        "Enjamb",
+        "Panacea",
+        "Solstice Health"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Medical Workflow",
+          3
+        ],
+        [
+          "Enterprise Project Management",
+          3
+        ],
+        [
+          "AI For Market Access",
+          2
+        ],
+        [
+          "Automated Marketing Assets",
+          1
+        ],
+        [
+          "AI Lead Generation",
+          1
+        ],
+        [
+          "AI For Patent Intelligence",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 27,
+      "size": 5,
+      "members": [
+        "Contraline",
+        "June",
+        "Ovom Care",
+        "Pomelo Care",
+        "Spermosens AB"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Fertility Treatment Optimization",
+          3
+        ],
+        [
+          "AI Chronic Care Management",
+          2
+        ],
+        [
+          "Male Reproductive Health",
+          2
+        ],
+        [
+          "Mental Health",
+          1
+        ],
+        [
+          "Medical Devices & Interventional Technology",
+          1
+        ],
+        [
+          "Therapeutics & Drug Development",
+          1
+        ],
+        [
+          "Advanced Microscopy Diagnostics",
+          1
+        ],
+        [
+          "AI Medical Workflow",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 28,
+      "size": 5,
+      "members": [
+        "Caution",
+        "QIZ",
+        "Tagbase",
+        "Tisura",
+        "pQCee"
+      ],
+      "dominant_subsectors": [
+        [
+          "Cryptographic Data Verification",
+          5
+        ],
+        [
+          "Data Security & Privacy",
+          2
+        ],
+        [
+          "Device & Firmware Security",
+          1
+        ],
+        [
+          "Supply Chain & Logistics Automation",
+          1
+        ],
+        [
+          "Cloud Security",
+          1
+        ],
+        [
+          "Cybersecurity Risk Management",
+          1
+        ],
+        [
+          "Uncategorized",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 29,
+      "size": 5,
+      "members": [
+        "Acodyne",
+        "Human-Mob",
+        "Humble Robotics",
+        "Superlight",
+        "Transcendent Mobility"
+      ],
+      "dominant_subsectors": [
+        [
+          "Electric Cargo Mobility",
+          5
+        ],
+        [
+          "Transport Emissions Capture",
+          2
+        ],
+        [
+          "Urban Mobility Solutions",
+          2
+        ],
+        [
+          "Uncategorized",
+          1
+        ],
+        [
+          "Logistics And Warehouse Robotics",
+          1
+        ],
+        [
+          "Autonomous Industrial Robotics",
+          1
+        ],
+        [
+          "Consumer Electronics",
+          1
+        ],
+        [
+          "Aviation And Flight Systems",
+          1
+        ],
+        [
+          "Aerospace Defense",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 30,
+      "size": 4,
+      "members": [
+        "Fusion Bionic",
+        "Greyparrot",
+        "Kikleo",
+        "Positive Carbon"
+      ],
+      "dominant_subsectors": [
+        [
+          "Pollution Control Technology",
+          4
+        ],
+        [
+          "Industrial Byproduct Upcycling",
+          3
+        ],
+        [
+          "Field & Industrial Operations",
+          1
+        ],
+        [
+          "Supply Chain & Logistics Automation",
+          1
+        ],
+        [
+          "Water Efficiency Solutions",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 31,
+      "size": 4,
+      "members": [
+        "Cookiy",
+        "Dialogue AI",
+        "GetWhys",
+        "Verso"
+      ],
+      "dominant_subsectors": [
+        [
+          "Consumer Insights Automation",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 32,
+      "size": 4,
+      "members": [
+        "Ascendance Flight Technologies",
+        "CycloTech",
+        "Greenjets",
+        "Zymbly"
+      ],
+      "dominant_subsectors": [
+        [
+          "Aviation And Flight Systems",
+          4
+        ],
+        [
+          "Transport Emissions Capture",
+          2
+        ],
+        [
+          "Aviation Operational Intelligence",
+          1
+        ],
+        [
+          "Uncategorized",
+          1
+        ],
+        [
+          "Aerospace Defense",
+          1
+        ],
+        [
+          "Decarbonized Industrial Heat",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 33,
+      "size": 4,
+      "members": [
+        "En Carta Diagnostics",
+        "INTU Diagnostics",
+        "Leyden Labs",
+        "VAir"
+      ],
+      "dominant_subsectors": [
+        [
+          "Diagnostics & Testing",
+          4
+        ],
+        [
+          "Medical Devices & Interventional Technology",
+          2
+        ],
+        [
+          "Therapeutics & Drug Development",
+          2
+        ],
+        [
+          "Sensors & IoT Devices",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 34,
+      "size": 4,
+      "members": [
+        "AgZen",
+        "Aptimiz",
+        "OneSoil",
+        "Proveye"
+      ],
+      "dominant_subsectors": [
+        [
+          "Farm Operations & Precision Agriculture",
+          4
+        ]
+      ]
+    },
+    {
+      "id": 35,
+      "size": 4,
+      "members": [
+        "CultuLink",
+        "EchoVision",
+        "OOrion",
+        "Rylo"
+      ],
+      "dominant_subsectors": [
+        [
+          "Accessibility & Inclusion",
+          4
+        ],
+        [
+          "AI Chronic Care Management",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 36,
+      "size": 3,
+      "members": [
+        "RapidPulse",
+        "Robeauté",
+        "Science Corporation"
+      ],
+      "dominant_subsectors": [
+        [
+          "Neural Interface Technologies",
+          2
+        ],
+        [
+          "Uncategorized",
+          1
+        ],
+        [
+          "AI Neuroscience Research",
+          1
+        ],
+        [
+          "Medical Devices & Interventional Technology",
+          1
+        ],
+        [
+          "Therapeutics & Drug Development",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 37,
+      "size": 3,
+      "members": [
+        "Flinn",
+        "InferaHealth",
+        "Qualio"
+      ],
+      "dominant_subsectors": [
+        [
+          "Pharma Regulatory Compliance",
+          3
+        ],
+        [
+          "Regulatory Submission Automation",
+          2
+        ]
+      ]
+    },
+    {
+      "id": 38,
+      "size": 3,
+      "members": [
+        "Amboras",
+        "Figr",
+        "Swap"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Native Ecommerce Platforms",
+          2
+        ],
+        [
+          "Visual Commerce Tools",
+          2
+        ],
+        [
+          "AI Powered Commerce",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 39,
+      "size": 3,
+      "members": [
+        "DITTO",
+        "Feel Reformed",
+        "Nourished"
+      ],
+      "dominant_subsectors": [
+        [
+          "Uncategorized",
+          2
+        ],
+        [
+          "Lifestyle & Wellness",
+          2
+        ],
+        [
+          "Personal Health Insights",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 40,
+      "size": 3,
+      "members": [
+        "Cato",
+        "NationGraph",
+        "Tendium"
+      ],
+      "dominant_subsectors": [
+        [
+          "CRM & Sales",
+          3
+        ]
+      ]
+    },
+    {
+      "id": 41,
+      "size": 3,
+      "members": [
+        "Clair Health",
+        "Evvy",
+        "PointFit"
+      ],
+      "dominant_subsectors": [
+        [
+          "Personal Health Insights",
+          3
+        ],
+        [
+          "Sensors & IoT Devices",
+          2
+        ],
+        [
+          "Consumer Electronics",
+          2
+        ],
+        [
+          "Diagnostics & Testing",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 42,
+      "size": 3,
+      "members": [
+        "Engo Eyewear",
+        "Jabbr",
+        "PlayReplay"
+      ],
+      "dominant_subsectors": [
+        [
+          "Sensors & IoT Devices",
+          3
+        ],
+        [
+          "Lifestyle & Wellness",
+          2
+        ],
+        [
+          "Consumer Electronics",
+          2
+        ],
+        [
+          "Gaming & Entertainment",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 43,
+      "size": 3,
+      "members": [
+        "InSoil",
+        "Quideos",
+        "Seqana"
+      ],
+      "dominant_subsectors": [
+        [
+          "Agricultural Finance & Commodity Markets",
+          2
+        ],
+        [
+          "Farm Operations & Precision Agriculture",
+          2
+        ],
+        [
+          "Corporate Treasury Management",
+          1
+        ],
+        [
+          "Space Based Data Services",
+          1
+        ],
+        [
+          "Investment Intelligence",
+          1
+        ],
+        [
+          "Embedded Financial Services",
+          1
+        ],
+        [
+          "Pollution Control Technology",
+          1
+        ],
+        [
+          "Uncategorized",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 44,
+      "size": 3,
+      "members": [
+        "Dumbo Health",
+        "Eight Sleep",
+        "SOND"
+      ],
+      "dominant_subsectors": [
+        [
+          "Personal Health Insights",
+          3
+        ],
+        [
+          "Lifestyle & Wellness",
+          2
+        ],
+        [
+          "Consumer Electronics",
+          2
+        ],
+        [
+          "Sensors & IoT Devices",
+          2
+        ],
+        [
+          "Diagnostics & Testing",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 45,
+      "size": 3,
+      "members": [
+        "Adsmom",
+        "Camphouse",
+        "Concord"
+      ],
+      "dominant_subsectors": [
+        [
+          "Ad Tech",
+          3
+        ],
+        [
+          "Web Data Intelligence",
+          1
+        ]
+      ]
+    },
+    {
+      "id": 46,
+      "size": 3,
+      "members": [
+        "Architect Labs",
+        "ChipAgents",
+        "Ricursive Intelligence"
+      ],
+      "dominant_subsectors": [
+        [
+          "AI Model Development Platforms",
+          3
+        ],
+        [
+          "AI Compute & Cloud Infrastructure",
+          2
+        ],
+        [
+          "Semiconductor & Chips",
+          2
+        ],
+        [
+          "AI Agent Platforms And Automation",
+          1
+        ],
+        [
+          "AI Driven Developer Productivity",
+          1
+        ]
+      ]
+    }
+  ],
+  "subsector_splits": [
+    {
+      "subsector": "Uncategorized",
+      "total_members": 169,
+      "split_across": [
+        {
+          "community_id": 4,
+          "members": 11
+        },
+        {
+          "community_id": 16,
+          "members": 5
+        },
+        {
+          "community_id": 3,
+          "members": 9
+        },
+        {
+          "community_id": 0,
+          "members": 7
+        },
+        {
+          "community_id": 8,
+          "members": 7
+        },
+        {
+          "community_id": 6,
+          "members": 8
+        },
+        {
+          "community_id": 23,
+          "members": 6
+        },
+        {
+          "community_id": 10,
+          "members": 6
+        },
+        {
+          "community_id": 1,
+          "members": 4
+        },
+        {
+          "community_id": 7,
+          "members": 3
+        },
+        {
+          "community_id": 13,
+          "members": 4
+        },
+        {
+          "community_id": 14,
+          "members": 8
+        },
+        {
+          "community_id": 19,
+          "members": 8
+        },
+        {
+          "community_id": 11,
+          "members": 9
+        },
+        {
+          "community_id": 17,
+          "members": 7
+        },
+        {
+          "community_id": 5,
+          "members": 9
+        }
+      ]
+    },
+    {
+      "subsector": "AI Model Development Platforms",
+      "total_members": 85,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 52
+        },
+        {
+          "community_id": 46,
+          "members": 3
+        },
+        {
+          "community_id": 4,
+          "members": 3
+        },
+        {
+          "community_id": 7,
+          "members": 5
+        },
+        {
+          "community_id": 15,
+          "members": 6
+        },
+        {
+          "community_id": 10,
+          "members": 3
+        },
+        {
+          "community_id": 9,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Productivity Tools",
+      "total_members": 75,
+      "split_across": [
+        {
+          "community_id": 17,
+          "members": 5
+        },
+        {
+          "community_id": 11,
+          "members": 49
+        },
+        {
+          "community_id": 6,
+          "members": 5
+        },
+        {
+          "community_id": 4,
+          "members": 3
+        },
+        {
+          "community_id": 8,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "API Infrastructure",
+      "total_members": 56,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 23
+        },
+        {
+          "community_id": 1,
+          "members": 11
+        },
+        {
+          "community_id": 17,
+          "members": 8
+        },
+        {
+          "community_id": 3,
+          "members": 3
+        },
+        {
+          "community_id": 7,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "CRM & Sales",
+      "total_members": 55,
+      "split_across": [
+        {
+          "community_id": 6,
+          "members": 35
+        },
+        {
+          "community_id": 11,
+          "members": 3
+        },
+        {
+          "community_id": 40,
+          "members": 3
+        },
+        {
+          "community_id": 4,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "AI Data & Training Infrastructure",
+      "total_members": 60,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 24
+        },
+        {
+          "community_id": 9,
+          "members": 18
+        },
+        {
+          "community_id": 15,
+          "members": 5
+        },
+        {
+          "community_id": 7,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Cybersecurity Risk Management",
+      "total_members": 51,
+      "split_across": [
+        {
+          "community_id": 7,
+          "members": 8
+        },
+        {
+          "community_id": 8,
+          "members": 13
+        },
+        {
+          "community_id": 14,
+          "members": 13
+        },
+        {
+          "community_id": 2,
+          "members": 15
+        }
+      ]
+    },
+    {
+      "subsector": "Threat Detection & Intelligence",
+      "total_members": 58,
+      "split_across": [
+        {
+          "community_id": 2,
+          "members": 41
+        },
+        {
+          "community_id": 8,
+          "members": 9
+        },
+        {
+          "community_id": 14,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Cloud Security",
+      "total_members": 28,
+      "split_across": [
+        {
+          "community_id": 2,
+          "members": 11
+        },
+        {
+          "community_id": 7,
+          "members": 8
+        },
+        {
+          "community_id": 0,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Personal Productivity",
+      "total_members": 20,
+      "split_across": [
+        {
+          "community_id": 20,
+          "members": 4
+        },
+        {
+          "community_id": 8,
+          "members": 4
+        },
+        {
+          "community_id": 11,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Field & Industrial Operations",
+      "total_members": 54,
+      "split_across": [
+        {
+          "community_id": 4,
+          "members": 24
+        },
+        {
+          "community_id": 8,
+          "members": 7
+        },
+        {
+          "community_id": 13,
+          "members": 10
+        }
+      ]
+    },
+    {
+      "subsector": "Financial Compliance Automation",
+      "total_members": 50,
+      "split_across": [
+        {
+          "community_id": 8,
+          "members": 19
+        },
+        {
+          "community_id": 1,
+          "members": 20
+        },
+        {
+          "community_id": 3,
+          "members": 7
+        }
+      ]
+    },
+    {
+      "subsector": "AI Powered Commerce",
+      "total_members": 35,
+      "split_across": [
+        {
+          "community_id": 4,
+          "members": 8
+        },
+        {
+          "community_id": 6,
+          "members": 11
+        },
+        {
+          "community_id": 0,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Ad Tech",
+      "total_members": 15,
+      "split_across": [
+        {
+          "community_id": 15,
+          "members": 6
+        },
+        {
+          "community_id": 45,
+          "members": 3
+        },
+        {
+          "community_id": 6,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Personal Health Insights",
+      "total_members": 28,
+      "split_across": [
+        {
+          "community_id": 5,
+          "members": 17
+        },
+        {
+          "community_id": 44,
+          "members": 3
+        },
+        {
+          "community_id": 41,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Enterprise Project Management",
+      "total_members": 21,
+      "split_across": [
+        {
+          "community_id": 13,
+          "members": 7
+        },
+        {
+          "community_id": 11,
+          "members": 4
+        },
+        {
+          "community_id": 26,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "AI For Education And Creativity",
+      "total_members": 14,
+      "split_across": [
+        {
+          "community_id": 20,
+          "members": 4
+        },
+        {
+          "community_id": 22,
+          "members": 5
+        },
+        {
+          "community_id": 8,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "AI Lead Generation",
+      "total_members": 30,
+      "split_across": [
+        {
+          "community_id": 6,
+          "members": 25
+        },
+        {
+          "community_id": 15,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "CI/CD & DevOps",
+      "total_members": 20,
+      "split_across": [
+        {
+          "community_id": 2,
+          "members": 6
+        },
+        {
+          "community_id": 0,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "MLOps & Model Serving",
+      "total_members": 45,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 32
+        },
+        {
+          "community_id": 7,
+          "members": 10
+        }
+      ]
+    },
+    {
+      "subsector": "Sustainable Biomanufacturing",
+      "total_members": 14,
+      "split_across": [
+        {
+          "community_id": 16,
+          "members": 4
+        },
+        {
+          "community_id": 23,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Observability & Monitoring",
+      "total_members": 31,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 23
+        },
+        {
+          "community_id": 2,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Energy Storage Systems",
+      "total_members": 29,
+      "split_across": [
+        {
+          "community_id": 16,
+          "members": 14
+        },
+        {
+          "community_id": 13,
+          "members": 11
+        }
+      ]
+    },
+    {
+      "subsector": "AI Security And Guardrails",
+      "total_members": 57,
+      "split_across": [
+        {
+          "community_id": 7,
+          "members": 49
+        },
+        {
+          "community_id": 2,
+          "members": 7
+        }
+      ]
+    },
+    {
+      "subsector": "Financial Planning Analytics",
+      "total_members": 26,
+      "split_across": [
+        {
+          "community_id": 1,
+          "members": 18
+        },
+        {
+          "community_id": 3,
+          "members": 7
+        }
+      ]
+    },
+    {
+      "subsector": "Aerospace Defense",
+      "total_members": 46,
+      "split_across": [
+        {
+          "community_id": 12,
+          "members": 25
+        },
+        {
+          "community_id": 18,
+          "members": 7
+        }
+      ]
+    },
+    {
+      "subsector": "General Purpose Robotics",
+      "total_members": 26,
+      "split_across": [
+        {
+          "community_id": 9,
+          "members": 19
+        },
+        {
+          "community_id": 12,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Audit And Risk Automation",
+      "total_members": 10,
+      "split_across": [
+        {
+          "community_id": 8,
+          "members": 4
+        },
+        {
+          "community_id": 1,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Consumer Insights Automation",
+      "total_members": 17,
+      "split_across": [
+        {
+          "community_id": 31,
+          "members": 4
+        },
+        {
+          "community_id": 6,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Legal Compliance Automation",
+      "total_members": 22,
+      "split_across": [
+        {
+          "community_id": 14,
+          "members": 12
+        },
+        {
+          "community_id": 8,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Payment And Fraud Solutions",
+      "total_members": 59,
+      "split_across": [
+        {
+          "community_id": 1,
+          "members": 40
+        },
+        {
+          "community_id": 8,
+          "members": 12
+        }
+      ]
+    },
+    {
+      "subsector": "Data Security & Privacy",
+      "total_members": 35,
+      "split_across": [
+        {
+          "community_id": 7,
+          "members": 21
+        },
+        {
+          "community_id": 2,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Pollution Control Technology",
+      "total_members": 21,
+      "split_across": [
+        {
+          "community_id": 16,
+          "members": 5
+        },
+        {
+          "community_id": 30,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Investment Intelligence",
+      "total_members": 31,
+      "split_across": [
+        {
+          "community_id": 3,
+          "members": 24
+        },
+        {
+          "community_id": 1,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Retail Commerce Automation",
+      "total_members": 17,
+      "split_across": [
+        {
+          "community_id": 4,
+          "members": 8
+        },
+        {
+          "community_id": 0,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Lifestyle & Wellness",
+      "total_members": 25,
+      "split_across": [
+        {
+          "community_id": 20,
+          "members": 3
+        },
+        {
+          "community_id": 5,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Automated Marketing Assets",
+      "total_members": 35,
+      "split_across": [
+        {
+          "community_id": 15,
+          "members": 23
+        },
+        {
+          "community_id": 6,
+          "members": 6
+        }
+      ]
+    },
+    {
+      "subsector": "Semiconductor & Chips",
+      "total_members": 31,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 16
+        },
+        {
+          "community_id": 18,
+          "members": 6
+        }
+      ]
+    },
+    {
+      "subsector": "AI Energy Infrastructure",
+      "total_members": 30,
+      "split_across": [
+        {
+          "community_id": 12,
+          "members": 3
+        },
+        {
+          "community_id": 13,
+          "members": 19
+        }
+      ]
+    },
+    {
+      "subsector": "AI Driven Developer Productivity",
+      "total_members": 56,
+      "split_across": [
+        {
+          "community_id": 0,
+          "members": 48
+        },
+        {
+          "community_id": 2,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Secrets And Non Human Identity Security",
+      "total_members": 18,
+      "split_across": [
+        {
+          "community_id": 7,
+          "members": 14
+        },
+        {
+          "community_id": 2,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "HR Management Platforms",
+      "total_members": 14,
+      "split_across": [
+        {
+          "community_id": 3,
+          "members": 3
+        },
+        {
+          "community_id": 19,
+          "members": 9
+        }
+      ]
+    },
+    {
+      "subsector": "ERP & Business Operations",
+      "total_members": 26,
+      "split_across": [
+        {
+          "community_id": 1,
+          "members": 10
+        },
+        {
+          "community_id": 4,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Space Based Data Services",
+      "total_members": 12,
+      "split_across": [
+        {
+          "community_id": 18,
+          "members": 5
+        },
+        {
+          "community_id": 24,
+          "members": 5
+        }
+      ]
+    },
+    {
+      "subsector": "Industrial Automation Robotics",
+      "total_members": 29,
+      "split_across": [
+        {
+          "community_id": 12,
+          "members": 7
+        },
+        {
+          "community_id": 9,
+          "members": 14
+        }
+      ]
+    },
+    {
+      "subsector": "AI Medical Workflow",
+      "total_members": 9,
+      "split_across": [
+        {
+          "community_id": 26,
+          "members": 3
+        },
+        {
+          "community_id": 5,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Personalized Media Experiences",
+      "total_members": 11,
+      "split_across": [
+        {
+          "community_id": 15,
+          "members": 7
+        },
+        {
+          "community_id": 6,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Energy Efficiency Software",
+      "total_members": 18,
+      "split_across": [
+        {
+          "community_id": 13,
+          "members": 9
+        },
+        {
+          "community_id": 16,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Medical Imaging AI",
+      "total_members": 15,
+      "split_across": [
+        {
+          "community_id": 5,
+          "members": 9
+        },
+        {
+          "community_id": 10,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Sensors & IoT Devices",
+      "total_members": 36,
+      "split_across": [
+        {
+          "community_id": 42,
+          "members": 3
+        },
+        {
+          "community_id": 12,
+          "members": 9
+        }
+      ]
+    },
+    {
+      "subsector": "Trading Infrastructure",
+      "total_members": 15,
+      "split_across": [
+        {
+          "community_id": 3,
+          "members": 10
+        },
+        {
+          "community_id": 1,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Digital Asset Liquidity",
+      "total_members": 12,
+      "split_across": [
+        {
+          "community_id": 1,
+          "members": 6
+        },
+        {
+          "community_id": 3,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "AI Industrial Operations",
+      "total_members": 12,
+      "split_across": [
+        {
+          "community_id": 12,
+          "members": 4
+        },
+        {
+          "community_id": 10,
+          "members": 4
+        }
+      ]
+    },
+    {
+      "subsector": "Demand Response Management",
+      "total_members": 13,
+      "split_across": [
+        {
+          "community_id": 13,
+          "members": 8
+        },
+        {
+          "community_id": 16,
+          "members": 3
+        }
+      ]
+    },
+    {
+      "subsector": "Grid Resilience Technology",
+      "total_members": 11,
+      "split_across": [
+        {
+          "community_id": 13,
+          "members": 6
+        },
+        {
+          "community_id": 16,
+          "members": 4
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,677 @@
+01Health
+1001
+10x Science
+11x AI
+1KOMMA5°
+2501.ai
+60fps
+7AI
+8Layers
+Aalo Atomics
+Aampere
+Aardaia
+Aaru
+Aavuus
+Abacum
+Abby Care
+AbInitio Bio
+Abound
+Acast
+Accordance
+Acodyne
+ActInside
+Actionable
+Acumino
+Adomate
+Adya
+Aeon
+Afori
+Agency
+Agentio
+AgentPhone
+AI Verse
+ai-coustics
+AI-Stroke
+AICE
+Aikido Security
+Ailos
+Aily Labs
+Ainwater
+Airalo
+Airis
+AKASA
+Akrites
+Alan
+Alchemab Therapeutics
+Alea Health
+Aleno
+Alice & Bob
+Alight
+Aligned
+Alizé
+All Ears
+Allie Systems
+Allium
+Allude
+Alma
+Almetra
+AlpSemi
+alqem.ai
+Alta Ares
+Altilia
+Altrove
+Alva Industries
+Amboras
+AMI Labs
+AML Factory
+Amplemarket
+Amulet
+Andera
+Animaj
+Anixi Health
+Annette
+Anthropic
+Anya by AnySoft
+Anyfin
+Apeiroon
+Apheris
+Apoha
+Applied Atomics
+Apron
+Aptus.AI
+Aqemia
+Aquila Systems Corporation
+Arcads
+Arctic Health
+Arden
+Argil
+Arkimedes
+Arkion
+Arlequin AI
+Armadin
+Armature
+Armory
+Aryon
+asap.work
+Ascendance Flight Technologies
+Aseon Labs
+Ash (Slingshot AI)
+Asilla
+AssemblyAI
+Assured
+Assyro
+Astraea
+Astral Systems
+Astribot
+Athana
+Atlar
+Atoms
+Attio
+Audrey AI
+Augmodo
+Augur
+August Robotics
+Avanoo
+Avea Robotics
+avi medical
+Axe
+Axelera AI
+Axiom Math
+Axle Energy
+Aylight
+Ayna
+Aztelia
+baCta
+Banxware
+Baobab Risk Solutions
+Baseten
+Batuta
+Bavest
+BeatpulseLabs
+BeCaps
+Bedrock Robotics
+BeeSafe AI
+Benchling
+Bespoke Labs
+BforeAI
+Bionyra Pharma
+Bioptimus
+Birdi
+Bitmovin
+Bitstack
+Black Forest Labs
+Blackwall
+Blaise Technologies
+Bland AI
+BLP Digital
+BlpDigital
+Blue Capsule
+Blueprint Biomed
+Blueprints
+Blumana
+Blykalla
+Board
+BodyWision
+Bohr Energie
+Bondio
+Bookvik AI
+Boonty
+Bota
+BotRank.ai
+Bought
+Bounti.ai
+Bravi
+Brenus Pharma
+Brightside AI
+Brilliant Harvest
+Bubble
+Build
+Buildots
+Bullfinch
+byoRNA
+C12
+Cactos
+Cadence
+Cajal Technologies
+Calibrant Energy
+Cambrium
+Canals
+Candela Technology AB
+Candid Health
+Candle
+Capch
+Capi Money
+Caplight
+Capsa AI
+Capsule
+CardNexus
+Carecode
+Cargofy
+Cariqa
+Carla
+Cashea
+Catalog
+Catalyxx
+Causa Prima
+Caution
+Cavroc
+CCRAFT
+Cedar
+Cellbyte
+CellType
+Cense
+Centrical
+Cernel
+Certo
+Chai Discovery
+Chainguard
+charles
+Chift
+Chip
+Cignara
+Circular Materials
+Claimyr
+Clair Health
+Clarity
+Claroty
+Clay
+Cleavr
+Cleo Labs
+ClickNCrypt
+Clira
+CloudFence
+CloudQuery
+Coadjute
+Cobot
+Cocoon
+Codeplain
+Cogent Security
+Cogna
+CollegeVine
+CollimateHealth
+Comand AI
+Comet
+CommerceClarity
+Commure
+Companion.energy
+Complir
+Comulate
+Concord
+Condor
+ConfidentialMind
+Conifers
+Connie Health
+Config Intelligence Inc.
+Context.dev
+Context64.ai (C64AI)
+Contimo
+Contraline
+Contrario
+Convey
+Cookiy
+CoolSem Technologies
+Copperlane
+Coralogix
+Coram AI
+CORE
+Corgi
+Corma
+Cortea
+Corvic AI
+Cosmian
+Coverflow
+Cradle
+Crescent
+Critical Cloud
+CroíValve
+Crossmint
+Crystalys Therapeutics
+CultuLink
+Cure51
+CurifyLabs
+Curity
+Curvestone AI
+CuspAI
+CybelAngel
+Cybenta
+CyberOrigin
+CyberRant
+CycloTech
+Cyera
+CodeWords
+Cofactr
+CoLab
+Conduct AI
+Convexity
+CopilotKit
+Corelayer
+CoreThink AI
+CoTrainer
+Coval
+cubic
+Cursor
+Cyllene Therapeutics
+Cytix
+CYTO365
+CYTUR
+Dalatea
+Dalma
+DaltonTx
+DataBahn
+Databricks
+Dataiku
+DataMasque
+Datapizza
+Datarock
+Dataships
+Datox
+Dattak
+DatumLocus
+Davis AI
+Dawnguard
+Day AI
+Dealism
+Decart
+Deduction
+DeepIP
+DeepSeek
+Definic
+Delair
+Delend
+Delfa
+deltaVision
+Deltia
+Dema
+DentalMonitoring
+Descartes Underwriting
+DEScycle
+DESILO
+Destinus
+Detesia
+Deus Robotics
+Devana
+DFNS
+Diabeloop
+Dialog
+Dialogue AI
+Didit
+Digital Mirror
+Disco
+Distyl AI
+Docshield
+Doctolib
+Doctorsa
+Doctronic
+Dodge AI
+doinstruct
+Dome Systems
+Dominion Dynamics
+Domyno
+Donnerstag.ai
+Dorobo
+Dovetail
+Dowsers
+Draig Therapeutics
+Dreamdata
+Drone Radio Beacon (DRB)
+DroneDeploy
+Dropzone AI
+Drotek
+DualEntry
+DuckDuckGoose
+Durin
+Dust
+DYNA Robotics
+e-peas
+Earth AI
+EchoVision
+Eclipse
+EdBuild AI
+Eden Robotics
+EDGE Boost
+Edgee
+Edison Scientific
+Edmund
+Edviro
+EfficientIP
+Ekiden
+Ekili
+Elastic
+Eleos Health
+EliseAI
+Elora
+Elyos
+Embat
+Emerald AI
+Empion
+Empirical Security
+Emproof
+En Carta Diagnostics
+ENAPI
+Enchanted Tools
+enclaive
+Endra
+Enera
+Engo Eyewear
+Enjamb
+Entalpic
+Enzai
+Eole Stab
+Episurf Medical
+Epoch Biodesign
+Equal AI
+EquiLibre Technologies
+Eraser
+Eskimoz
+Etched
+EthicHub
+ETHIQAIS
+Eunice.ai
+EverDye
+Evertrace
+Exaforce
+Exein
+Exobiosphere
+Exowatt
+Experiential Labs
+Eye Security
+Factorial
+FairPatterns
+FalkorDB
+Farmless
+Fed10
+Feel Reformed
+Fenergo
+Festina Finance
+Figen AI
+Figr
+Fika Jobs
+Filigran
+FILTAR AI
+Fin
+Finary
+Finexer
+Fini
+Finovox
+Fireworks AI
+Flagright
+Flare
+Flaunt
+Flease
+Fleet (fleet.ai)
+FlexAI
+Flinn
+Flow Labs
+Flowdesk
+FlowGen Labs
+Flowscope
+Flox Intelligence
+Fluidstack
+Flumes
+Foaster
+FOMO
+fonio.ai
+Fonoa
+Forage
+Foresight
+Formel AI
+Formulary Financial
+FortoLabs
+forward earth
+Foundation Alloy
+Frameway
+Framewise Health
+Frammer AI
+Freeda
+Freestyle
+Fresha
+Frontier AI
+Frontier Health (Juno)
+Fulcana
+Fulcrum
+FullEnrich
+Fundamento
+Fuse Energy
+Fusion Bionic
+Fuzed
+FYLD
+Fyxer
+FYYYRE
+gaiia
+Galaxea Dynamics
+Galink
+Galtea
+Galvanick
+GALVANY Energy GmbH
+Gamma
+Gataca
+GATE Space
+Gate2Brain
+Gaussion
+General Intuition
+Generative Bionics
+Genesis
+Genius AI
+Genmo
+Geoforge
+Geordie AI
+geoSurge
+GetMint
+GetVocal
+GetWhys
+Giga
+Gigacatalyst
+Gigaton
+Giskard
+GitGuardian
+Gladia
+Glimmer
+Glimpse
+Glow Security
+Glydways
+GNOMI
+Gobano Robotics
+Gojiberry
+Goldfish
+Gomboc
+Gr3n
+Gradient Labs
+Grai
+Granola
+Graph Therapeutics
+Gravy
+GrazeMate
+Greater Than
+Green-Got
+Greenboard
+Greenjets
+Greenlyte Carbon Technologies
+Greptile
+Greyparrot
+GridAstra
+GrowthFactor
+GuardianSphere
+Guild.ai
+Gyre Energy
+H Company
+Hackuity
+haddock
+Hades
+HAGA.BIO
+Hale
+Halo Privacy
+Hamming AI
+Hang Ten Systems
+happyhotel
+HarfangLab
+Harmattan AI
+Harmonic
+Harmonic Security
+Healf
+Heim
+Helical
+Helio.AI
+Hello Patient
+Helmet Security
+Herd Security
+HermineIA
+herocon.ai
+Heron Power
+Hexana
+Hey Pongo
+HeyHelp
+Higgsfield AI
+Higharc
+Highbeam
+HIVE
+Hodor
+Hogo Business Services
+Holmes
+Homaio
+HoudiniBio
+HousApp
+Human-Mob
+Humanoid
+Humble Robotics
+Hummink
+Hupso
+Huzzle
+Hydra Host
+Hydryx
+Iabako
+ICEYE
+IDfy
+Immitra Bio
+Impulse Space
+IMU Biosciences
+In Parallel
+Inato
+Inbolt
+incalmo
+Ineffable Intelligence
+InferaHealth
+Infinite Orbits
+Infinity
+Ingenix
+Innovorder
+InOrbit
+InsectBiotech
+InsForge
+InSoil
+InstaLILY
+Intelligems
+Interchecks
+Intric
+INTU Diagnostics
+Intuos
+Investrio
+Invisix Measuring Systems
+IQM Quantum Computers
+Isar Aerospace
+Isentroniq
+Isometric
+Jabbr
+Jack & Jill
+Jedify
+Jimini.ai
+Jimmy Energy
+JOOC
+Jota
+June
+Juno
+JUPUS
+Justinian
+K-Dense
+Kahoona
+Kaiko
+Kamaé
+Kaon AI
+Karavela
+Katalyze
+Kausable
+KAWA AI
+Keepit
+Keith
+Kela Technologies
+kelvin°
+Kerys Software
+Kessaku
+Kikleo
+Kinematic Trees
+Kinisi
+Klaimee
+Klared
+Klarna
+Klassif.ai
+Kling AI
+Knok
+KnowYi
+Koah
+KoBold Metals
+Kodesage
+Kolektivolt
+Konvo AI
+Konvu
+Korbit
+Kord
+Korl
+Kota
+Kpler
+Kraftblock
+Kreditz
+KugelAudio
+Kuli
+Kunik
+Kvasir Technologies
+Kyber
+Kyrok
+Lakera
+LangWatch
+Lantern
+Lassie
+Latitude
+Lawhive
+Leadbay
+Ledger
+Legora
+lemlist
