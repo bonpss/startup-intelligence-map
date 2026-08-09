@@ -1,0 +1,17 @@
+.bmad-loop/runs/
+.bmad-loop/cache/
+.bmad-loop/policy.toml
+_bmad/render/
+.log_review_pending.json
+
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# secrets
+.env
+
+# OS
+.DS_Store
