@@ -1,27 +1,46 @@
-# SM Project
+# Startup Intelligence Map
 
-## Pipeline overview
-- `main.py <url>` — scrape a startup URL, extract and classify it, detect competitors
-- `taxonomy_agent.py` — scan all subsectors for coherence, split incoherent ones into sub-subsectors, run taxonomy audit
-- `reprocess_all.py` — re-run extraction on all startups in Supabase to update sectors/subsectors/sub_subsectors
-- `competitor_validator.py` — validate 5 random competitor relationships via LLM, flag false positives
-- `graph_app.py` — local web app to search startups and visualize competitor graphs (run with `python graph_app.py`, open http://localhost:8000)
+A pipeline that scrapes startup websites, classifies them into a sector/subsector taxonomy with an LLM, and automatically detects competitor relationships — visualized as an interactive graph.
 
-## Core modules
-- `extractor.py` — two-step LLM extraction (free labels → taxonomy matching)
-- `competitor.py` — competitor scoring and bidirectional relationship saving
-- `storage.py` — Supabase read/write helpers
-- `taxonomy.py` — 3-level taxonomy: sector → subsector → sub-subsectors
+## Screenshots
 
-## Data (Supabase)
-- `compspro` — startup profiles (name, sectors, subsectors, sub_subsectors, description, website)
-- `competitors` — validated competitor relationships (company_a, company_b, score, checked, validated)
+**Competitor graph** — every startup in the database, linked to its closest competitors:
 
-## Key commands
+![Graph overview](docs/screenshots/graph-overview.png)
+
+**Startup detail** — profile, taxonomy, and local competitor neighborhood:
+
+![Startup detail](docs/screenshots/startup-detail.png)
+
+## How it works
+
+1. **Scrape** — `main.py <url>` pulls and cleans the startup's website content
+2. **Classify** — a two-step LLM extraction (free-form labels → taxonomy matching) assigns sector / subsector / sub-subsector
+3. **Match competitors** — new startups are scored against the existing database and linked bidirectionally
+4. **Visualize** — a local web app renders the whole graph and lets you search any startup
+
+Everything is stored in Supabase and browsable through the graph UI.
+
+## Stack
+
+Python · Mistral (LLM extraction) · Supabase (storage) · FastAPI (graph UI) · Playwright / Trafilatura (scraping)
+
+## Running it
+
 ```bash
-python main.py https://startup.com           # add a startup
-python taxonomy_agent.py                     # run taxonomy cleanup
-python reprocess_all.py --start 0 --end 150  # reprocess in parallel
-python competitor_validator.py               # validate competitor links
-python graph_app.py                          # launch graph UI
+pip install -r requirements.txt
+cp .env.example .env   # fill in MISTRAL_API_KEY, SUPABASE_URL, SUPABASE_KEY
+
+python main.py https://startup.com   # add a startup
+python graph_app.py                  # launch the graph UI → http://localhost:8000
 ```
+
+## Key modules
+
+| File | Role |
+|---|---|
+| `extractor.py` | LLM extraction: free labels → taxonomy matching |
+| `taxonomy.py` | 3-level taxonomy: sector → subsector → sub-subsector |
+| `competitor.py` | Competitor scoring and relationship saving |
+| `storage.py` | Supabase read/write helpers |
+| `graph_app.py` | Web app to search startups and visualize the graph |
