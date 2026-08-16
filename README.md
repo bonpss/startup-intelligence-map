@@ -2,13 +2,17 @@
 
 A pipeline that scrapes startup websites, classifies them into a sector/subsector taxonomy with an LLM, and automatically detects competitor relationships, visualized as an interactive graph.
 
+## Why
+
+Built out of frustration with how competitor-mapping is handled in existing tools like Pitchbook or Dealroom: competitors are usually static, manually-tagged lists rather than a living graph that updates as new companies enter the market. This project explores whether an LLM-driven classification and scoring pipeline can maintain that graph automatically.
+
 ## Screenshots
 
 **Competitor graph**: every startup in the database, linked to its closest competitors:
 
 ![Graph overview](docs/screenshots/graph-overview.png)
 
-**Startup detail**: profile, taxonomy, and local competitor neighborhood:
+**Startup detail** (AMI Labs): profile, taxonomy, and local competitor neighborhood:
 
 ![Startup detail](docs/screenshots/startup-detail.png)
 
