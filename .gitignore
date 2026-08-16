@@ -1,7 +1,7 @@
-.bmad-loop/runs/
-.bmad-loop/cache/
-.bmad-loop/policy.toml
-_bmad/render/
+.bmad-loop/
+_bmad/
+_bmad-output/
+.claude/
 .log_review_pending.json
 
 # Python / venv
