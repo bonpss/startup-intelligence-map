@@ -3,7 +3,7 @@ import pytest
 from postgrest.exceptions import APIError
 
 import storage
-from storage import normalize_domain, _normalize_subject, _validate_review, get_quality_reviews
+from storage import normalize_domain, _normalize_subject, _validate_review, get_quality_reviews, get_by_subsectors, _fine_subsector_own_labels
 
 
 # ── normalize_domain ──────────────────────────────────────────────────────────
@@ -548,3 +548,145 @@ def test_get_ingestion_summary_returns_error_and_unseen_counts(monkeypatch):
 
     summary = storage.get_ingestion_summary()
     assert summary == {"error_count": 3, "unseen_done_count": 5}
+
+
+# ── get_by_subsectors: fine-subsector sub_subsectors filtering ────────────────
+# Story: Freestyle (Productivity Tools, real sub_subsectors) was scored as a
+# "competitor" of Fluidstack/Rad AI/Garner Health -- unrelated startups that
+# happen to share "Productivity Tools" but have sub_subsectors=[]. Root cause
+# was get_by_subsectors()'s old `not r.get("sub_subsectors") or ...` clause,
+# which waved through any candidate with an empty sub_subsectors list
+# unconditionally. Fixed via _fine_subsector_own_labels(), which reads
+# TAXONOMY dynamically (no subsector name hardcoded) to tell "fine" subsectors
+# (TAXONOMY defines a real sub_subsectors list) from "coarse" ones (the
+# majority, empty list -- unaffected, still subsector-level matching).
+
+def test_fine_subsector_own_labels_splits_fine_from_coarse_and_empty():
+    # "Productivity Tools" is fine and populated; "CRM & Sales" is coarse
+    # (TAXONOMY defines no sub_subsectors for it) so it's absent from the
+    # result entirely -- not even as an empty set.
+    result = _fine_subsector_own_labels(
+        sectors=["Enterprise Software"],
+        subsectors=["Productivity Tools", "CRM & Sales"],
+        own_sub_subsectors=["AI Email & Communication Assistants", "Some Unrelated Label"],
+    )
+    assert result == {"Productivity Tools": {"AI Email & Communication Assistants"}}
+
+
+def test_fine_subsector_own_labels_empty_set_when_nothing_survived_step2c():
+    # The subsector IS fine (AI Driven Developer Productivity has a real
+    # sub_subsectors list), but the startup has none of its own for it --
+    # must appear as an empty set, not be dropped, so callers can distinguish
+    # "fine + nothing assigned" from "not fine at all".
+    result = _fine_subsector_own_labels(
+        sectors=["Developer Tools & Infrastructure"],
+        subsectors=["AI Driven Developer Productivity"],
+        own_sub_subsectors=[],
+    )
+    assert result == {"AI Driven Developer Productivity": set()}
+
+
+class _FakeCompsproSelectQuery:
+    """Minimal fake of the postgrest chain get_by_subsectors() actually calls
+    (select/overlaps/neq/execute), with real array-overlap and exclusion
+    logic -- a wrong column/operator in storage.py would fail these tests.
+    """
+    def __init__(self, rows):
+        self.request = type("FakeRequest", (), {"http_method": "GET"})()
+        self._rows = list(rows)
+
+    def select(self, *a, **k):
+        return self
+
+    def overlaps(self, col, vals):
+        wanted = set(vals)
+        self._rows = [r for r in self._rows if wanted & set(r.get(col) or [])]
+        return self
+
+    def neq(self, col, val):
+        self._rows = [r for r in self._rows if r.get(col) != val]
+        return self
+
+    def execute(self):
+        return type("FakeResponse", (), {"data": self._rows})()
+
+
+def _fake_compspro_client(rows):
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeCompsproSelectQuery(rows)})()
+    return type("FakeClient", (), {"table": lambda self, name: fake_table})()
+
+
+def test_get_by_subsectors_excludes_candidate_with_empty_sub_subsectors_on_fine_subsector(monkeypatch):
+    """The exact Freestyle/Fluidstack false positive: querying startup has
+    real sub_subsectors for a fine subsector, candidate shares that subsector
+    but has none of its own -- must no longer get a free pass."""
+    rows = [
+        {"name": "Fluidstack", "sectors": ["Enterprise Software"], "subsectors": ["Productivity Tools"], "sub_subsectors": []},
+        {"name": "Fyxer", "sectors": ["Enterprise Software"], "subsectors": ["Productivity Tools"], "sub_subsectors": ["AI Email & Communication Assistants"]},
+        {"name": "OffTopic", "sectors": ["Enterprise Software"], "subsectors": ["Productivity Tools"], "sub_subsectors": ["AI Meeting & Notes Assistants"]},
+    ]
+    monkeypatch.setattr(storage, "_client", lambda: _fake_compspro_client(rows))
+
+    result = get_by_subsectors(
+        subsectors=["Productivity Tools"],
+        sectors=["Enterprise Software"],
+        exclude_name="Freestyle",
+        sub_subsectors=["AI Email & Communication Assistants", "AI Workflow Automation & Digital Workers"],
+    )
+    assert [r["name"] for r in result] == ["Fyxer"]
+
+
+def test_get_by_subsectors_leaves_coarse_subsector_matching_unchanged(monkeypatch):
+    """A subsector with no sub_subsectors defined in TAXONOMY (e.g. CRM & Sales)
+    must keep matching at the subsector level only, sub_subsectors filter or not."""
+    rows = [
+        {"name": "CoarseMatch", "sectors": ["Enterprise Software"], "subsectors": ["CRM & Sales"], "sub_subsectors": []},
+    ]
+    monkeypatch.setattr(storage, "_client", lambda: _fake_compspro_client(rows))
+
+    result = get_by_subsectors(
+        subsectors=["Productivity Tools", "CRM & Sales"],
+        sectors=["Enterprise Software"],
+        exclude_name="Freestyle",
+        sub_subsectors=["AI Email & Communication Assistants"],
+    )
+    assert [r["name"] for r in result] == ["CoarseMatch"]
+
+
+def test_get_by_subsectors_excludes_all_candidates_when_own_fine_subsector_is_empty(monkeypatch):
+    """Chosen policy (Option A) for a fine subsector where the querying
+    startup itself has no sub_subsector (nothing survived step2c): exclude
+    candidates matched only via that subsector, rather than falling back to
+    comparing against its whole pool."""
+    rows = [
+        {"name": "DevProdCandidate", "sectors": ["Developer Tools & Infrastructure"], "subsectors": ["AI Driven Developer Productivity"], "sub_subsectors": ["AI Code Review"]},
+        {"name": "ProdToolsMatch", "sectors": ["Enterprise Software"], "subsectors": ["Productivity Tools"], "sub_subsectors": ["AI Email & Communication Assistants"]},
+    ]
+    monkeypatch.setattr(storage, "_client", lambda: _fake_compspro_client(rows))
+
+    result = get_by_subsectors(
+        subsectors=["Productivity Tools", "AI Driven Developer Productivity"],
+        sectors=["Enterprise Software", "Developer Tools & Infrastructure"],
+        exclude_name="TestCo",
+        sub_subsectors=["AI Email & Communication Assistants"],  # nothing for AI Driven Developer Productivity
+    )
+    assert [r["name"] for r in result] == ["ProdToolsMatch"]
+
+
+def test_get_by_subsectors_returns_full_pool_when_no_fine_subsector_in_play(monkeypatch):
+    """Unchanged behavior: if the querying startup's subsectors are all
+    coarse (none define sub_subsectors in TAXONOMY), no sub_subsectors
+    filtering happens at all -- same as before this fix."""
+    rows = [
+        {"name": "A", "sectors": ["Enterprise Software"], "subsectors": ["CRM & Sales"], "sub_subsectors": []},
+        {"name": "B", "sectors": ["Enterprise Software"], "subsectors": ["CRM & Sales"], "sub_subsectors": []},
+    ]
+    monkeypatch.setattr(storage, "_client", lambda: _fake_compspro_client(rows))
+
+    result = get_by_subsectors(
+        subsectors=["CRM & Sales"],
+        sectors=["Enterprise Software"],
+        exclude_name="TestCo",
+        sub_subsectors=[],
+    )
+    assert {r["name"] for r in result} == {"A", "B"}
