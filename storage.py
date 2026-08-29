@@ -239,6 +239,30 @@ def get_quality_reviews(review_type: str, subject: str | None = None) -> list[di
     return _execute(query).data or []
 
 
+def _fine_subsector_own_labels(
+    sectors: list[str], subsectors: list[str], own_sub_subsectors: list[str]
+) -> dict[str, set[str]]:
+    """Subsectors in `subsectors` that TAXONOMY further breaks into
+    sub_subsectors for at least one of `sectors` ("fine" subsectors), mapped
+    to the subset of `own_sub_subsectors` that belongs to each -- an empty
+    set means the subsector is fine but nothing survived step2c's confidence
+    threshold for it. Subsectors with no sub_subsectors defined anywhere in
+    TAXONOMY are absent from the result entirely (not "fine").
+
+    Reads TAXONOMY dynamically -- no subsector name is hardcoded, so this
+    keeps working as the taxonomy grows new fine-grained subsectors.
+    """
+    own = set(own_sub_subsectors or [])
+    result: dict[str, set[str]] = {}
+    for sub in subsectors:
+        defined: set[str] = set()
+        for sec in sectors:
+            defined |= set(TAXONOMY.get(sec, {}).get(sub, []))
+        if defined:
+            result[sub] = own & defined
+    return result
+
+
 def get_by_subsectors(
     subsectors: list[str],
     sectors: list[str],
@@ -247,8 +271,23 @@ def get_by_subsectors(
 ) -> list[dict]:
     """Return rows from compspro overlapping both subsectors AND sectors.
 
-    If sub_subsectors is provided, also require at least one shared sub_subsector,
-    making candidate matching more precise.
+    For "fine" subsectors -- ones TAXONOMY further breaks into sub_subsectors,
+    e.g. "Productivity Tools" -- matching is tightened per subsector:
+    - if the querying startup has its own sub_subsectors for that fine
+      subsector, a candidate must share at least one of them via that same
+      subsector to count as a match through it. A candidate with an empty
+      sub_subsectors list no longer gets a free pass just because it has
+      none (that was letting through e.g. Fluidstack/Rad AI/Garner Health --
+      sharing "Productivity Tools" with Freestyle but nothing else -- as
+      false-positive competitor candidates).
+    - if the querying startup itself has no sub_subsectors for that fine
+      subsector (nothing survived step2c), that subsector contributes no
+      candidates at all until the startup is reprocessed with a real
+      sub_subsector -- chosen policy is to exclude rather than fall back to
+      the full subsector pool.
+
+    Subsectors with no sub_subsectors defined in TAXONOMY (the majority) are
+    unaffected -- matching stays at the subsector level, exactly as before.
     """
     if not subsectors or not sectors:
         return []
@@ -262,14 +301,26 @@ def get_by_subsectors(
     )
     rows = _execute(query).data or []
 
-    if not sub_subsectors:
+    fine_own = _fine_subsector_own_labels(sectors, subsectors, sub_subsectors)
+    if not fine_own:
         return rows
 
-    return [
-        r for r in rows
-        if not r.get("sub_subsectors")
-        or bool(set(r.get("sub_subsectors") or []) & set(sub_subsectors))
-    ]
+    coarse_subsectors = set(subsectors) - set(fine_own)
+
+    kept = []
+    for r in rows:
+        r_subsectors = set(r.get("subsectors") or [])
+        if r_subsectors & coarse_subsectors:
+            kept.append(r)
+            continue
+        r_sub_subs = set(r.get("sub_subsectors") or [])
+        for sub, own_labels in fine_own.items():
+            if not own_labels or sub not in r_subsectors:
+                continue
+            if own_labels & r_sub_subs:
+                kept.append(r)
+                break
+    return kept
 
 
 def get_known_competitors(name: str) -> list[str]:
