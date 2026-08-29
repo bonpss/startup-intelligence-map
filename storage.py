@@ -2,12 +2,15 @@ import contextvars
 import os
 import re
 import threading
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 import httpx
+from postgrest.exceptions import APIError
 from supabase import create_client
 from dotenv import load_dotenv
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from tenacity import stop_after_attempt, wait_exponential
 
+from retry import build_retry
 from taxonomy import TAXONOMY
 
 load_dotenv()
@@ -16,11 +19,14 @@ load_dotenv()
 # Validation showed 0.75-0.84 pairs are mostly false positives; 0.85+ all held up.
 COMPETITOR_THRESHOLD = 0.85
 
-# Set True by main.ingest() for the duration of a single interactive ingest (web
-# UI / CLI), read by competitor.py and extractor.py to pick a tighter Mistral
-# retry/timeout budget than the batch/backfill scripts use. Lives here (not in
-# main.py) because both competitor.py and extractor.py already import from
-# storage.py -- main.py importing back from either would be circular.
+# Set by main.ingest(url, interactive=...) for the duration of a single ingest,
+# read by competitor.py and extractor.py to pick a tighter Mistral retry/timeout
+# budget than the batch/backfill scripts use. Since Story 6.1, no live caller
+# passes interactive=True anymore -- the CLI and the web UI's background worker
+# both pass False -- so this currently always reads as False in production;
+# the flag/budget stay available for a future synchronous caller. Lives here
+# (not in main.py) because both competitor.py and extractor.py already import
+# from storage.py -- main.py importing back from either would be circular.
 # asyncio.to_thread() propagates the calling coroutine's contextvars.Context into
 # the worker thread, so a flag set in ingest() before its to_thread() call is
 # visible inside _ingest_sync() -> extract()/compare() with no parameter threaded
@@ -33,8 +39,9 @@ INTERACTIVE_REQUEST: contextvars.ContextVar[bool] = contextvars.ContextVar(
 # competitor.py's and extractor.py's chat-call dispatch (Story 5.2). Defined once
 # here rather than duplicated per module, so a future budget tuning can't be
 # applied to one file and silently miss the other. The batch-side wait/stop
-# config stays local to each module (competitor.py's _retry, extractor.py's
-# @retry(...)) -- factoring that one too is Story 5.3's separately-scoped job.
+# numbers stay local to each module (competitor.py's/extractor.py's/
+# competitor_validator.py's own build_retry(...) calls) -- only the
+# *construction pattern* is shared (retry.py, Story 5.3), not these numbers.
 RETRY_INTERACTIVE_WAIT = wait_exponential(multiplier=2, min=4, max=20)
 RETRY_INTERACTIVE_STOP = stop_after_attempt(3)
 BATCH_TIMEOUT_MS = 120_000
@@ -50,11 +57,9 @@ INTERACTIVE_TIMEOUT_MS = 30_000
 # against the literal string "HTTP", not "HEAD" -- verified in
 # postgrest/base_request_builder.py:102), so it doesn't actually retry HEAD
 # either. Coincidentally similar scoping, unrelated mechanism.
-_retry = retry(
-    retry=retry_if_exception(lambda exc: isinstance(exc, httpx.TransportError)),
-    wait=wait_exponential(multiplier=1, min=2, max=20),
-    stop=stop_after_attempt(5),
-    reraise=True,
+_retry = build_retry(
+    lambda exc: isinstance(exc, httpx.TransportError),
+    wait_multiplier=1, wait_min=2, wait_max=20, stop_attempts=5,
 )
 
 
@@ -139,26 +144,21 @@ def normalize_domain(url: str) -> str:
     return netloc.rstrip(".")
 
 
-def _validate_review(review_type: str, subject: str, verdict: str) -> str:
-    """Validate the quality_review_log write contract (AD-4, AD-7).
+def _normalize_subject(review_type: str, subject: str) -> str:
+    """Normalize/validate `subject` per review_type's identifier contract (AD-4,
+    AD-7). Shared by the write path (_validate_review -> save_quality_review)
+    and the read path (get_quality_reviews) so the two can't drift into two
+    independently-maintained copies of the same contract (Story 5.3).
 
     Returns the normalized subject. Raises ValueError on any violation.
     No I/O -- safe to unit test without a Supabase connection.
     """
-    if review_type not in _KNOWN_REVIEW_TYPES:
-        raise ValueError(f"Unknown review_type: {review_type!r}. Must be one of {sorted(_KNOWN_REVIEW_TYPES)}")
-
-    if not verdict or not verdict.strip():
-        raise ValueError("verdict must not be blank")
-
     if review_type == "taxonomy_split":
         # Exact subsector match, no normalization -- deliberately opposite
         # leniency from scraping_diagnostic below: these are different kinds
         # of identifier (a closed taxonomy vocabulary vs. a free-form URL).
         if subject not in _TAXONOMY_SUBSECTORS:
             raise ValueError(f"subject must be an exact TAXONOMY subsector name for taxonomy_split, got {subject!r}")
-        if verdict not in _TAXONOMY_SPLIT_VERDICTS:
-            raise ValueError(f"verdict must be one of {sorted(_TAXONOMY_SPLIT_VERDICTS)} for taxonomy_split, got {verdict!r}")
         return subject
 
     if review_type in ("redundant_uncategorized_cleanup", "empty_subsectors_backfill"):
@@ -172,6 +172,26 @@ def _validate_review(review_type: str, subject: str, verdict: str) -> str:
     if not normalized:
         raise ValueError(f"could not extract a domain from subject: {subject!r}")
     return normalized
+
+
+def _validate_review(review_type: str, subject: str, verdict: str) -> str:
+    """Validate the quality_review_log write contract (AD-4, AD-7).
+
+    Returns the normalized subject. Raises ValueError on any violation.
+    No I/O -- safe to unit test without a Supabase connection.
+    """
+    if review_type not in _KNOWN_REVIEW_TYPES:
+        raise ValueError(f"Unknown review_type: {review_type!r}. Must be one of {sorted(_KNOWN_REVIEW_TYPES)}")
+
+    if not verdict or not verdict.strip():
+        raise ValueError("verdict must not be blank")
+
+    subject = _normalize_subject(review_type, subject)
+
+    if review_type == "taxonomy_split" and verdict not in _TAXONOMY_SPLIT_VERDICTS:
+        raise ValueError(f"verdict must be one of {sorted(_TAXONOMY_SPLIT_VERDICTS)} for taxonomy_split, got {verdict!r}")
+
+    return subject
 
 
 def save_quality_review(
@@ -210,13 +230,7 @@ def get_quality_reviews(review_type: str, subject: str | None = None) -> list[di
         raise ValueError(f"Unknown review_type: {review_type!r}. Must be one of {sorted(_KNOWN_REVIEW_TYPES)}")
 
     if subject is not None:
-        if review_type == "taxonomy_split":
-            if subject not in _TAXONOMY_SUBSECTORS:
-                raise ValueError(f"subject must be an exact TAXONOMY subsector name for taxonomy_split, got {subject!r}")
-        else:
-            subject = normalize_domain(subject)
-            if not subject:
-                raise ValueError(f"could not extract a domain from subject: {subject!r}")
+        subject = _normalize_subject(review_type, subject)
 
     client = _client()
     query = client.table("quality_review_log").select("*").eq("review_type", review_type)
@@ -356,3 +370,292 @@ def save_startup(data: dict) -> str:
     else:
         _execute(client.table("compspro").insert({**data, "taxonomy_version": "v2"}))
         return "saved"
+
+
+# ingestion_queue contract (Epic 6, Story 6.1): status is a small, fixed,
+# application-validated vocabulary -- not a DB enum/check constraint, same
+# choice as quality_review_log.verdict (AD-4, AD-7).
+_KNOWN_INGESTION_STATUSES = {"queued", "processing", "done", "error"}
+
+
+def _now_iso() -> str:
+    """UTC timestamp for ingestion_queue.updated_at -- no DB trigger sets this
+    column (see migration 004's comment), so every status transition must set
+    it explicitly, same convention as quality_review_log.updated_at.
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
+def enqueue_ingestion(url: str) -> tuple[dict, bool]:
+    """Insert a new ingestion_queue row with status='queued', or reuse the
+    existing queued/processing row for the same *domain* if one already
+    exists. Returns (row, is_new) -- the caller must only push onto the
+    in-process worker queue when is_new is True, so a reused row (already
+    queued or actively being processed) isn't picked up and run a second time.
+
+    Code review (2026-08-28): prevents a double-click on "Ajouter" or a
+    resubmission of the same URL from enqueueing two independent rows and
+    running the full pipeline twice.
+
+    Code review (2026-08-29 #1): the SELECT-then-INSERT above is a check-then-act
+    race -- two concurrent calls for the same domain can both pass the SELECT
+    before either INSERT commits. Closed at the DB level by a unique partial
+    index (migrations/007, formerly migrations/006) on domain where status in
+    ('queued','processing'): a second concurrent insert now fails with a
+    unique_violation (23505), which is caught here and turned into a reuse of
+    the row the other call just inserted, instead of two independent rows
+    running the pipeline twice.
+
+    Code review (2026-08-29 #2): dedup keys on normalize_domain(url), not the
+    raw url string -- "acme.com", "https://acme.com/", and "http://acme.com"
+    are the same startup and must collapse to one row (migrations/006's
+    original url-keyed index missed this). url itself is still stored
+    unchanged and is what gets scraped (main.ingest() needs the full path);
+    only the dedup key changed.
+
+    Code review (2026-08-29 #3): raises ValueError if normalize_domain(url)
+    is empty (e.g. url="https://" or any other host-less/malformed URL that
+    survives api_ingest's minimal scheme-prefix check) -- otherwise every
+    such malformed submission would silently collapse onto the same
+    domain="" row instead of being rejected as its own bad request. Mirrors
+    _normalize_subject's existing guard for the same normalize_domain()
+    empty-result case.
+    """
+    domain = normalize_domain(url)
+    if not domain:
+        raise ValueError(f"URL invalide, aucun domaine n'a pu en être extrait : {url!r}")
+    client = _client()
+    existing = _execute(
+        client.table("ingestion_queue")
+        .select("*")
+        .eq("domain", domain)
+        .in_("status", ["queued", "processing"])
+        .limit(1)
+    )
+    if existing.data:
+        return existing.data[0], False
+
+    try:
+        response = _execute(client.table("ingestion_queue").insert({"url": url, "domain": domain, "status": "queued"}))
+    except APIError as e:
+        if e.code != "23505":
+            raise
+        existing = _execute(
+            client.table("ingestion_queue")
+            .select("*")
+            .eq("domain", domain)
+            .in_("status", ["queued", "processing"])
+            .limit(1)
+        )
+        if not existing.data:
+            raise ValueError(f"ingestion_queue unique_violation on domain {domain!r} (url {url!r}) but no active row found on re-fetch") from e
+        return existing.data[0], False
+
+    if not response.data:
+        raise ValueError("ingestion_queue insert returned no row")
+    return response.data[0], True
+
+
+def _set_ingestion_status(row_id, status: str, **fields) -> None:
+    """Shared status-transition writer for mark_processing/mark_done/
+    mark_error. Validates status against _KNOWN_INGESTION_STATUSES (code
+    review, 2026-08-28: the constant existed but nothing checked against it)
+    and raises if the update matched zero rows instead of silently no-op'ing.
+
+    Code review (2026-08-29): retried via _execute_retryable despite being a
+    write, unlike _execute()'s general POST/PATCH policy -- this specific
+    update is safe to retry because it's keyed by row_id and reapplies the
+    exact same status/fields, so an in-doubt retry after a dropped response
+    just re-sets the same values rather than risking a duplicate row (the
+    concern that keeps inserts from being retried). Without this, a transient
+    error on mark_done/mark_error after ingest_startup already succeeded left
+    the row stuck at 'processing' forever with no requeue.
+    """
+    if status not in _KNOWN_INGESTION_STATUSES:
+        raise ValueError(f"Unknown ingestion status: {status!r}. Must be one of {sorted(_KNOWN_INGESTION_STATUSES)}")
+    client = _client()
+    response = _execute_retryable(
+        client.table("ingestion_queue")
+        .update({"status": status, "updated_at": _now_iso(), **fields})
+        .eq("id", row_id)
+    )
+    if not response.data:
+        raise ValueError(f"ingestion_queue row {row_id} not found (update matched zero rows)")
+
+
+def retry_ingestion(row_id) -> dict:
+    """Reset an errored ingestion_queue row back to status='queued' so the
+    worker (Story 6.1) picks it up again from scratch (Story 6.3 -- no
+    partial/per-step retry, full main.ingest() re-run, per the v1 scope
+    decision). Clears error_message.
+
+    Unlike _set_ingestion_status(), the WHERE clause also requires
+    status='error' so the transition is atomic (not a separate read-then-
+    write) and can't race a row that already left 'error' -- e.g. two browser
+    tabs both showing the same stale error state, both clicking "Relancer".
+    If zero rows match, the caller can't tell "no such row" from "not in
+    error" without another query, so this just raises ValueError either way;
+    the caller (the retry endpoint) turns that into a 404.
+
+    Code review (2026-08-29): NOT routed through _execute_retryable, unlike
+    _set_ingestion_status(). That function's update is safe to retry because
+    its only WHERE clause is `id=row_id` -- reapplying the same values is a
+    true no-op. This update's WHERE clause also requires `status='error'`,
+    which is state-dependent: if the first attempt actually commits
+    server-side but the response is lost (a dropped-stream TransportError),
+    a retry re-evaluates `status='error'` against the row's *new* status
+    ('queued') and matches zero rows -- raising a false "not found" even
+    though the retry succeeded. Using the unretried _execute() means a
+    transient error surfaces as a clean transport exception instead of a
+    misleading 404.
+
+    Can raise a postgrest APIError with code 23505: migrations/007's unique
+    partial index on ingestion_queue(domain) where status in
+    ('queued','processing') means this UPDATE can collide with a fresh
+    queued/processing row for the same domain (e.g. resubmitted via the
+    normal "Ajouter" flow while this row was still in 'error'). Deliberately
+    not caught here -- unlike enqueue_ingestion's 23505 case, there's no row
+    to usefully reuse, so the caller decides how to surface the conflict (a
+    409, not a 404 or 502).
+    """
+    client = _client()
+    response = _execute(
+        client.table("ingestion_queue")
+        .update({"status": "queued", "error_message": None, "updated_at": _now_iso()})
+        .eq("id", row_id)
+        .eq("status", "error")
+    )
+    if not response.data:
+        raise ValueError(f"ingestion_queue row {row_id} not found or not in 'error' status")
+    return response.data[0]
+
+
+def delete_ingestion(row_id) -> dict:
+    """Permanently remove an errored ingestion_queue row so the "En attente"
+    tab can be cleared of stale failures. Restricted to status='error', same
+    as retry_ingestion -- deleting a queued/processing row would silently
+    drop work still in flight, and a done row is the record of a real
+    ingestion having happened.
+    """
+    client = _client()
+    response = _execute(
+        client.table("ingestion_queue")
+        .delete()
+        .eq("id", row_id)
+        .eq("status", "error")
+    )
+    if not response.data:
+        raise ValueError(f"ingestion_queue row {row_id} not found or not in 'error' status")
+    return response.data[0]
+
+
+def mark_processing(row_id) -> None:
+    """Transition an ingestion_queue row to status='processing'. Called by the
+    worker right before it calls main.ingest(url) for this row.
+    """
+    _set_ingestion_status(row_id, "processing")
+
+
+def mark_done(row_id, result: dict) -> None:
+    """Transition an ingestion_queue row to status='done', storing the
+    {"name","action","competitors_found"} dict main.ingest() returned.
+    """
+    _set_ingestion_status(row_id, "done", result=result)
+
+
+def mark_error(row_id, error_message: str) -> None:
+    """Transition an ingestion_queue row to status='error', storing the
+    failure message (a ValueError's message, or str(e) for anything else).
+    """
+    _set_ingestion_status(row_id, "error", error_message=error_message)
+
+
+def get_pending_ingestions() -> list[dict]:
+    """Rows still status in ('queued', 'processing') from a previous run,
+    oldest first. Read once at app startup to re-enqueue onto the worker's
+    in-process queue -- a crash between items must not silently strand a row
+    forever (Story 6.1, AC #4). The in-memory queue is disposable; this table
+    is the source of truth.
+    """
+    client = _client()
+    query = (
+        client.table("ingestion_queue")
+        .select("*")
+        .in_("status", ["queued", "processing"])
+        .order("created_at")
+    )
+    return _execute(query).data or []
+
+
+def list_ingestions(limit: int = 50) -> list[dict]:
+    """All ingestion_queue rows (no status filter), most recent first, for the
+    "En attente" tab (Story 6.2) -- unlike get_pending_ingestions(), this also
+    surfaces done/error rows so their terminal badge stays visible.
+
+    `limit` is a placeholder to keep the panel from rendering an ever-growing
+    list, not a considered retention policy -- Story 6.1's code review flagged
+    that ingestion_queue has no retention/cleanup policy yet (deferred).
+    """
+    client = _client()
+    query = (
+        client.table("ingestion_queue")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(limit)
+    )
+    return _execute(query).data or []
+
+
+def mark_done_rows_seen() -> int:
+    """Bulk-marks every currently-done-and-unseen row as seen (Story 6.4) --
+    called once when the "En attente" tab opens, not per-row. Returns the
+    number of rows updated (not required by any caller today, just an honest
+    return value instead of None).
+
+    Code review (2026-08-29): NOT routed through _execute_retryable, despite
+    looking like the same "blind re-apply is a no-op" shape as
+    _set_ingestion_status(). Its WHERE clause filters on `seen=false`, which
+    is state-dependent: if the first attempt commits server-side but the
+    response is lost (a dropped-stream TransportError), a retry re-evaluates
+    `seen=false` against rows already flipped to `seen=true` and matches zero
+    of them -- silently under-reporting the count (same class of bug as
+    retry_ingestion()'s state-dependent WHERE clause). Using the unretried
+    _execute() surfaces a transient error as a clean exception instead of a
+    silently-wrong count.
+    """
+    client = _client()
+    response = _execute(
+        client.table("ingestion_queue")
+        .update({"seen": True})
+        .eq("status", "done")
+        .eq("seen", False)
+    )
+    return len(response.data or [])
+
+
+def get_ingestion_summary() -> dict:
+    """Counts backing the "En attente" tab's two notification badges (Story
+    6.4): error_count (status='error', regardless of seen -- a failure is
+    never silently dismissed) and unseen_done_count (status='done' AND
+    seen=false). Two separate count="exact", head=True queries -- no row
+    payload fetched, just a Content-Range-derived count -- since Postgrest
+    has no single-query way to count two different filters at once. head=True
+    issues an HTTP HEAD request, which _execute()'s existing
+    "http_method in ('GET', 'HEAD')" retry check already covers unchanged.
+    """
+    client = _client()
+    error_response = _execute(
+        client.table("ingestion_queue")
+        .select("id", count="exact", head=True)
+        .eq("status", "error")
+    )
+    unseen_response = _execute(
+        client.table("ingestion_queue")
+        .select("id", count="exact", head=True)
+        .eq("status", "done")
+        .eq("seen", False)
+    )
+    return {
+        "error_count": error_response.count or 0,
+        "unseen_done_count": unseen_response.count or 0,
+    }
