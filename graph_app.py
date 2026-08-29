@@ -1,17 +1,119 @@
 # pip install fastapi uvicorn supabase python-dotenv
 # python graph_app.py  →  open http://localhost:8000
 
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from storage import _client
+from postgrest.exceptions import APIError
+from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary
 from main import ingest as ingest_startup
 
 load_dotenv()
 
-app = FastAPI()
+# In-process ingestion queue (Epic 6, Story 6.1) -- /api/ingest enqueues here and
+# returns immediately instead of awaiting main.ingest() directly. Holds (row_id,
+# url) tuples. asyncio.Queue() doesn't need a running event loop to construct on
+# Python 3.11 (the old loop-binding-at-construction behavior was removed), so a
+# module-level instance is safe here.
+_ingestion_queue: asyncio.Queue = asyncio.Queue()
+
+# Holds the worker's asyncio.Task so it isn't garbage-collected mid-run --
+# asyncio.create_task() only keeps a *weak* reference internally; a Task with no
+# other strong reference can be silently collected before it finishes.
+_ingestion_worker_task: asyncio.Task | None = None
+
+
+async def _ingestion_worker() -> None:
+    """Consumes _ingestion_queue one row at a time (concurrency=1) -- exactly one
+    worker coroutine, so Mistral rate limits are absorbed by this serialization
+    rather than hit concurrently by overlapping background ingests (AC #3). Every
+    status transition is written to the DB immediately via storage.py (AD-1) --
+    the DB is the source of truth, this in-process queue is just a low-latency
+    trigger and is disposable (see _lifespan's startup-recovery sweep, AC #4).
+
+    Code review (2026-08-28): the whole loop body is wrapped in try/except so a
+    transient DB/network error on one row can't kill the sole worker coroutine
+    for the rest of the process's life -- previously mark_processing/mark_done/
+    mark_error could raise straight out of the loop with nothing to catch it.
+    Supabase calls are wrapped in asyncio.to_thread since they're synchronous
+    and would otherwise block the event loop for every other request.
+    """
+    while True:
+        row_id, url = await _ingestion_queue.get()
+        try:
+            try:
+                await asyncio.to_thread(mark_processing, row_id)
+            except Exception as e:
+                # Code review (2026-08-29): without this fallback, a row whose
+                # mark_processing write fails is dropped from the in-memory
+                # queue but left at 'queued' (or 'processing' if the write
+                # actually landed) in the DB -- neither a fresh /api/ingest
+                # (which refuses to re-push an already-queued/processing row)
+                # nor the Story 6.3 retry button (which only accepts 'error'
+                # rows) can ever recover it; only a full app restart's
+                # recovery sweep can. Marking it 'error' instead makes the
+                # failure visible and retriable from the UI.
+                print(f"[ingestion worker] mark_processing failed for row {row_id} ({url}), marking as error instead of leaving it stuck at 'queued'/'processing': {e}")
+                await asyncio.to_thread(mark_error, row_id, f"Failed to mark as processing: {e}")
+                continue
+            try:
+                # interactive=False: no browser is waiting on a background job,
+                # so it can use main.ingest()'s more patient batch retry/timeout
+                # budget instead of the tight one meant to keep a browser client
+                # from stalling -- the default (interactive=True) would give up
+                # on a transient Mistral rate limit faster than necessary here.
+                result = await ingest_startup(url, interactive=False)
+            except Exception as e:
+                await asyncio.to_thread(mark_error, row_id, str(e))
+            else:
+                try:
+                    await asyncio.to_thread(mark_done, row_id, result)
+                except Exception as e:
+                    # Code review (2026-08-29): ingest_startup already succeeded
+                    # but persisting 'done' failed (storage._set_ingestion_status
+                    # already retries transient errors -- this is the case where
+                    # even that gave up). Without this fallback the row stays at
+                    # 'processing' forever with no requeue, showing a permanently
+                    # spinning badge. Marking it 'error' instead makes the failure
+                    # visible and stops the next restart's recovery sweep from
+                    # silently re-running the whole pipeline for a startup that
+                    # already finished.
+                    print(f"[ingestion worker] mark_done failed for row {row_id} ({url}), marking as error instead of leaving it stuck at 'processing': {e}")
+                    await asyncio.to_thread(mark_error, row_id, f"Ingestion succeeded but saving the result failed: {e}")
+        except Exception as e:
+            print(f"[ingestion worker] unexpected failure on row {row_id} ({url}): {e}")
+        finally:
+            _ingestion_queue.task_done()
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Startup-recovery sweep (AC #4): re-enqueue any row still 'queued'/
+    'processing' from a previous run before the worker starts consuming new
+    requests -- a crash between items must not silently strand a row forever.
+    Then start the single worker coroutine (concurrency=1, AC #3).
+
+    Code review (2026-08-28): the sweep is wrapped in try/except so a Supabase
+    outage at boot doesn't prevent the whole app (not just ingestion) from
+    starting -- it logs and continues with an empty pending list instead.
+    """
+    global _ingestion_worker_task
+    try:
+        pending = await asyncio.to_thread(get_pending_ingestions)
+    except Exception as e:
+        print(f"[ingestion worker] startup-recovery sweep failed, continuing with an empty queue: {e}")
+        pending = []
+    for row in pending:
+        await _ingestion_queue.put((row["id"], row["url"]))
+    _ingestion_worker_task = asyncio.create_task(_ingestion_worker())
+    yield
+
+
+app = FastAPI(lifespan=_lifespan)
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 SECTOR_COLORS_JS = """
@@ -60,20 +162,96 @@ def api_search(q: str = ""):
     return rows.data or []
 
 
-@app.post("/api/ingest")
+@app.post("/api/ingest", status_code=202)
 async def api_ingest(url: str):
+    """Enqueue a startup for background ingestion and return immediately (Epic 6,
+    Story 6.1) -- does not await main.ingest() directly anymore, so adding a
+    startup never blocks the caller for the whole scrape/extract/score pipeline.
+    Status/result/error are tracked in ingestion_queue, not this response.
+    """
     url = url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL manquante.")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     try:
-        result = await ingest_startup(url)
+        row, is_new = await asyncio.to_thread(enqueue_ingestion, url)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        # Code review (2026-08-29): enqueue_ingestion now rejects a
+        # malformed/host-less url (empty normalize_domain()) with a
+        # ValueError -- a bad request from this endpoint's own caller, not a
+        # server-side failure, so 400 rather than 502.
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Échec du scraping ou de l'analyse : {e}")
-    return result
+        raise HTTPException(status_code=502, detail=f"Échec de la mise en file d'attente : {e}")
+    if is_new:
+        # A reused row (already queued or actively processing for this same
+        # URL) is not re-pushed -- the worker already has it, or will pick it
+        # up via the startup-recovery sweep. Pushing it again would let the
+        # worker run main.ingest() twice for one row (code review, 2026-08-28).
+        await _ingestion_queue.put((row["id"], url))
+    return {"id": row["id"]}
+
+
+@app.get("/api/ingestion-queue")
+def api_ingestion_queue():
+    """All ingestion_queue rows, most recent first, for the "En attente" tab
+    (Epic 6, Story 6.2). Plain `def` like /api/search -- FastAPI runs it in its
+    own thread pool automatically, no asyncio.to_thread needed here.
+    """
+    return list_ingestions()
+
+
+@app.post("/api/ingestion-queue/{id}/retry", status_code=202)
+async def api_retry_ingestion(id: int):
+    """Reset an errored ingestion_queue row to 'queued' and re-push it onto
+    the worker's queue (Epic 6, Story 6.3) -- writing 'queued' to the DB alone
+    doesn't wake the worker, since it consumes the in-memory _ingestion_queue,
+    not a DB poll. async def like api_ingest, since it awaits queue.put().
+    """
+    try:
+        row = await asyncio.to_thread(retry_ingestion, id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Élément introuvable ou n'est pas en échec.")
+    except APIError as e:
+        if e.code == "23505":
+            raise HTTPException(status_code=409, detail="Cette URL est déjà en cours de traitement.")
+        raise HTTPException(status_code=502, detail=f"Échec de la relance : {e}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Échec de la relance : {e}")
+    await _ingestion_queue.put((row["id"], row["url"]))
+    return {"id": row["id"]}
+
+
+@app.delete("/api/ingestion-queue/{id}", status_code=204)
+async def api_delete_ingestion(id: int):
+    """Permanently remove an errored ingestion_queue row so the "En attente"
+    tab can be cleared of stale failures. async def to match the retry
+    endpoint's shape, even though this one never touches _ingestion_queue.
+    """
+    try:
+        await asyncio.to_thread(delete_ingestion, id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Élément introuvable ou n'est pas en échec.")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Échec de la suppression : {e}")
+
+
+@app.get("/api/ingestion-queue/summary")
+def api_ingestion_queue_summary():
+    """Counts backing the "En attente" tab's two notification badges (Epic 6,
+    Story 6.4). Plain `def` like /api/search/GET /api/ingestion-queue --
+    doesn't touch _ingestion_queue, nothing to await.
+    """
+    return get_ingestion_summary()
+
+
+@app.post("/api/ingestion-queue/mark-seen")
+def api_mark_ingestion_seen():
+    """Bulk-marks currently-done rows as seen (Epic 6, Story 6.4), called once
+    when the "En attente" tab opens. Plain `def`, no request body.
+    """
+    return {"marked": mark_done_rows_seen()}
 
 
 @app.get("/api/graph/all")
@@ -207,8 +385,12 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       min-height: 100vh; display: flex; flex-direction: column;
       align-items: center; justify-content: center; padding: 40px 20px 40px;
     }}
-    h1 {{ font-size: 2.4rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; margin-bottom: 28px; }}
+    h1 {{ font-size: 2.4rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }}
     .subtitle {{ color: #555; font-size: 0.95rem; margin-bottom: 48px; }}
+    #header-row {{
+      width: 100%; max-width: 600px; display: flex; align-items: baseline;
+      justify-content: space-between; gap: 12px; margin-bottom: 28px;
+    }}
     #search-wrap {{ width: 100%; max-width: 600px; display: flex; gap: 10px; }}
     #search {{
       flex: 1; min-width: 0; padding: 16px 20px; font-size: 16px;
@@ -249,18 +431,85 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }}
     .empty {{ color: #555; font-size: 14px; text-align: center; padding: 24px 0; }}
-    #graph-link {{ color: #555; font-size: 13px; margin-top: 10px; text-decoration: none; transition: color 0.15s; align-self: flex-end; }}
+    #graph-link {{ color: #555; font-size: 13px; text-decoration: none; transition: color 0.15s; white-space: nowrap; flex-shrink: 0; }}
     #graph-link:hover {{ color: #aaa; }}
+    #tab-bar {{ width: 100%; max-width: 600px; display: flex; gap: 4px; margin-bottom: 16px; }}
+    .tab-btn {{
+      position: relative;
+      flex: 1; padding: 10px; font-size: 14px; font-weight: 600; text-align: center;
+      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 10px;
+      color: #888; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }}
+    .tab-btn:hover {{ color: #ccc; }}
+    .tab-btn.active {{ color: #fff; border-color: #555; }}
+    .tab-dots {{ position: absolute; top: -6px; right: -6px; display: flex; gap: 3px; }}
+    .tab-dot {{
+      min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; color: #111; line-height: 16px;
+      display: none;
+    }}
+    .tab-dot.show {{ display: block; }}
+    .tab-dot.error {{ background: #d16565; }}
+    .tab-dot.unseen {{ background: #7cb8e8; }}
+    #queue-panel {{ display: none; width: 100%; max-width: 600px; flex-direction: column; gap: 8px; }}
+    .queue-row {{
+      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+      padding: 14px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px;
+    }}
+    .queue-row-label {{ font-size: 14px; color: #eee; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .queue-status {{
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+      gap: 8px; min-width: 0; max-width: 100%;
+    }}
+    .queue-badge {{ font-size: 12px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 100%; }}
+    .queue-badge.queued {{ color: #f2c94c; }}
+    .queue-badge.processing {{ color: #7cb8e8; }}
+    .queue-badge.done {{ color: #6fcf6f; }}
+    .queue-badge.error {{ color: #d16565; display: block; white-space: normal; }}
+    .queue-badge-msg {{
+      min-width: 0; overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      word-break: break-word; cursor: help;
+    }}
+    .retry-btn, .delete-btn {{
+      flex-shrink: 0; padding: 4px 12px; font-size: 12px; font-weight: 600;
+      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 8px;
+      color: #eee; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+    }}
+    .retry-btn:hover {{ border-color: #555; background: #222; }}
+    .retry-btn:disabled, .delete-btn:disabled {{ cursor: default; opacity: 0.6; }}
+    .delete-btn {{ color: #d16565; }}
+    .delete-btn:hover {{ border-color: #d16565; background: #2a1616; }}
+    .retry-error {{ color: #d16565; font-size: 11px; flex-basis: 100%; }}
+    .spinner {{
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid #2e2e2e; border-top-color: #7cb8e8;
+      animation: spin 0.7s linear infinite;
+    }}
+    @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
   </style>
 </head>
 <body>
-  <h1>SM Project</h1>
+  <div id="header-row">
+    <h1>SM Project</h1>
+    <a href="/graph" id="graph-link">View full graph →</a>
+  </div>
+  <div id="tab-bar">
+    <div class="tab-btn active" id="tab-search">Recherche</div>
+    <div class="tab-btn" id="tab-queue">
+      En attente
+      <span class="tab-dots">
+        <span id="tab-dot-error" class="tab-dot error"></span>
+        <span id="tab-dot-unseen" class="tab-dot unseen"></span>
+      </span>
+    </div>
+  </div>
   <div id="search-wrap">
     <input id="search" type="text" placeholder="Search a startup…" autocomplete="off">
     <button id="add-btn" type="button">Ajouter</button>
   </div>
-  <a href="/graph" id="graph-link">View full graph →</a>
   <div id="results"></div>
+  <div id="queue-panel"></div>
 
   <script>
 {SECTOR_COLORS_JS}
@@ -320,6 +569,146 @@ function go(name) {{
   window.location.href = "/startup/" + encodeURIComponent(name);
 }}
 
+const tabSearch  = document.getElementById("tab-search");
+const tabQueue   = document.getElementById("tab-queue");
+const searchWrap = document.getElementById("search-wrap");
+const queuePanel = document.getElementById("queue-panel");
+let queuePollTimer;
+
+function showSearchTab() {{
+  tabSearch.classList.add("active");
+  tabQueue.classList.remove("active");
+  searchWrap.style.display = "flex";
+  resultsEl.style.display = "flex";
+  queuePanel.style.display = "none";
+  if (queuePollTimer) clearInterval(queuePollTimer);
+}}
+
+function showQueueTab() {{
+  tabQueue.classList.add("active");
+  tabSearch.classList.remove("active");
+  searchWrap.style.display = "none";
+  resultsEl.style.display = "none";
+  queuePanel.style.display = "flex";
+  if (queuePollTimer) clearInterval(queuePollTimer);
+  pollQueue();
+  queuePollTimer = setInterval(pollQueue, 2000);
+  fetch("/api/ingestion-queue/mark-seen", {{ method: "POST" }})
+    .then(() => pollSummary())
+    .catch(() => {{}});
+}}
+
+tabSearch.addEventListener("click", showSearchTab);
+tabQueue.addEventListener("click", showQueueTab);
+
+function pollQueue() {{
+  fetch("/api/ingestion-queue")
+    .then(r => r.json())
+    .then(renderQueue)
+    .catch(err => {{
+      queuePanel.innerHTML = `<div class="error">${{err.message}}</div>`;
+    }});
+}}
+
+const tabDotError  = document.getElementById("tab-dot-error");
+const tabDotUnseen = document.getElementById("tab-dot-unseen");
+
+function pollSummary() {{
+  fetch("/api/ingestion-queue/summary")
+    .then(r => r.json())
+    .then(data => {{
+      tabDotError.textContent = data.error_count;
+      tabDotError.classList.toggle("show", data.error_count > 0);
+      tabDotUnseen.textContent = data.unseen_done_count;
+      tabDotUnseen.classList.toggle("show", data.unseen_done_count > 0);
+    }})
+    .catch(() => {{ /* transient failure -- leave badges at their last-known values */ }});
+}}
+
+pollSummary();
+setInterval(pollSummary, 5000);
+
+function escapeHtml(str) {{
+  const map = {{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }};
+  return String(str == null ? "" : str).replace(/[&<>"']/g, ch => map[ch]);
+}}
+
+// Error messages can be arbitrarily long (raw API error bodies) -- clamp what's
+// shown inline so a single row can't blow out the card's width; the full text
+// is still reachable via the title tooltip set alongside this in QUEUE_BADGES.error.
+function truncate(str, n) {{
+  return str.length > n ? str.slice(0, n - 1) + "…" : str;
+}}
+
+const QUEUE_BADGES = {{
+  queued:     () => `<span class="queue-badge queued">🟡 En attente</span>`,
+  processing: () => `<span class="queue-badge processing"><span class="spinner"></span> Traitement…</span>`,
+  done:       row => `<span class="queue-badge done">✅ Terminé — ${{escapeHtml((row.result || {{}}).name || "")}} ajouté</span>`,
+  error:      row => {{
+    const msg = row.error_message || "";
+    return `<span class="queue-badge error"><span class="queue-badge-msg" title="${{escapeHtml(msg)}}">🔴 Échec — ${{escapeHtml(truncate(msg, 160))}}</span></span>`
+      + `<button class="retry-btn" data-id="${{row.id}}">Relancer</button>`
+      + `<button class="delete-btn" data-id="${{row.id}}">Supprimer</button>`;
+  }},
+}};
+
+function renderQueue(data) {{
+  if (!data.length) {{
+    queuePanel.innerHTML = '<div class="empty">Aucun élément en file d’attente.</div>';
+    return;
+  }}
+  queuePanel.innerHTML = data.map(row => {{
+    const label = row.status === "done" ? ((row.result || {{}}).name || row.url) : row.url;
+    const badge = (QUEUE_BADGES[row.status] || QUEUE_BADGES.error)(row);
+    return `<div class="queue-row">
+      <div class="queue-row-label">${{escapeHtml(label)}}</div>
+      <div class="queue-status">${{badge}}</div>
+    </div>`;
+  }}).join("");
+}}
+
+queuePanel.addEventListener("click", e => {{
+  const retryBtn = e.target.closest(".retry-btn");
+  if (retryBtn) {{
+    const id = retryBtn.dataset.id;
+    retryBtn.disabled = true;
+    retryBtn.textContent = "Relance…";
+    fetch(`/api/ingestion-queue/${{id}}/retry`, {{ method: "POST" }})
+      .then(async r => {{
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.detail || "Erreur inconnue");
+        return body;
+      }})
+      .then(() => pollQueue())
+      .catch(err => {{
+        retryBtn.disabled = false;
+        retryBtn.textContent = "Relancer";
+        retryBtn.insertAdjacentHTML("afterend", `<span class="retry-error">${{escapeHtml(err.message)}}</span>`);
+      }});
+    return;
+  }}
+
+  const deleteBtn = e.target.closest(".delete-btn");
+  if (deleteBtn) {{
+    const id = deleteBtn.dataset.id;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Suppression…";
+    fetch(`/api/ingestion-queue/${{id}}`, {{ method: "DELETE" }})
+      .then(async r => {{
+        if (!r.ok) {{
+          const body = await r.json().catch(() => ({{}}));
+          throw new Error(body.detail || "Erreur inconnue");
+        }}
+      }})
+      .then(() => {{ pollQueue(); pollSummary(); }})
+      .catch(err => {{
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = "Supprimer";
+        deleteBtn.insertAdjacentHTML("afterend", `<span class="retry-error">${{escapeHtml(err.message)}}</span>`);
+      }});
+  }}
+}});
+
 addBtn.addEventListener("click", () => {{
   const url = lastQuery;
   if (!url) return;
@@ -331,7 +720,13 @@ addBtn.addEventListener("click", () => {{
       if (!r.ok) throw new Error(body.detail || "Erreur inconnue");
       return body;
     }})
-    .then(result => {{ go(result.name); }})
+    .then(() => {{
+      // Enqueued for background processing (Epic 6, Story 6.1). The item's
+      // live status badge is shown in the "En attente" tab (Story 6.2).
+      addBtn.disabled = false;
+      addBtn.textContent = "Ajouter";
+      showQueueTab();
+    }})
     .catch(err => {{
       addBtn.disabled = false;
       addBtn.textContent = "Ajouter";

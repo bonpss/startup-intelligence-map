@@ -373,11 +373,13 @@ async def _scrape_playwright(url: str) -> tuple[str, list[dict]]:
 def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
     """Classify, save, fetch logos, and score competitors -- the fully synchronous
     part of ingest() (LLM calls, Supabase calls, file I/O). Run via
-    asyncio.to_thread() from ingest() so it doesn't block the event loop:
-    graph_app.py's /api/ingest awaits ingest() directly, and this pipeline can run
-    for minutes under Mistral rate limiting (score_candidates' chunk pacing +
+    asyncio.to_thread() from ingest() so it doesn't block the event loop: since
+    Story 6.1, graph_app.py's background worker awaits ingest() (not /api/ingest
+    itself, which only enqueues and returns immediately), and this pipeline can
+    run for minutes under Mistral rate limiting (score_candidates' chunk pacing +
     widened retry backoff) -- without offloading to a thread, every other
-    concurrent request would freeze for the whole duration.
+    concurrent request (including other API routes, not just ingestion) would
+    freeze for the whole duration.
     """
     data = extract(markdown, website=url, logo_candidates=logo_candidates)
     print(json.dumps(data, ensure_ascii=False, indent=2))
@@ -455,21 +457,30 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
     return {"name": name, "action": action, "competitors_found": len(saved_relationships)}
 
 
-async def ingest(url: str) -> dict:
+async def ingest(url: str, interactive: bool = True) -> dict:
     """Scrape, classify, save, fetch logos, and score competitors for one startup URL.
 
-    Reused by both the CLI entrypoint below and the web search bar's "Add" action.
+    Reused by both the CLI entrypoint below and the Story 6.1 background worker
+    (graph_app.py's _ingestion_worker, itself triggered by the web search bar's
+    "Add" action via /api/ingest -- no caller awaits ingest() directly anymore).
     Raises ValueError if no startup info could be extracted from the page.
 
     Sets INTERACTIVE_REQUEST for the duration of the write-sequence part so
     competitor.py/extractor.py use the tighter interactive retry/timeout budget,
     and serializes concurrent calls for the same domain via a per-domain lock --
     scrape() itself isn't locked, since it never touches the DB.
+
+    interactive=True is this function's default, but no live caller uses it:
+    the background worker passes interactive=False (no browser is waiting on
+    it, so it can afford the more patient batch budget) and so does the CLI
+    entrypoint below (one-off runs would rather retry longer against a slow
+    Mistral response than give up after 3 attempts). The parameter/tight
+    budget stay available for a future synchronous caller.
     """
     markdown, logo_candidates = await scrape(url)
     domain = normalize_domain(url)
     lock = _domain_locks.setdefault(domain, asyncio.Lock())
-    token = INTERACTIVE_REQUEST.set(True)
+    token = INTERACTIVE_REQUEST.set(interactive)
     try:
         async with lock:
             return await asyncio.to_thread(_ingest_sync, markdown, logo_candidates, url)
@@ -483,7 +494,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        asyncio.run(ingest(sys.argv[1]))
+        asyncio.run(ingest(sys.argv[1], interactive=False))
     except ValueError as e:
         print(f"{e} Skipping.", file=sys.stderr)
         sys.exit(0)

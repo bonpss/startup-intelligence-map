@@ -1,10 +1,8 @@
 import json
 import os
-import httpx
 from mistralai.client.sdk import Mistral
-from mistralai.client.errors.sdkerror import SDKError
 from dotenv import load_dotenv
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from retry import build_retry, is_mistral_retryable, log_retry_attempt
 from storage import (
     BATCH_TIMEOUT_MS,
     INTERACTIVE_REQUEST,
@@ -15,25 +13,24 @@ from storage import (
 from taxonomy import TAXONOMY, SUBSECTOR_DEFINITIONS, HORIZONTAL_SUBSECTORS, validate_subsectors, demote_generic_erp_tag, remove_redundant_uncategorized
 
 
-def _is_retryable(exc: BaseException) -> bool:
-    if isinstance(exc, httpx.TransportError):
-        return True
-    if isinstance(exc, json.JSONDecodeError):
-        return True
-    return isinstance(exc, SDKError) and any(code in str(exc) for code in ("429", "503", "529"))
-
-
 # Batch/backfill budget (reprocess_list.py's extract() calls) -- free-tier Mistral
 # rate limits reset on a ~1min window, not seconds -- same fix as competitor.py's
 # retry (a 30s ceiling gave up before the window cleared). See
-# storage.RETRY_INTERACTIVE_WAIT/_STOP for the tighter interactive (/api/ingest,
-# CLI) budget -- a single ingest chains several of these calls (Step 1, 2a, 2b,
-# 2c), so each one must stay well short of the batch path's ~124s backoff +
-# 7x120s timeout worst case (~16min) or the browser client stalls with no
-# feedback. Shared with competitor.py via storage.py, not duplicated here.
+# storage.RETRY_INTERACTIVE_WAIT/_STOP for the tighter interactive budget --
+# unused by any live caller since Story 6.1 (the CLI and the web UI's
+# background worker both call main.ingest(url, interactive=False); the
+# flag/budget stay available for a future synchronous caller). A single
+# ingest chains several of these calls (Step 1, 2a, 2b, 2c), so each one must
+# stay well short of the batch path's ~124s backoff + 7x120s timeout worst
+# case (~16min). Shared with competitor.py via storage.py, not duplicated here.
+_retry = build_retry(
+    is_mistral_retryable,
+    wait_multiplier=2, wait_min=4, wait_max=60, stop_attempts=7,
+    before_sleep=log_retry_attempt,
+)
 
 
-@retry(retry=retry_if_exception(_is_retryable), wait=wait_exponential(multiplier=2, min=4, max=60), stop=stop_after_attempt(7), reraise=True)
+@_retry
 def _chat_complete_core(client: Mistral, timeout_ms: int, **kwargs) -> dict:
     r = client.chat.complete(timeout_ms=timeout_ms, **kwargs)
     return json.loads(r.choices[0].message.content)
