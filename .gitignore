@@ -15,3 +15,18 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Proprietary classification/matching logic -- kept out of the public repo
+taxonomy.py
+competitor.py
+competitor_validator.py
+graph_analysis.py
+
+# Real database content / reports -- kept out of the public repo
+audit_report.json
+graph_analysis_report.json
+audit_stale_competitors_report.json
+backfill_progress.txt
+backfill_isolates_live.log
+audit_model_dev_platforms_report.json
+audit_model_dev_platforms_segmentation.json
