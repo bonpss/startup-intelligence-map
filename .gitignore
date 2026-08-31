@@ -30,3 +30,6 @@ backfill_progress.txt
 backfill_isolates_live.log
 audit_model_dev_platforms_report.json
 audit_model_dev_platforms_segmentation.json
+
+# Startup logos -- local asset cache, not for the public repo
+assets/logos/
