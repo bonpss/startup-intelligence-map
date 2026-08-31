@@ -3,14 +3,18 @@
 
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
-from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary
+from starlette.middleware.sessions import SessionMiddleware
+from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, create_user, get_user_by_email
 from main import ingest as ingest_startup
+import auth
 
 load_dotenv()
 
@@ -115,6 +119,87 @@ async def _lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=_lifespan)
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+
+# Auth-gating allowlist: exact-path or prefix match only (not regex), to keep
+# it auditable at a glance (Design Notes). Everything not listed here requires
+# a valid session.
+_ALLOWLIST_EXACT = {"/login", "/signup", "/api/login", "/api/signup"}
+_ALLOWLIST_PREFIXES = ("/assets/",)
+
+
+def _is_allowlisted(path: str) -> bool:
+    return path in _ALLOWLIST_EXACT or any(path.startswith(p) for p in _ALLOWLIST_PREFIXES)
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    """Single choke point for auth (spec-public-demo-auth.md) instead of
+    per-route Depends, to keep the diff small across the app's 12 pre-existing
+    routes. Order of checks: allowlist -> session presence -> owner-only
+    /graph, /api/graph/all block. /api/graph/{name} (per-startup neighborhood,
+    used by /startup/{name}) is deliberately NOT blocked here -- the PRD marks
+    /startup/{name} as eligible for public/beta opening, unlike the full graph.
+
+    request.state.user is set here (to the session's user dict, or None) so
+    index()/startup_page() can read it synchronously afterwards to decide
+    whether to render the Graph nav link, without a second DB round-trip --
+    by the time either handler runs, a None user has already been redirected
+    away by this middleware, so in practice they only ever see a real user.
+    """
+    path = request.url.path
+    if _is_allowlisted(path):
+        # Still check the session here (step-04 review): an already-logged-in
+        # caller hitting the auth-form routes would otherwise silently spawn
+        # a second account or clobber their own session, since these paths
+        # never reach the checks below.
+        user = auth.get_current_user(request)
+        if user is not None:
+            if path.startswith("/api/"):
+                return JSONResponse({"detail": "Déjà connecté."}, status_code=400)
+            return RedirectResponse(url="/", status_code=303)
+        return await call_next(request)
+
+    user = auth.get_current_user(request)
+    request.state.user = user
+
+    if user is None:
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Authentification requise."}, status_code=401)
+        return RedirectResponse(url="/login", status_code=303)
+
+    if not user.get("is_owner") and (path == "/graph" or path == "/api/graph/all"):
+        return JSONResponse({"detail": "Accès réservé."}, status_code=403)
+
+    return await call_next(request)
+
+
+# Server-side sessions (spec-public-demo-auth.md): a signed httponly cookie,
+# no new session table -- the cookie itself carries {id, email, is_owner}.
+# Registered AFTER auth_gate: Starlette's add_middleware()/@app.middleware("http")
+# both insert at the front of the middleware stack, so whichever is registered
+# LAST ends up OUTERMOST (runs first). SessionMiddleware must run before
+# auth_gate reads request.session, so it must be added after auth_gate is
+# registered above -- registering it earlier (as originally written) put
+# auth_gate outside SessionMiddleware and crashed every request with
+# "SessionMiddleware must be installed to access request.session".
+#
+# Fails fast at import time on a blank secret (step-04 review) -- unlike
+# OWNER_EMAIL/MAX_USERS, an empty SESSION_SECRET_KEY isn't a "closed" state,
+# it's a weak, guessable signing key silently accepted by itsdangerous, so
+# this must refuse to start rather than degrade quietly.
+_session_secret = os.environ["SESSION_SECRET_KEY"]
+if not _session_secret.strip():
+    raise RuntimeError("SESSION_SECRET_KEY must not be blank.")
+# SESSION_COOKIE_HTTPS_ONLY defaults to false because no TLS-terminated host
+# is chosen yet (Verification is run over http://localhost) -- flip it to
+# "true" once the demo is deployed behind HTTPS. max_age is shortened from
+# Starlette's 14-day default to 7 days, more appropriate for a time-boxed demo.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_session_secret,
+    https_only=os.environ.get("SESSION_COOKIE_HTTPS_ONLY", "false").strip().lower() == "true",
+    max_age=7 * 24 * 60 * 60,
+)
 
 SECTOR_COLORS_JS = """
 const SECTOR_COLORS = {
@@ -370,7 +455,253 @@ def api_graph(name: str):
     }
 
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+# JSON request bodies (not query params, unlike /api/ingest's url: str) so
+# passwords never land in a URL query string -- which uvicorn's access log,
+# any reverse proxy, and browser history would otherwise capture, at odds
+# with "passwords ... never logged" (spec Boundaries & Constraints).
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+def _looks_like_email(email: str) -> bool:
+    """Cheap shape check, not full RFC validation -- deliberately avoids
+    pulling in a new dependency (pydantic's EmailStr needs email-validator)
+    for a demo signup form. Just enough to reject "not-an-email" (step-04
+    review), which would otherwise be silently accepted and stored.
+    """
+    local, _, domain = email.partition("@")
+    return bool(local) and "." in domain and not domain.startswith(".") and not domain.endswith(".")
+
+
+@app.post("/api/signup", status_code=201)
+def api_signup(body: SignupRequest, request: Request):
+    """I/O matrix: seats free -> 201 + session, cap reached -> 403 (owner
+    exempt), owner email -> 403 reserved (owner is seeded out-of-band by
+    seed_owner.py, not created here -- step-04 review, iteration 1), duplicate
+    email -> 409.
+    """
+    email = auth.normalize_email(body.email)
+    password = body.password
+    if not email or not password.strip():
+        raise HTTPException(status_code=400, detail="Email et mot de passe requis.")
+    if not _looks_like_email(email):
+        raise HTTPException(status_code=400, detail="Adresse email invalide.")
+    if auth.is_owner_email(email):
+        raise HTTPException(status_code=403, detail="Cette adresse est réservée.")
+
+    if auth.signup_cap_reached():
+        raise HTTPException(status_code=403, detail="Inscriptions fermées.")
+
+    try:
+        password_hash = auth.hash_password(password)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Mot de passe invalide.")
+
+    try:
+        user = create_user(email, password_hash, is_owner=False)
+    except APIError as e:
+        if e.code == "23505":
+            raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet email.")
+        print(f"[auth] signup insert failed for {email}: {e!r}")
+        raise HTTPException(status_code=502, detail="Échec de l'inscription, réessayez.")
+    except Exception as e:
+        print(f"[auth] signup insert failed for {email}: {e!r}")
+        raise HTTPException(status_code=502, detail="Échec de l'inscription, réessayez.")
+
+    if not user or not user.get("id"):
+        print(f"[auth] signup insert returned no row for {email}")
+        raise HTTPException(status_code=502, detail="Échec de l'inscription, réessayez.")
+
+    request.session["user"] = {"id": user["id"], "email": email, "is_owner": False}
+    return {"email": email, "is_owner": False}
+
+
+# bcrypt hash of a fixed dummy password, computed once at import time so
+# api_login can spend equivalent time on both branches below (step-04
+# review) -- checking an unknown email against this instead of short-
+# circuiting keeps "unknown email" and "known email, wrong password"
+# roughly indistinguishable by response time.
+_DUMMY_PASSWORD_HASH = auth.hash_password("not-a-real-password-timing-decoy")
+
+
+@app.post("/api/login")
+def api_login(body: LoginRequest, request: Request):
+    """I/O matrix: valid creds -> 200 + session; invalid creds (wrong
+    password or unknown email) -> 401 with the same generic message either
+    way, so the response can't be used to enumerate registered emails.
+    """
+    email = auth.normalize_email(body.email)
+    user = get_user_by_email(email) if email else None
+    if user:
+        password_ok = auth.verify_password(body.password, user["password_hash"])
+    else:
+        auth.verify_password(body.password, _DUMMY_PASSWORD_HASH)
+        password_ok = False
+    if not user or not password_ok:
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
+
+    is_owner = bool(user.get("is_owner"))
+    request.session["user"] = {"id": user["id"], "email": user["email"], "is_owner": is_owner}
+    return {"email": user["email"], "is_owner": is_owner}
+
+
+@app.post("/api/logout")
+def api_logout(request: Request):
+    request.session.clear()
+    return {"ok": True}
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
+
+AUTH_PAGE_STYLE = """
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f0f; color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 40px 20px;
+    }
+    h1 { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 28px; }
+    form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
+    input {
+      padding: 14px 16px; font-size: 15px;
+      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 10px;
+      color: #eee; outline: none; transition: border-color 0.15s;
+    }
+    input::placeholder { color: #444; }
+    input:focus { border-color: #555; }
+    button {
+      padding: 14px; font-size: 15px; font-weight: 600;
+      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 10px;
+      color: #eee; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+    }
+    button:hover { border-color: #555; background: #222; }
+    button:disabled { cursor: default; opacity: 0.6; }
+    .error { color: #d16565; font-size: 13px; text-align: center; min-height: 1.2em; }
+    .switch { color: #555; font-size: 13px; text-align: center; margin-top: 8px; }
+    .switch a { color: #888; text-decoration: none; }
+    .switch a:hover { color: #ccc; }
+"""
+
+LOGIN_HTML = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Se connecter — SM Project</title>
+  <style>{AUTH_PAGE_STYLE}</style>
+</head>
+<body>
+  <h1>SM Project</h1>
+  <form id="auth-form">
+    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+    <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
+    <div class="error" id="error"></div>
+    <button id="submit-btn" type="submit">Se connecter</button>
+    <div class="switch">Pas de compte ? <a href="/signup">Créer un compte</a></div>
+  </form>
+  <script>
+const form = document.getElementById("auth-form");
+const errorEl = document.getElementById("error");
+const btn = document.getElementById("submit-btn");
+
+form.addEventListener("submit", e => {{
+  e.preventDefault();
+  errorEl.textContent = "";
+  btn.disabled = true;
+  btn.textContent = "Connexion…";
+  fetch("/api/login", {{
+    method: "POST",
+    headers: {{ "Content-Type": "application/json" }},
+    body: JSON.stringify({{
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+    }}),
+  }})
+    .then(async r => {{
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.detail || "Erreur inconnue");
+      return body;
+    }})
+    .then(() => {{ window.location.href = "/"; }})
+    .catch(err => {{
+      btn.disabled = false;
+      btn.textContent = "Se connecter";
+      errorEl.textContent = err.message;
+    }});
+}});
+  </script>
+</body>
+</html>"""
+
+
+SIGNUP_HTML = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Créer un compte — SM Project</title>
+  <style>{AUTH_PAGE_STYLE}</style>
+</head>
+<body>
+  <h1>SM Project</h1>
+  <form id="auth-form">
+    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+    <input id="password" type="password" placeholder="Mot de passe" autocomplete="new-password" required>
+    <div class="error" id="error"></div>
+    <button id="submit-btn" type="submit">Créer un compte</button>
+    <div class="switch">Déjà un compte ? <a href="/login">Se connecter</a></div>
+  </form>
+  <script>
+const form = document.getElementById("auth-form");
+const errorEl = document.getElementById("error");
+const btn = document.getElementById("submit-btn");
+
+form.addEventListener("submit", e => {{
+  e.preventDefault();
+  errorEl.textContent = "";
+  btn.disabled = true;
+  btn.textContent = "Création…";
+  fetch("/api/signup", {{
+    method: "POST",
+    headers: {{ "Content-Type": "application/json" }},
+    body: JSON.stringify({{
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+    }}),
+  }})
+    .then(async r => {{
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.detail || "Erreur inconnue");
+      return body;
+    }})
+    .then(() => {{ window.location.href = "/"; }})
+    .catch(err => {{
+      btn.disabled = false;
+      btn.textContent = "Créer un compte";
+      errorEl.textContent = err.message;
+    }});
+}});
+  </script>
+</body>
+</html>"""
+
+
+@app.get("/login")
+def login_page():
+    return HTMLResponse(content=LOGIN_HTML)
+
+
+@app.get("/signup")
+def signup_page():
+    return HTMLResponse(content=SIGNUP_HTML)
+
 
 SEARCH_HTML = f"""<!DOCTYPE html>
 <html lang="en">
@@ -492,7 +823,8 @@ SEARCH_HTML = f"""<!DOCTYPE html>
 <body>
   <div id="header-row">
     <h1>SM Project</h1>
-    <a href="/graph" id="graph-link">View full graph →</a>
+    __GRAPH_NAV_LINK__
+    <a href="#" id="logout-link" onclick="fetch('/api/logout', {{method: 'POST'}}).then(() => location.href = '/login'); return false;">Déconnexion</a>
   </div>
   <div id="tab-bar">
     <div class="tab-btn active" id="tab-search">Recherche</div>
@@ -1352,8 +1684,18 @@ fetch("/api/graph/all")
 
 
 @app.get("/")
-def index():
-    return HTMLResponse(content=SEARCH_HTML)
+def index(request: Request):
+    # request.state.user is set by auth_gate (Design Notes) -- by the time this
+    # handler runs, an unauthenticated request has already been redirected to
+    # /login by the middleware, so user here is always the logged-in account.
+    user = getattr(request.state, "user", None)
+    graph_link = (
+        '<a href="/graph" id="graph-link">View full graph →</a>'
+        if user and user.get("is_owner")
+        else ""
+    )
+    html = SEARCH_HTML.replace("__GRAPH_NAV_LINK__", graph_link)
+    return HTMLResponse(content=html)
 
 
 @app.get("/graph")
