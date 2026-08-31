@@ -7,3 +7,7 @@ httpx
 tenacity
 trafilatura
 lxml_html_clean
+fastapi
+uvicorn
+bcrypt
+itsdangerous

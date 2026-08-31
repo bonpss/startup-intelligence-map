@@ -684,6 +684,58 @@ def mark_done_rows_seen() -> int:
     return len(response.data or [])
 
 
+# users (spec-public-demo-auth.md): capped-signup email/password accounts.
+# password_hash is a bcrypt hash produced by auth.py -- this module never
+# hashes/verifies passwords itself, same separation as taxonomy validation
+# living in auth.py's caller rather than here.
+
+def create_user(email: str, password_hash: str, is_owner: bool = False) -> dict:
+    """Insert a new users row. Raises postgrest APIError (code 23505) on a
+    duplicate email -- the caller (graph_app.py's POST /api/signup) turns that
+    into a 409, per the I/O matrix's 'Signup, duplicate email' row. Not
+    wrapped in _execute's retry (a write), for the same in-doubt-write reason
+    other inserts in this module aren't retried.
+    """
+    client = _client()
+    response = _execute(client.table("users").insert({
+        "email": email,
+        "password_hash": password_hash,
+        "is_owner": is_owner,
+    }))
+    return response.data[0] if response.data else {}
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Fetch a single users row by exact email match, or None if no account
+    exists. Callers normalize (trim/lowercase) email before calling this --
+    matching is exact here, same division of responsibility as
+    _normalize_subject vs. the raw DB lookup elsewhere in this module.
+    """
+    client = _client()
+    response = _execute(
+        client.table("users")
+        .select("id, email, password_hash, is_owner")
+        .eq("email", email)
+        .limit(1)
+    )
+    return response.data[0] if response.data else None
+
+
+def count_non_owner_users() -> int:
+    """Count of users where is_owner=false -- the denominator auth.py's
+    MAX_USERS cap check compares against. count='exact', head=True issues an
+    HTTP HEAD request with no row payload, same pattern as
+    get_ingestion_summary()'s two counts below.
+    """
+    client = _client()
+    response = _execute(
+        client.table("users")
+        .select("id", count="exact", head=True)
+        .eq("is_owner", False)
+    )
+    return response.count or 0
+
+
 def get_ingestion_summary() -> dict:
     """Counts backing the "En attente" tab's two notification badges (Story
     6.4): error_count (status='error', regardless of seen -- a failure is
