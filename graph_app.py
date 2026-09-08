@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
 from starlette.middleware.sessions import SessionMiddleware
-from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, create_user, get_user_by_email
+from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, create_user, get_user_by_email, normalize_domain
 from main import ingest as ingest_startup
 import auth
 import dashboard
@@ -246,10 +246,15 @@ def api_search(q: str = ""):
     if len(q) < 2:
         return []
     db = _client()
+    # website is matched against the normalized domain, not the raw pasted
+    # string -- a stored "https://www.neo.ai" never contains "https://www.neo.ai/"
+    # (trailing slash) or "http://neo.ai" (different scheme/www) as a literal
+    # substring, even though they're the same site.
+    domain_q = normalize_domain(q)
     rows = (
         db.table("compspro")
         .select("name, sectors, subsectors, description, flaticon_url, website")
-        .or_(f"name.ilike.%{q}%,website.ilike.%{q}%")
+        .or_(f"name.ilike.%{q}%,website.ilike.%{domain_q}%")
         .limit(10)
         .execute()
     )
