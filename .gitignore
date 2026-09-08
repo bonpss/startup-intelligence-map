@@ -2,6 +2,7 @@
 _bmad/
 _bmad-output/
 .claude/
+.cursor/
 .log_review_pending.json
 
 # Python / venv
@@ -21,6 +22,9 @@ taxonomy.py
 competitor.py
 competitor_validator.py
 graph_analysis.py
+_tmp_fix_payment.py
+fix_compute_tag.py
+fix_mlops_tag.py
 
 # Real database content / reports -- kept out of the public repo
 audit_report.json

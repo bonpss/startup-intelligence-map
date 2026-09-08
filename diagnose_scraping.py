@@ -72,7 +72,7 @@ def diagnose_one(website: str) -> tuple[str, str]:
     crash the run -- caught and recorded as its own verdict.
     """
     try:
-        markdown, _logo_candidates = asyncio.run(scrape(website))
+        markdown, _logo_candidates, _linkedin_url = asyncio.run(scrape(website))
     except Exception as e:
         return "scrape_exception", f"{type(e).__name__}: {e}"
     return characterize(markdown)

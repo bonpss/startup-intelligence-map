@@ -8,8 +8,9 @@ from playwright.async_api import async_playwright
 import html2text
 import httpx
 import trafilatura
+from embeddings import embed_one
 from extractor import extract
-from storage import save_startup, normalize_domain, COMPETITOR_THRESHOLD, INTERACTIVE_REQUEST, _client as _db_client
+from storage import save_startup, normalize_domain, COMPETITOR_THRESHOLD, INTERACTIVE_REQUEST, CURRENT_API_CALL_CONTEXT, _client as _db_client
 from competitor import compare, save_competitors, explore_transitive
 
 
@@ -59,17 +60,26 @@ def _attr(tag: str, name: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _linkedin_url_from_html(html: str, base_url: str) -> str | None:
-    """Find a linkedin.com/company/ link declared as an <a href> in the raw HTML.
+_LINKEDIN_COMPANY_RE = re.compile(r"^(https?://[^/]*linkedin\.com/company/[^/?#]+)", re.I)
 
-    Needed because _fetch_light's trafilatura extraction drops link URLs (and
-    often the whole short "follow us" paragraph as boilerplate) -- the LinkedIn
-    URL has to be recovered from raw HTML, not from the extracted text.
+
+def _linkedin_url_from_html(html: str, base_url: str) -> str | None:
+    """Find a linkedin.com/company/ link declared as an <a href> in the raw HTML,
+    truncated to the bare company page (drops a trailing /posts/, /jobs/, query
+    string, etc. -- some sites link their "follow us" icon straight to a feed or
+    subpage rather than the company root).
+
+    Used for both scrape paths so extractor.py never has to find this in the
+    markdown text -- it's deterministic, so there's no reason to spend Step 1
+    prompt tokens asking the LLM to search for it (see extractor.py's
+    linkedin_url parameter).
     """
     for tag in re.findall(r"<a[^>]+>", html, re.I):
         href = _attr(tag, "href")
         if href and "linkedin.com/company/" in href.lower():
-            return urljoin(base_url, href)
+            full = urljoin(base_url, href)
+            m = _LINKEDIN_COMPANY_RE.match(full)
+            return m.group(1) if m else full
     return None
 
 
@@ -247,7 +257,99 @@ def _noise_ratio(text: str) -> float:
     return noisy / len(lines)
 
 
-def _parse_light_fetch(html: str, base_url: str) -> tuple[str, list[dict]] | None:
+# ── Generic post-scrape text cleanup ────────────────────────────────────────
+# Applied to the output of BOTH scrape paths (_parse_light_fetch's trafilatura
+# text and _scrape_playwright's html2text output) so every site benefits
+# regardless of which one ran -- these are markup/boilerplate patterns common
+# to nearly all sites, not anything specific to one page. Purely about shrinking
+# extractor.py's Step 1 input token count; none of this content ever helped
+# name/country/description/sector extraction.
+
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+
+
+def _is_nav_dense_block(block: str) -> bool:
+    """A paragraph block made up mostly of consecutive markdown links with
+    little or no other text is a nav bar, footer link row, or social-icon row
+    -- e.g. "[Home](/)[Products](/products)[Services](/services)" or
+    "[](https://x.com/x)[](https://linkedin.com/company/x)". Requires >=3 link
+    segments AND almost no leftover text, so a real sentence that happens to
+    contain a couple of inline links is never caught by this.
+
+    Checked per BLOCK (text between blank lines), not per physical line --
+    html2text word-wraps long link rows (e.g. a 3-item legal-links footer row)
+    across two physical lines, which would silently undercount a line-scoped
+    link tally and let the row through.
+    """
+    links = _MD_LINK_RE.findall(block)
+    if len(links) < 3:
+        return False
+    leftover = _MD_LINK_RE.sub("", block).strip()
+    return len(leftover) < 10
+
+
+# Exact-phrase boilerplate footer/legal lines seen on nearly every site. Matched
+# only against a line's FULL (trimmed) content, never a substring -- so a
+# genuine sentence that happens to mention "cookie" (e.g. a food-tech startup)
+# is never dropped, only a standalone footer item that IS just that phrase.
+_BOILERPLATE_LINE_PHRASES = {
+    "privacy policy", "terms of service", "terms of use", "terms & conditions",
+    "terms and conditions", "cookie policy", "cookie settings", "cookie preferences",
+    "manage cookies", "accept cookies", "use of cookies", "all rights reserved",
+}
+_COPYRIGHT_LINE_RE = re.compile(r"^©\s?\d{0,4}.{0,60}all rights reserved\.?$", re.I)
+
+
+def _is_boilerplate_line(line: str) -> bool:
+    stripped = line.strip(" \t-|•.")
+    if not stripped:
+        return False
+    if stripped.lower() in _BOILERPLATE_LINE_PHRASES:
+        return True
+    return bool(_COPYRIGHT_LINE_RE.match(stripped))
+
+
+def _dedup_paragraphs(text: str) -> str:
+    """Drop repeat occurrences of a paragraph/block that appears again later,
+    byte-for-byte (modulo whitespace/case) -- e.g. the same mission statement or
+    CTA block repeated in a hero section and again in the footer. Only applied
+    above a length floor so short structural fragments that legitimately repeat
+    (a lone "Learn More", a repeated price) are left alone; this only fires on
+    a genuinely duplicated sentence-or-longer block.
+    """
+    blocks = re.split(r"\n\s*\n", text)
+    seen: set[str] = set()
+    kept: list[str] = []
+    for block in blocks:
+        key = re.sub(r"\s+", " ", block).strip().lower()
+        if len(key) > 40:
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(block)
+    return "\n\n".join(kept)
+
+
+def _clean_scraped_text(text: str) -> str:
+    """Shrink scraped markdown before it reaches extractor.py's Step 1 prompt,
+    without touching anything that could carry extraction signal. Order matters:
+    nav-density is measured on the original `[text](url)` syntax at block
+    granularity (a stripped block loses the density signal), link stripping
+    must happen before the boilerplate/dedup passes (a boilerplate phrase can
+    be wrapped in a link), and blank-line collapsing runs last since every
+    prior pass can leave gaps.
+    """
+    blocks = [b for b in re.split(r"\n\s*\n", text) if not _is_nav_dense_block(b)]
+    text = "\n\n".join(blocks)
+    text = _MD_LINK_RE.sub(lambda m: m.group(1), text)
+    lines = [line for line in text.split("\n") if not _is_boilerplate_line(line)]
+    text = "\n".join(lines)
+    text = _dedup_paragraphs(text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _parse_light_fetch(html: str, base_url: str) -> tuple[str, list[dict], str | None] | None:
     """CPU-bound parsing for _fetch_light: trafilatura extraction + the regex-based
     HTML scans. Run via asyncio.to_thread() -- trafilatura's lxml parse is
     synchronous and would otherwise block the event loop for its duration, same
@@ -277,19 +379,17 @@ def _parse_light_fetch(html: str, base_url: str) -> tuple[str, list[dict]] | Non
         print("[_fetch_light] High boilerplate/noise ratio detected, falling back to Playwright")
         return None
 
-    # trafilatura strips link URLs (and often the whole "follow us" paragraph) from
-    # the extracted text, so extractor.py's linkedin_url prompt would never find one
-    # via this fast path -- recover it from the raw HTML and surface it in the text.
-    # Prepended, not appended: extractor.py truncates markdown to its first 30000
-    # chars, which would silently drop a suffix on any longer page.
+    # trafilatura strips link URLs, so the LinkedIn link has to be recovered from
+    # the raw HTML rather than the extracted text -- returned separately (not
+    # embedded in the text) since extractor.py takes it as a plain parameter
+    # instead of asking the LLM to find it, now that every link is gone below.
     linkedin_url = _linkedin_url_from_html(html, base_url)
-    if linkedin_url:
-        text = f"LinkedIn: {linkedin_url}\n\n{text}"
+    text = _clean_scraped_text(text)
 
-    return text, _logo_candidates_from_html(html, base_url)
+    return text, _logo_candidates_from_html(html, base_url), linkedin_url
 
 
-async def _fetch_light(url: str) -> tuple[str, list[dict]] | None:
+async def _fetch_light(url: str) -> tuple[str, list[dict], str | None] | None:
     """Fast path for server-rendered pages: plain HTTP GET + trafilatura extraction,
     no browser. Returns None (triggering the Playwright fallback) on any HTTP error,
     extraction failure, or if the extracted text is too short to be useful.
@@ -307,11 +407,11 @@ async def _fetch_light(url: str) -> tuple[str, list[dict]] | None:
     return await asyncio.to_thread(_parse_light_fetch, resp.text, str(resp.url))
 
 
-async def scrape(url: str) -> tuple[str, list[dict]]:
+async def scrape(url: str) -> tuple[str, list[dict], str | None]:
     """Scrape a page. Tries a lightweight HTTP fetch first (fast, no browser) —
     works for server-rendered sites, which covers most cases. Falls back to
     Playwright only when the light fetch fails or comes back too short (JS-rendered
-    content, anti-bot interstitial). Returns (markdown, logo_candidates).
+    content, anti-bot interstitial). Returns (markdown, logo_candidates, linkedin_url).
     """
     light = await _fetch_light(url)
     if light is not None:
@@ -319,7 +419,7 @@ async def scrape(url: str) -> tuple[str, list[dict]]:
     return await _scrape_playwright(url)
 
 
-async def _scrape_playwright(url: str) -> tuple[str, list[dict]]:
+async def _scrape_playwright(url: str) -> tuple[str, list[dict], str | None]:
     """Full browser render — fallback when _fetch_light isn't enough."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -367,10 +467,12 @@ async def _scrape_playwright(url: str) -> tuple[str, list[dict]]:
     converter = html2text.HTML2Text()
     converter.ignore_links = False
     converter.ignore_images = True
-    return converter.handle(html), _logo_candidates_from_html(html, final_url)
+    text = _clean_scraped_text(converter.handle(html))
+    linkedin_url = _linkedin_url_from_html(html, final_url)
+    return text, _logo_candidates_from_html(html, final_url), linkedin_url
 
 
-def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
+def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str | None, url: str, added_by_user_id: int | None = None) -> dict:
     """Classify, save, fetch logos, and score competitors -- the fully synchronous
     part of ingest() (LLM calls, Supabase calls, file I/O). Run via
     asyncio.to_thread() from ingest() so it doesn't block the event loop: since
@@ -381,7 +483,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
     concurrent request (including other API routes, not just ingestion) would
     freeze for the whole duration.
     """
-    data = extract(markdown, website=url, logo_candidates=logo_candidates)
+    data = extract(markdown, website=url, logo_candidates=logo_candidates, linkedin_url=linkedin_url)
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
     if not data.get("name"):
@@ -394,7 +496,13 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
 
     extracted_logo_url = data.pop("logo_url", None)
 
-    action  = save_startup(data)
+    # Embedding pre-filter chantier: computed once here, at ingestion time, so
+    # competitor.py never has to re-embed an existing candidate -- only the new
+    # company's own description is ever embedded.
+    if data.get("description"):
+        data["embedding"] = embed_one(data["description"])
+
+    action  = save_startup(data, added_by_user_id=added_by_user_id)
     name    = data.get("name", "unknown")
     website = data.get("website", "")
     slug    = slugify(name)
@@ -457,13 +565,25 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], url: str) -> dict:
     return {"name": name, "action": action, "competitors_found": len(saved_relationships)}
 
 
-async def ingest(url: str, interactive: bool = True) -> dict:
+async def ingest(url: str, interactive: bool = True, added_by_user_id: int | None = None, ingestion_queue_id: int | None = None) -> dict:
     """Scrape, classify, save, fetch logos, and score competitors for one startup URL.
 
     Reused by both the CLI entrypoint below and the Story 6.1 background worker
     (graph_app.py's _ingestion_worker, itself triggered by the web search bar's
     "Add" action via /api/ingest -- no caller awaits ingest() directly anymore).
     Raises ValueError if no startup info could be extracted from the page.
+
+    added_by_user_id is the users.id of whoever submitted this URL (threaded
+    through from ingestion_queue.requested_by_user_id by the background
+    worker) and is only ever written to compspro.added_by_user_id on a fresh
+    insert -- see storage.save_startup. None for the CLI entrypoint below,
+    which has no logged-in user.
+
+    ingestion_queue_id (also threaded through from the background worker, None
+    for the CLI entrypoint) sets CURRENT_API_CALL_CONTEXT for the duration of
+    this ingest so every Mistral call underneath (extract/compare/embed_one)
+    logs its usage/cost against the right ingestion_queue row -- see
+    storage.CURRENT_API_CALL_CONTEXT and storage.log_api_call.
 
     Sets INTERACTIVE_REQUEST for the duration of the write-sequence part so
     competitor.py/extractor.py use the tighter interactive retry/timeout budget,
@@ -477,15 +597,17 @@ async def ingest(url: str, interactive: bool = True) -> dict:
     Mistral response than give up after 3 attempts). The parameter/tight
     budget stay available for a future synchronous caller.
     """
-    markdown, logo_candidates = await scrape(url)
+    markdown, logo_candidates, linkedin_url = await scrape(url)
     domain = normalize_domain(url)
     lock = _domain_locks.setdefault(domain, asyncio.Lock())
     token = INTERACTIVE_REQUEST.set(interactive)
+    cost_ctx_token = CURRENT_API_CALL_CONTEXT.set({"ingestion_queue_id": ingestion_queue_id, "label": url})
     try:
         async with lock:
-            return await asyncio.to_thread(_ingest_sync, markdown, logo_candidates, url)
+            return await asyncio.to_thread(_ingest_sync, markdown, logo_candidates, linkedin_url, url, added_by_user_id)
     finally:
         INTERACTIVE_REQUEST.reset(token)
+        CURRENT_API_CALL_CONTEXT.reset(cost_ctx_token)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import contextvars
 import os
+import random
 import re
 import threading
 from datetime import datetime, timezone
@@ -10,6 +11,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from tenacity import stop_after_attempt, wait_exponential
 
+from pricing import compute_cost_usd
 from retry import build_retry
 from taxonomy import TAXONOMY
 
@@ -33,6 +35,20 @@ COMPETITOR_THRESHOLD = 0.85
 # through every intermediate function signature.
 INTERACTIVE_REQUEST: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "interactive_request", default=False
+)
+
+# Set by main.ingest() for the duration of a single ingest (same asyncio.to_thread
+# propagation as INTERACTIVE_REQUEST above), read by log_api_call() below so every
+# Mistral call site in extractor.py/competitor.py/embeddings.py can attribute its
+# cost to the right ingestion_queue row without an extra parameter threaded through
+# every function signature. {"ingestion_queue_id": int | None, "label": str} --
+# label is the url (known before the startup's name is), a fallback for reading
+# raw api_call_log rows with no ingestion_queue_id, not used by the dashboard's
+# aggregation itself. None (the default) for any call made outside main.ingest() --
+# a backfill/fix-up script importing these modules directly -- log_api_call()
+# still logs the call, just with ingestion_queue_id=None.
+CURRENT_API_CALL_CONTEXT: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
+    "current_api_call_context", default=None
 )
 
 # Shared interactive-vs-batch Mistral retry/timeout config, read by both
@@ -263,11 +279,46 @@ def _fine_subsector_own_labels(
     return result
 
 
+_CANDIDATE_POOL_CAP = 100
+
+
+def _cap_candidate_pool(candidates: list[dict], query_subsectors: list[str], startup_name: str) -> list[dict]:
+    """Cap an oversized candidate pool at _CANDIDATE_POOL_CAP, keeping the
+    candidates that share the most subsectors with the querying startup.
+
+    Ties at the cap boundary are broken with a Random seeded on startup_name
+    (not unseeded randomness) so re-running the same startup's ingestion/
+    reprocess always yields the same kept set.
+    """
+    if len(candidates) <= _CANDIDATE_POOL_CAP:
+        return candidates
+
+    qs = set(query_subsectors)
+    scored = [(len(set(c.get("subsectors") or []) & qs), c) for c in candidates]
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+
+    boundary_score = scored[_CANDIDATE_POOL_CAP - 1][0]
+    kept = [c for score, c in scored if score > boundary_score]
+    tied = [c for score, c in scored if score == boundary_score]
+    remaining_slots = _CANDIDATE_POOL_CAP - len(kept)
+
+    # Sort tied candidates by name first so the sample doesn't depend on the
+    # DB's (arbitrary) row order, then sample deterministically off a seed
+    # tied to the querying startup.
+    tied_sorted = sorted(tied, key=lambda c: c.get("name") or "")
+    rng = random.Random(startup_name)
+    kept.extend(rng.sample(tied_sorted, remaining_slots))
+
+    print(f"[get_by_subsectors] candidate pool cap activated for {startup_name!r}: {len(candidates)} -> {len(kept)}")
+    return kept
+
+
 def get_by_subsectors(
     subsectors: list[str],
     sectors: list[str],
     exclude_name: str,
     sub_subsectors: list[str] = [],
+    include_embedding: bool = True,
 ) -> list[dict]:
     """Return rows from compspro overlapping both subsectors AND sectors.
 
@@ -288,13 +339,24 @@ def get_by_subsectors(
 
     Subsectors with no sub_subsectors defined in TAXONOMY (the majority) are
     unaffected -- matching stays at the subsector level, exactly as before.
+
+    include_embedding defaults to True (competitor.py's compare() needs it for
+    prefilter_by_embedding). Callers that never touch the field -- e.g.
+    backfill_competitors.py, which scores candidates via score_candidates()
+    without any embedding prefilter -- should pass False: the column is a
+    ~20KB-per-row pgvector serialized as JSON, and pulling it for hundreds of
+    candidates across a large backlog is real PostgREST egress for no benefit
+    (2026-09-04 incident: an unthrottled --dry-run backlog scan alone drove a
+    single day's egress past the project's entire monthly quota).
     """
     if not subsectors or not sectors:
         return []
     client = _client()
+    columns = "name, sectors, subsectors, sub_subsectors, description"
+    columns += ", embedding" if include_embedding else ""
     query = (
         client.table("compspro")
-        .select("name, sectors, subsectors, sub_subsectors, description")
+        .select(columns)
         .overlaps("sectors", sectors)
         .overlaps("subsectors", subsectors)
         .neq("name", exclude_name)
@@ -303,7 +365,7 @@ def get_by_subsectors(
 
     fine_own = _fine_subsector_own_labels(sectors, subsectors, sub_subsectors)
     if not fine_own:
-        return rows
+        return _cap_candidate_pool(rows, subsectors, exclude_name)
 
     coarse_subsectors = set(subsectors) - set(fine_own)
 
@@ -320,7 +382,7 @@ def get_by_subsectors(
             if own_labels & r_sub_subs:
                 kept.append(r)
                 break
-    return kept
+    return _cap_candidate_pool(kept, subsectors, exclude_name)
 
 
 def get_known_competitors(name: str) -> list[str]:
@@ -385,8 +447,14 @@ def save_relationships(company_a: str, results: list[dict]) -> list[dict]:
     return saved
 
 
-def save_startup(data: dict) -> str:
-    """Insert or update a startup. Returns 'saved' or 'updated'."""
+def save_startup(data: dict, added_by_user_id: int | None = None) -> str:
+    """Insert or update a startup. Returns 'saved' or 'updated'.
+
+    added_by_user_id is only written on first insert -- a re-ingestion of an
+    already-existing startup (the 'updated' branch) never overwrites its
+    original attribution, even if a different user happens to trigger the
+    update.
+    """
     name = data.get("name")
     if not name:
         raise ValueError("Cannot save startup without a name")
@@ -419,7 +487,7 @@ def save_startup(data: dict) -> str:
         _execute(client.table("compspro").update({**data, "taxonomy_version": "v2"}).eq("id", existing["id"]))
         return "updated"
     else:
-        _execute(client.table("compspro").insert({**data, "taxonomy_version": "v2"}))
+        _execute(client.table("compspro").insert({**data, "taxonomy_version": "v2", "added_by_user_id": added_by_user_id}))
         return "saved"
 
 
@@ -437,12 +505,15 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def enqueue_ingestion(url: str) -> tuple[dict, bool]:
+def enqueue_ingestion(url: str, requested_by_user_id: int | None = None) -> tuple[dict, bool]:
     """Insert a new ingestion_queue row with status='queued', or reuse the
     existing queued/processing row for the same *domain* if one already
     exists. Returns (row, is_new) -- the caller must only push onto the
     in-process worker queue when is_new is True, so a reused row (already
     queued or actively being processed) isn't picked up and run a second time.
+
+    requested_by_user_id is only stored on a genuinely new row -- a reused
+    row keeps whichever user originally submitted it.
 
     Code review (2026-08-28): prevents a double-click on "Ajouter" or a
     resubmission of the same URL from enqueueing two independent rows and
@@ -487,7 +558,7 @@ def enqueue_ingestion(url: str) -> tuple[dict, bool]:
         return existing.data[0], False
 
     try:
-        response = _execute(client.table("ingestion_queue").insert({"url": url, "domain": domain, "status": "queued"}))
+        response = _execute(client.table("ingestion_queue").insert({"url": url, "domain": domain, "status": "queued", "requested_by_user_id": requested_by_user_id}))
     except APIError as e:
         if e.code != "23505":
             raise
@@ -638,22 +709,31 @@ def get_pending_ingestions() -> list[dict]:
     return _execute(query).data or []
 
 
-def list_ingestions(limit: int = 50) -> list[dict]:
-    """All ingestion_queue rows (no status filter), most recent first, for the
-    "En attente" tab (Story 6.2) -- unlike get_pending_ingestions(), this also
-    surfaces done/error rows so their terminal badge stays visible.
+def list_ingestions(limit: int = 50, status: str | None = None) -> list[dict]:
+    """All ingestion_queue rows (no status filter by default), most recent
+    first, for the "En attente" tab (Story 6.2) -- unlike get_pending_ingestions(),
+    this also surfaces done/error rows so their terminal badge stays visible.
 
-    `limit` is a placeholder to keep the panel from rendering an ever-growing
-    list, not a considered retention policy -- Story 6.1's code review flagged
-    that ingestion_queue has no retention/cleanup policy yet (deferred).
+    `limit` is a placeholder to keep the unfiltered panel from rendering an
+    ever-growing list, not a considered retention policy -- Story 6.1's code
+    review flagged that ingestion_queue has no retention/cleanup policy yet
+    (deferred).
+
+    status, when given, filters to just that status and is NOT subject to
+    `limit` -- unlike the default view, a status filter (currently only
+    'error', from the "En attente" panel's Échecs tab) exists specifically so
+    an old failure never silently drops out of view once enough newer rows of
+    any status push it past the default cap. Mirrors get_ingestion_summary's
+    error_count, which already counts every error row with no cap -- before
+    this, the header badge and the list it was supposed to explain could
+    disagree (badge says 4 errors, list -- capped to the 50 most recent rows
+    of ANY status -- shows none of them).
     """
+    if status is not None and status not in _KNOWN_INGESTION_STATUSES:
+        raise ValueError(f"Unknown ingestion status: {status!r}. Must be one of {sorted(_KNOWN_INGESTION_STATUSES)}")
     client = _client()
-    query = (
-        client.table("ingestion_queue")
-        .select("*")
-        .order("created_at", desc=True)
-        .limit(limit)
-    )
+    query = client.table("ingestion_queue").select("*").order("created_at", desc=True)
+    query = query.eq("status", status) if status is not None else query.limit(limit)
     return _execute(query).data or []
 
 
@@ -762,3 +842,182 @@ def get_ingestion_summary() -> dict:
         "error_count": error_response.count or 0,
         "unseen_done_count": unseen_response.count or 0,
     }
+
+
+# api_call_log (owner-only /admin dashboard, 2026-09-04 conversation): one row per
+# Mistral API call, written by log_api_call() below and read back by dashboard.py's
+# aggregation functions.
+
+def log_api_call(call_type: str, model: str, prompt_tokens: int, completion_tokens: int, item_count: int | None = None) -> None:
+    """Best-effort usage/cost log for one Mistral API call. Reads
+    CURRENT_API_CALL_CONTEXT (set by main.ingest()) for the ingestion_queue_id/
+    label to attribute this call to -- see that contextvar's docstring above.
+
+    Never raises: this is instrumentation for the admin dashboard, not part of
+    the ingestion pipeline's correctness -- a transient DB error here must not
+    fail (or retry-slow) the Mistral call it's just finished logging.
+    """
+    ctx = CURRENT_API_CALL_CONTEXT.get() or {}
+    try:
+        client = _client()
+        _execute(client.table("api_call_log").insert({
+            "ingestion_queue_id": ctx.get("ingestion_queue_id"),
+            "label": ctx.get("label"),
+            "call_type": call_type,
+            "model": model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "item_count": item_count,
+            "cost_usd": compute_cost_usd(model, prompt_tokens, completion_tokens),
+        }))
+    except Exception as e:
+        print(f"[log_api_call] failed to log usage ({call_type}, {model}): {e}")
+
+
+# ── /admin dashboard data access (2026-09-04 conversation) ─────────────────────
+# Every function below is a plain fetch -- no server-side aggregation (Postgrest/
+# the supabase-py client has none to offer beyond count="exact"), so dashboard.py
+# does the grouping/summing in Python once the rows are back. Table sizes here
+# (thousands of rows, not millions) make that the right tradeoff for a solo admin
+# page checked occasionally, over adding a second DB-access pattern (raw SQL) that
+# nothing else in this project uses.
+
+def _paginated_select(table: str, columns: str, page_size: int = 1000) -> list[dict]:
+    """Fetch every row of `table`, `columns` only, across as many
+    .range()-paginated requests as needed -- Postgrest caps a single response
+    at 1000 rows by default. Shared by the dashboard fetchers below, all of
+    which need "every row of a couple of narrow columns", never a single-page
+    slice.
+    """
+    client = _client()
+    rows: list[dict] = []
+    start = 0
+    while True:
+        batch = (
+            _execute(client.table(table).select(columns).range(start, start + page_size - 1)).data
+            or []
+        )
+        rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        start += page_size
+    return rows
+
+
+def count_compspro() -> int:
+    response = _execute(_client().table("compspro").select("id", count="exact", head=True))
+    return response.count or 0
+
+
+def count_competitors() -> int:
+    response = _execute(_client().table("competitors").select("id", count="exact", head=True))
+    return response.count or 0
+
+
+def count_users() -> int:
+    response = _execute(_client().table("users").select("id", count="exact", head=True))
+    return response.count or 0
+
+
+def get_data_completeness() -> dict:
+    """Missing-field counts for compspro's dashboard "completeness" card. Missing
+    means NULL OR empty string/array -- extractor.py's own defaults are '' and
+    '{}', not NULL, so a NULL-only check would undercount every field. Same
+    definition used in the 2026-09-03 manual audit this card reuses.
+    """
+    client = _client()
+
+    def missing_text(col: str) -> int:
+        r = _execute(client.table("compspro").select("id", count="exact", head=True).or_(f"{col}.is.null,{col}.eq."))
+        return r.count or 0
+
+    def missing_array(col: str) -> int:
+        r = _execute(client.table("compspro").select("id", count="exact", head=True).or_(f"{col}.is.null,{col}.eq.{{}}"))
+        return r.count or 0
+
+    embedding_missing = _execute(client.table("compspro").select("id", count="exact", head=True).is_("embedding", "null"))
+
+    return {
+        "total":           count_compspro(),
+        "linkedin_url":    missing_text("linkedin_url"),
+        "logo_url":        missing_text("logo_url"),
+        "flaticon_url":    missing_text("flaticon_url"),
+        "description":     missing_text("description"),
+        "country":         missing_text("country"),
+        "sub_subsectors":  missing_array("sub_subsectors"),
+        "embedding":       embedding_missing.count or 0,
+    }
+
+
+def get_all_compspro_sectors() -> list[list[str]]:
+    """Every compspro row's `sectors` array, for the dashboard's sector-breakdown
+    card (Counter'd in dashboard.py) -- fetches only that one column, not the
+    full row, since compspro also holds heavy columns (embedding) this doesn't need.
+    """
+    rows = _paginated_select("compspro", "sectors")
+    return [r.get("sectors") or [] for r in rows]
+
+
+def get_ingestion_health_rows() -> list[dict]:
+    """status/created_at/updated_at for every ingestion_queue row (any status,
+    no cap), for the dashboard's ingestion-health card (success/error rate, avg
+    processing time). Unlike list_ingestions(), never fetches `result`/
+    `error_message` (unbounded text/jsonb) since this only needs the three
+    columns above.
+    """
+    return _paginated_select("ingestion_queue", "status, created_at, updated_at")
+
+
+def get_recent_done_ingestions(limit: int = 25) -> list[dict]:
+    """The `limit` most recently completed ingestions, for the dashboard's
+    "recent additions" feed -- unlike list_ingestions(), filtered to status='done'
+    only and ordered by updated_at (completion time), not created_at (submission
+    time), since a feed of "what got added" cares about when it finished.
+    """
+    client = _client()
+    query = (
+        client.table("ingestion_queue")
+        .select("id, url, result, requested_by_user_id, created_at, updated_at")
+        .eq("status", "done")
+        .order("updated_at", desc=True)
+        .limit(limit)
+    )
+    return _execute(query).data or []
+
+
+def get_compspro_by_names(names: list[str]) -> dict[str, dict]:
+    """name -> {sectors, flaticon_url} for a given set of startup names, for the
+    dashboard's "recent additions" feed to show sector badges/logos without a
+    per-row round trip. Empty dict for an empty/duplicate-only input, no query.
+    """
+    unique = list(set(names))
+    if not unique:
+        return {}
+    client = _client()
+    rows = _execute(client.table("compspro").select("name, sectors, flaticon_url").in_("name", unique)).data or []
+    return {r["name"]: r for r in rows}
+
+
+def get_users_by_ids(ids: list[int]) -> dict[int, str]:
+    """id -> email for a given set of user ids, for the dashboard's "added by"
+    column (ingestion_queue.requested_by_user_id / compspro.added_by_user_id).
+    Empty dict for an empty input, no query -- e.g. an all-NULL/CLI-submitted batch.
+    """
+    unique = [i for i in set(ids) if i is not None]
+    if not unique:
+        return {}
+    client = _client()
+    rows = _execute(client.table("users").select("id, email").in_("id", unique)).data or []
+    return {r["id"]: r["email"] for r in rows}
+
+
+def get_api_call_log_rows() -> list[dict]:
+    """Every api_call_log row (narrow columns only, no `label`), for the
+    dashboard's cost aggregates -- grouped/summed in Python by dashboard.py
+    (by call_type, by model, by day, by ingestion_queue_id).
+    """
+    return _paginated_select(
+        "api_call_log",
+        "ingestion_queue_id, call_type, model, prompt_tokens, completion_tokens, cost_usd, item_count, created_at",
+    )

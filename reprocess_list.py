@@ -3,6 +3,7 @@ import os
 import sys
 import time
 
+from embeddings import embed_one
 from main import scrape, fetch_and_save_favicon, fetch_and_save_real_logo, slugify, LOGO_EXTENSIONS
 from extractor import extract
 from storage import save_startup, _client as _db_client
@@ -15,25 +16,106 @@ URLS = [
     "https://www.tekst.com",
     "https://www.usefini.com",
     "https://poetic.com",
+
+    # API Infrastructure -- SUBSECTOR_DEFINITIONS tightened (2026-08-30) to the
+    # "litmus test" wording (is the API/integration layer itself the product,
+    # or just the delivery mechanism for something else). All 60 startups
+    # currently tagged "API Infrastructure" as of that change.
+    "https://actualyze.ai",
+    "https://airweave.ai",
+    "https://aleno.ai",
+    "https://www.allium.so",
+    "https://alpic.ai",
+    "https://arcjet.com",
+    "https://www.assemblyai.com",
+    "https://www.birdi.io",
+    "https://bondio.co",
+    "https://bota.dev",
+    "https://www.chift.eu",
+    "https://www.context.dev",
+    "https://www.deepseek.com",
+    "https://deepgram.com",
+    "https://didit.me",
+    "https://www.edgee.ai",
+    "https://exa.ai",
+    "https://fireworks.ai",
+    "https://www.flumes.ai",
+    "https://www.gladia.io",
+    "https://insforge.dev",
+    "https://www.kugelaudio.com/en",
+    "https://www.linkup.so",
+    "https://www.lissi.id",
+    "https://livekit.com",
+    "https://paywithlocus.com",
+    "https://www.merge.dev",
+    "https://moonlakeai.com",
+    "https://naftiko.io",
+    "https://www.natural.co",
+    "https://nevermined.ai",
+    "https://nexos.ai",
+    "https://octen.ai",
+    "https://onecli.sh",
+    "https://www.orthogonal.com",
+    "https://oxylabs.io",
+    "https://www.parasail.io",
+    "https://pinata.cloud",
+    "https://polar.sh",
+    "https://www.project-q.ai",
+    "https://www.revenuecat.com",
+    "https://www.rutter.com",
+    "https://www.sailresearch.com",
+    "https://www.sanity.io",
+    "https://seltz.ai",
+    "https://simplehash.com",
+    "https://smallest.ai",
+    "https://www.smooth.sh",
+    "https://stacklok.com",
+    "https://www.stacksync.com",
+    "https://supabase.com",
+    "https://www.tabs.com",
+    "https://www.withterminal.com",
+    "https://www.theneo.io",
+    "https://www.together.ai",
+    "https://tracerml.ai",
+    "https://you.com/home",
+    "https://www.zama.org",
+    "https://www.zerolook.com",
+    "https://www.pyannote.ai",
 ]
 
 
-def urls_for_subsector(subsector: str) -> list[str]:
-    """Websites of every startup currently tagged with a given subsector."""
-    rows = (
+def _rows_for_subsector(subsector: str, columns: str) -> list[dict]:
+    """compspro rows currently tagged with `subsector`, selecting only `columns`.
+    Shared resolution query -- urls_for_subsector() and audit_stale_competitors.py's
+    names_for_subsector() import both build on this so "which startups are in this
+    subsector" is answered identically everywhere, not duplicated per script.
+    """
+    return (
         _db_client()
         .table("compspro")
-        .select("website")
+        .select(columns)
         .contains("subsectors", [subsector])
         .execute()
         .data or []
     )
-    return [r["website"] for r in rows if r.get("website")]
+
+
+def urls_for_subsector(subsector: str) -> list[str]:
+    """Websites of every startup currently tagged with a given subsector."""
+    return [r["website"] for r in _rows_for_subsector(subsector, "website") if r.get("website")]
+
+
+def names_for_subsector(subsector: str) -> list[str]:
+    """compspro.name of every startup currently tagged with a given subsector --
+    used by audit_stale_competitors.py's --subsector flag so both tools resolve
+    "startups in this subsector" the same way.
+    """
+    return [r["name"] for r in _rows_for_subsector(subsector, "name") if r.get("name")]
 
 
 def process(url: str) -> dict:
-    markdown, logo_candidates = asyncio.run(scrape(url))
-    data = extract(markdown, website=url, logo_candidates=logo_candidates)
+    markdown, logo_candidates, linkedin_url = asyncio.run(scrape(url))
+    data = extract(markdown, website=url, logo_candidates=logo_candidates, linkedin_url=linkedin_url)
 
     if not data.get("name"):
         raise ValueError("Could not extract startup name")
@@ -44,6 +126,9 @@ def process(url: str) -> dict:
     data.pop("subsector_confidences", None)
 
     extracted_logo_url = data.pop("logo_url", None)
+
+    if data.get("description"):
+        data["embedding"] = embed_one(data["description"])
 
     action = save_startup(data)
 

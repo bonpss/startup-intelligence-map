@@ -15,12 +15,13 @@ from starlette.middleware.sessions import SessionMiddleware
 from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, create_user, get_user_by_email
 from main import ingest as ingest_startup
 import auth
+import dashboard
 
 load_dotenv()
 
 # In-process ingestion queue (Epic 6, Story 6.1) -- /api/ingest enqueues here and
-# returns immediately instead of awaiting main.ingest() directly. Holds (row_id,
-# url) tuples. asyncio.Queue() doesn't need a running event loop to construct on
+# returns immediately instead of awaiting main.ingest() directly. Holds
+# (row_id, url, requested_by_user_id) tuples. asyncio.Queue() doesn't need a running event loop to construct on
 # Python 3.11 (the old loop-binding-at-construction behavior was removed), so a
 # module-level instance is safe here.
 _ingestion_queue: asyncio.Queue = asyncio.Queue()
@@ -47,7 +48,7 @@ async def _ingestion_worker() -> None:
     and would otherwise block the event loop for every other request.
     """
     while True:
-        row_id, url = await _ingestion_queue.get()
+        row_id, url, requested_by_user_id = await _ingestion_queue.get()
         try:
             try:
                 await asyncio.to_thread(mark_processing, row_id)
@@ -70,7 +71,7 @@ async def _ingestion_worker() -> None:
                 # budget instead of the tight one meant to keep a browser client
                 # from stalling -- the default (interactive=True) would give up
                 # on a transient Mistral rate limit faster than necessary here.
-                result = await ingest_startup(url, interactive=False)
+                result = await ingest_startup(url, interactive=False, added_by_user_id=requested_by_user_id, ingestion_queue_id=row_id)
             except Exception as e:
                 await asyncio.to_thread(mark_error, row_id, str(e))
             else:
@@ -112,7 +113,7 @@ async def _lifespan(app: FastAPI):
         print(f"[ingestion worker] startup-recovery sweep failed, continuing with an empty queue: {e}")
         pending = []
     for row in pending:
-        await _ingestion_queue.put((row["id"], row["url"]))
+        await _ingestion_queue.put((row["id"], row["url"], row.get("requested_by_user_id")))
     _ingestion_worker_task = asyncio.create_task(_ingestion_worker())
     yield
 
@@ -148,15 +149,22 @@ async def auth_gate(request: Request, call_next):
     """
     path = request.url.path
     if _is_allowlisted(path):
-        # Still check the session here (step-04 review): an already-logged-in
-        # caller hitting the auth-form routes would otherwise silently spawn
-        # a second account or clobber their own session, since these paths
-        # never reach the checks below.
-        user = auth.get_current_user(request)
-        if user is not None:
-            if path.startswith("/api/"):
-                return JSONResponse({"detail": "Déjà connecté."}, status_code=400)
-            return RedirectResponse(url="/", status_code=303)
+        # The "already logged in" redirect below only makes sense for the
+        # auth-FORM routes (_ALLOWLIST_EXACT) -- an already-logged-in caller
+        # hitting /login or /signup would otherwise silently spawn a second
+        # account or clobber their own session, since these paths never reach
+        # the checks below (step-04 review). It must NOT apply to the
+        # _ALLOWLIST_PREFIXES bucket (/assets/*): those are static files that
+        # have to be served unconditionally regardless of session state, or
+        # every logged-in request for a startup's favicon gets redirected to
+        # "/" (HTML) instead of the image, breaking every icon whose browser
+        # cache doesn't already have a copy from an earlier session.
+        if path in _ALLOWLIST_EXACT:
+            user = auth.get_current_user(request)
+            if user is not None:
+                if path.startswith("/api/"):
+                    return JSONResponse({"detail": "Déjà connecté."}, status_code=400)
+                return RedirectResponse(url="/", status_code=303)
         return await call_next(request)
 
     user = auth.get_current_user(request)
@@ -167,7 +175,7 @@ async def auth_gate(request: Request, call_next):
             return JSONResponse({"detail": "Authentification requise."}, status_code=401)
         return RedirectResponse(url="/login", status_code=303)
 
-    if not user.get("is_owner") and (path == "/graph" or path == "/api/graph/all"):
+    if not user.get("is_owner") and path in ("/graph", "/api/graph/all", "/admin", "/api/dashboard"):
         return JSONResponse({"detail": "Accès réservé."}, status_code=403)
 
     return await call_next(request)
@@ -222,7 +230,7 @@ const SECTOR_COLORS = {
   "SpaceTech":                  "#c7a8d8",
   "Defense":                    "#d7b5a6",
 };
-const DEFAULT_COLOR = "#777";
+const DEFAULT_COLOR = "#777777";
 function sectorColor(sectors) {
   return SECTOR_COLORS[(sectors || [])[0]] || DEFAULT_COLOR;
 }
@@ -248,19 +256,48 @@ def api_search(q: str = ""):
 
 
 @app.post("/api/ingest", status_code=202)
-async def api_ingest(url: str):
+async def api_ingest(url: str, request: Request):
     """Enqueue a startup for background ingestion and return immediately (Epic 6,
     Story 6.1) -- does not await main.ingest() directly anymore, so adding a
     startup never blocks the caller for the whole scrape/extract/score pipeline.
     Status/result/error are tracked in ingestion_queue, not this response.
+
+    request.state.user is set by auth_gate (this path isn't allowlisted, so
+    it's always a logged-in user by the time this handler runs) -- its id is
+    stored as ingestion_queue.requested_by_user_id and later becomes
+    compspro.added_by_user_id once the ingestion completes.
     """
     url = url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL manquante.")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    user_id = request.state.user["id"]
+
+    async def _enqueue_and_push() -> dict:
+        row, is_new = await asyncio.to_thread(enqueue_ingestion, url, user_id)
+        if is_new:
+            # A reused row (already queued or actively processing for this same
+            # URL) is not re-pushed -- the worker already has it, or will pick it
+            # up via the startup-recovery sweep. Pushing it again would let the
+            # worker run main.ingest() twice for one row (code review, 2026-08-28).
+            await _ingestion_queue.put((row["id"], url, user_id))
+        return row
+
     try:
-        row, is_new = await asyncio.to_thread(enqueue_ingestion, url)
+        # Shielded (code review 2026-09-04): a client disconnect (closed tab,
+        # navigation, flaky network) cancels this handler's task at whatever
+        # await point it's sitting on. asyncio.to_thread's DB insert isn't
+        # interruptible and lands regardless, but without shielding, the
+        # cancellation can strike between that insert and the queue.put()
+        # below -- leaving a 'queued' row in the DB that never reaches the
+        # in-memory worker queue. Since enqueue_ingestion treats an existing
+        # 'queued' row as already handled, resubmitting that same URL later
+        # just finds the stuck row and no-ops; only an app restart's
+        # startup-recovery sweep would ever pick it back up. Shielding keeps
+        # insert+push atomic from the caller's perspective regardless of
+        # disconnect.
+        row = await asyncio.shield(_enqueue_and_push())
     except ValueError as e:
         # Code review (2026-08-29): enqueue_ingestion now rejects a
         # malformed/host-less url (empty normalize_domain()) with a
@@ -269,22 +306,24 @@ async def api_ingest(url: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Échec de la mise en file d'attente : {e}")
-    if is_new:
-        # A reused row (already queued or actively processing for this same
-        # URL) is not re-pushed -- the worker already has it, or will pick it
-        # up via the startup-recovery sweep. Pushing it again would let the
-        # worker run main.ingest() twice for one row (code review, 2026-08-28).
-        await _ingestion_queue.put((row["id"], url))
     return {"id": row["id"]}
 
 
 @app.get("/api/ingestion-queue")
-def api_ingestion_queue():
+def api_ingestion_queue(status: str | None = None):
     """All ingestion_queue rows, most recent first, for the "En attente" tab
     (Epic 6, Story 6.2). Plain `def` like /api/search -- FastAPI runs it in its
     own thread pool automatically, no asyncio.to_thread needed here.
+
+    status (currently only 'error' is used, by the drawer's Échecs tab) is
+    passed straight through to storage.list_ingestions -- an uncapped view so
+    an old failure can't drop off the panel just because enough newer rows of
+    other statuses exist (see that function's docstring).
     """
-    return list_ingestions()
+    try:
+        return list_ingestions(status=status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/ingestion-queue/{id}/retry", status_code=202)
@@ -294,8 +333,19 @@ async def api_retry_ingestion(id: int):
     doesn't wake the worker, since it consumes the in-memory _ingestion_queue,
     not a DB poll. async def like api_ingest, since it awaits queue.put().
     """
-    try:
+
+    async def _retry_and_push() -> dict:
         row = await asyncio.to_thread(retry_ingestion, id)
+        await _ingestion_queue.put((row["id"], row["url"], row.get("requested_by_user_id")))
+        return row
+
+    try:
+        # Shielded for the same reason as api_ingest above: a client
+        # disconnect between the DB write (retry_ingestion, not
+        # interruptible mid-flight via to_thread) and the queue.put() below
+        # would otherwise strand the row at 'queued' with nothing to ever
+        # push it onto the in-memory worker queue again.
+        row = await asyncio.shield(_retry_and_push())
     except ValueError:
         raise HTTPException(status_code=404, detail="Élément introuvable ou n'est pas en échec.")
     except APIError as e:
@@ -304,7 +354,6 @@ async def api_retry_ingestion(id: int):
         raise HTTPException(status_code=502, detail=f"Échec de la relance : {e}")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Échec de la relance : {e}")
-    await _ingestion_queue.put((row["id"], row["url"]))
     return {"id": row["id"]}
 
 
@@ -337,6 +386,17 @@ def api_mark_ingestion_seen():
     when the "En attente" tab opens. Plain `def`, no request body.
     """
     return {"marked": mark_done_rows_seen()}
+
+
+@app.get("/api/dashboard")
+def api_dashboard():
+    """Aggregated stats for the owner-only /admin page (2026-09-04 conversation):
+    startup/link/user counts, data completeness, sector breakdown, ingestion
+    health, Mistral cost, and a recent-additions feed. Owner-gating is enforced
+    by auth_gate (Design Notes), not here. Plain `def` like the other read-only
+    endpoints above -- every storage.py call underneath is synchronous.
+    """
+    return dashboard.get_dashboard()
 
 
 @app.get("/api/graph/all")
@@ -595,11 +655,11 @@ LOGIN_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Se connecter — SM Project</title>
+  <title>Se connecter — Smap</title>
   <style>{AUTH_PAGE_STYLE}</style>
 </head>
 <body>
-  <h1>SM Project</h1>
+  <h1>Smap</h1>
   <form id="auth-form">
     <input id="email" type="email" placeholder="Email" autocomplete="username" required>
     <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
@@ -646,11 +706,11 @@ SIGNUP_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Créer un compte — SM Project</title>
+  <title>Créer un compte — Smap</title>
   <style>{AUTH_PAGE_STYLE}</style>
 </head>
 <body>
-  <h1>SM Project</h1>
+  <h1>Smap</h1>
   <form id="auth-form">
     <input id="email" type="email" placeholder="Email" autocomplete="username" required>
     <input id="password" type="password" placeholder="Mot de passe" autocomplete="new-password" required>
@@ -707,87 +767,132 @@ SEARCH_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SM Project</title>
+  <title>Smap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
-      background: #0f0f0f; color: #e0e0e0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b0b0c; color: #e8e4dc;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       min-height: 100vh; display: flex; flex-direction: column;
       align-items: center; justify-content: center; padding: 40px 20px 40px;
     }}
-    h1 {{ font-size: 2.4rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }}
-    .subtitle {{ color: #555; font-size: 0.95rem; margin-bottom: 48px; }}
+    h1 {{ font-family: "Inter Tight", "Inter", sans-serif; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; color: #e8e4dc; }}
+    .subtitle {{ color: #8a8680; font-size: 0.95rem; margin-bottom: 48px; }}
     #header-row {{
       width: 100%; max-width: 600px; display: flex; align-items: baseline;
       justify-content: space-between; gap: 12px; margin-bottom: 28px;
     }}
+    #nav-actions {{ display: flex; align-items: center; gap: 16px; }}
+    #nav-divider {{ width: 1px; height: 14px; background: #2a2a27; }}
+    #queue-toggle-btn {{
+      position: relative; display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; background: none; border: 1px solid transparent; border-radius: 8px;
+      color: #8a8680; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }}
+    #queue-toggle-btn:hover {{ color: #e8e4dc; background: #161614; border-color: #2a2a27; }}
+    #queue-toggle-btn.open {{ color: #f2b33d; background: #161614; border-color: #2a2a27; }}
+    .queue-dots {{ position: absolute; top: -3px; right: -3px; display: flex; gap: 2px; }}
+    .queue-dot {{
+      min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px;
+      font-size: 9px; font-weight: 700; color: #0b0b0c; line-height: 14px;
+      display: none;
+    }}
+    .queue-dot.show {{ display: block; }}
+    .queue-dot.dot-error {{ background: #d16565; }}
+    .queue-dot.dot-unseen {{ background: #7cb8e8; }}
     #search-wrap {{ width: 100%; max-width: 600px; display: flex; gap: 10px; }}
     #search {{
       flex: 1; min-width: 0; padding: 16px 20px; font-size: 16px;
-      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 12px;
-      color: #eee; outline: none; transition: border-color 0.15s;
+      background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
+      color: #e8e4dc; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
     }}
-    #search::placeholder {{ color: #444; }}
-    #search:focus {{ border-color: #555; }}
+    #search::placeholder {{ color: #8a8680; }}
+    #search:focus {{ border-color: #f2b33d; box-shadow: 0 0 0 3px rgba(242, 179, 61, 0.15); }}
     #add-btn {{
       display: none; flex-shrink: 0; padding: 0 22px; font-size: 15px; font-weight: 600;
-      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 12px;
-      color: #eee; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+      background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
+      color: #e8e4dc; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
     }}
-    #add-btn:hover {{ border-color: #555; background: #222; }}
+    #add-btn:hover {{ border-color: #f2b33d; background: #1c1c19; }}
     #add-btn:disabled {{ cursor: default; opacity: 0.6; }}
     .error {{ color: #d16565; font-size: 14px; text-align: center; padding: 24px 0; }}
-    #results {{ width: 100%; max-width: 600px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }}
+    #results {{ width: 100%; max-width: 600px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }}
     .card {{
-      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
-      padding: 14px 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
+      padding: 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
       display: flex; gap: 14px; align-items: flex-start;
     }}
-    .card:hover {{ border-color: #444; background: #222; }}
+    .card:hover {{ border-color: #3a3a35; background: #1a1a17; }}
     .card-logo {{
       width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+      background: #1a1a17;
     }}
     .card-logo-initial {{
       width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 700; color: #111;
+      font-family: "Inter Tight", "Inter", sans-serif; font-size: 15px; font-weight: 700;
     }}
     .card-body {{ flex: 1; min-width: 0; }}
-    .card-name {{ font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 8px; }}
+    .card-name {{ font-family: "Inter Tight", "Inter", sans-serif; font-size: 16px; font-weight: 600; color: #e8e4dc; margin-bottom: 8px; }}
     .badges {{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }}
-    .badge {{ font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; color: #111; white-space: nowrap; }}
+    .badge {{ font-size: 11px; letter-spacing: 0.03em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; font-weight: 500; white-space: nowrap; }}
     .card-desc {{
-      font-size: 12px; color: #888; line-height: 1.5;
+      font-size: 13px; color: #8a8680; line-height: 1.5;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }}
-    .empty {{ color: #555; font-size: 14px; text-align: center; padding: 24px 0; }}
-    #graph-link {{ color: #555; font-size: 13px; text-decoration: none; transition: color 0.15s; white-space: nowrap; flex-shrink: 0; }}
-    #graph-link:hover {{ color: #aaa; }}
-    #tab-bar {{ width: 100%; max-width: 600px; display: flex; gap: 4px; margin-bottom: 16px; }}
-    .tab-btn {{
-      position: relative;
-      flex: 1; padding: 10px; font-size: 14px; font-weight: 600; text-align: center;
-      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 10px;
-      color: #888; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    .empty {{ color: #8a8680; font-size: 14px; text-align: center; padding: 24px 0; }}
+    #graph-link, #admin-link {{ color: #8a8680; font-size: 13px; text-decoration: none; transition: color 0.15s; white-space: nowrap; flex-shrink: 0; }}
+    #graph-link:hover, #admin-link:hover {{ color: #c7c3bb; }}
+    #logout-link {{
+      display: flex; align-items: center; gap: 6px; color: #65625c; font-size: 13px;
+      text-decoration: none; transition: color 0.15s; white-space: nowrap; flex-shrink: 0;
     }}
-    .tab-btn:hover {{ color: #ccc; }}
-    .tab-btn.active {{ color: #fff; border-color: #555; }}
-    .tab-dots {{ position: absolute; top: -6px; right: -6px; display: flex; gap: 3px; }}
-    .tab-dot {{
-      min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
-      font-size: 10px; font-weight: 700; color: #111; line-height: 16px;
-      display: none;
+    #logout-link:hover {{ color: #a8a49c; }}
+    #logout-link svg {{ flex-shrink: 0; }}
+    #queue-backdrop {{
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 20;
     }}
-    .tab-dot.show {{ display: block; }}
-    .tab-dot.error {{ background: #d16565; }}
-    .tab-dot.unseen {{ background: #7cb8e8; }}
-    #queue-panel {{ display: none; width: 100%; max-width: 600px; flex-direction: column; gap: 8px; }}
+    #queue-backdrop.open {{ opacity: 1; pointer-events: auto; }}
+    #queue-drawer {{
+      position: fixed; top: 0; right: 0; height: 100vh; width: 360px; max-width: 90vw;
+      background: #101010; border-left: 1px solid #2a2a27; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+      display: flex; flex-direction: column; padding: 20px;
+      transform: translateX(100%); transition: transform 0.25s ease; z-index: 21;
+    }}
+    #queue-drawer.open {{ transform: translateX(0); }}
+    #queue-drawer-header {{
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; flex-shrink: 0;
+    }}
+    #queue-drawer-header span {{ font-family: "Inter Tight", "Inter", sans-serif; font-size: 15px; font-weight: 600; color: #e8e4dc; }}
+    #queue-close-btn {{
+      background: none; border: none; color: #8a8680; font-size: 20px; line-height: 1;
+      cursor: pointer; padding: 4px; transition: color 0.15s;
+    }}
+    #queue-close-btn:hover {{ color: #e8e4dc; }}
+    #queue-tabs {{ display: flex; gap: 8px; margin-bottom: 14px; flex-shrink: 0; }}
+    .queue-tab {{
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px;
+      font-weight: 600; color: #8a8680; background: #161614; border: 1px solid #2a2a27;
+      border-radius: 20px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }}
+    .queue-tab:hover {{ color: #e8e4dc; }}
+    .queue-tab.active {{ color: #e8e4dc; border-color: #4a4a45; }}
+    .queue-tab-count {{
+      font-size: 11px; font-weight: 700; color: #d16565; background: rgba(209, 101, 101, 0.15);
+      border-radius: 10px; padding: 1px 6px; display: none;
+    }}
+    .queue-tab-count.show {{ display: inline-block; }}
+    #queue-panel {{ display: flex; width: 100%; flex-direction: column; gap: 10px; overflow-y: auto; }}
     .queue-row {{
-      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+      background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
       padding: 14px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px;
     }}
-    .queue-row-label {{ font-size: 14px; color: #eee; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .queue-row-label {{ font-size: 14px; color: #e8e4dc; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
     .queue-status {{
       display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
       gap: 8px; min-width: 0; max-width: 100%;
@@ -804,17 +909,17 @@ SEARCH_HTML = f"""<!DOCTYPE html>
     }}
     .retry-btn, .delete-btn {{
       flex-shrink: 0; padding: 4px 12px; font-size: 12px; font-weight: 600;
-      background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 8px;
-      color: #eee; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+      background: #161614; border: 1px solid #2a2a27; border-radius: 8px;
+      color: #e8e4dc; cursor: pointer; transition: border-color 0.15s, background 0.15s, opacity 0.15s;
     }}
-    .retry-btn:hover {{ border-color: #555; background: #222; }}
+    .retry-btn:hover {{ border-color: #f2b33d; background: #1c1c19; }}
     .retry-btn:disabled, .delete-btn:disabled {{ cursor: default; opacity: 0.6; }}
     .delete-btn {{ color: #d16565; }}
     .delete-btn:hover {{ border-color: #d16565; background: #2a1616; }}
     .retry-error {{ color: #d16565; font-size: 11px; flex-basis: 100%; }}
     .spinner {{
       width: 12px; height: 12px; border-radius: 50%;
-      border: 2px solid #2e2e2e; border-top-color: #7cb8e8;
+      border: 2px solid #2a2a27; border-top-color: #7cb8e8;
       animation: spin 0.7s linear infinite;
     }}
     @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
@@ -822,26 +927,47 @@ SEARCH_HTML = f"""<!DOCTYPE html>
 </head>
 <body>
   <div id="header-row">
-    <h1>SM Project</h1>
-    __GRAPH_NAV_LINK__
-    <a href="#" id="logout-link" onclick="fetch('/api/logout', {{method: 'POST'}}).then(() => location.href = '/login'); return false;">Déconnexion</a>
-  </div>
-  <div id="tab-bar">
-    <div class="tab-btn active" id="tab-search">Recherche</div>
-    <div class="tab-btn" id="tab-queue">
-      En attente
-      <span class="tab-dots">
-        <span id="tab-dot-error" class="tab-dot error"></span>
-        <span id="tab-dot-unseen" class="tab-dot unseen"></span>
-      </span>
+    <h1>Smap</h1>
+    <div id="nav-actions">
+      __GRAPH_NAV_LINK__
+      <button id="queue-toggle-btn" type="button" aria-label="En attente">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="queue-dots">
+          <span id="queue-dot-error" class="queue-dot dot-error"></span>
+          <span id="queue-dot-unseen" class="queue-dot dot-unseen"></span>
+        </span>
+      </button>
+      <div id="nav-divider"></div>
+      <a href="#" id="logout-link" onclick="fetch('/api/logout', {{method: 'POST'}}).then(() => location.href = '/login'); return false;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16 17l5-5-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Déconnexion</span>
+      </a>
     </div>
   </div>
   <div id="search-wrap">
-    <input id="search" type="text" placeholder="Search a startup…" autocomplete="off">
+    <input id="search" type="text" placeholder="Rechercher une startup…" autocomplete="off">
     <button id="add-btn" type="button">Ajouter</button>
   </div>
   <div id="results"></div>
-  <div id="queue-panel"></div>
+  <div id="queue-backdrop"></div>
+  <div id="queue-drawer">
+    <div id="queue-drawer-header">
+      <span>En attente</span>
+      <button id="queue-close-btn" type="button" aria-label="Fermer">×</button>
+    </div>
+    <div id="queue-tabs">
+      <button class="queue-tab active" data-status="" type="button">Tous</button>
+      <button class="queue-tab" data-status="error" type="button">Échecs<span id="queue-tab-error-count" class="queue-tab-count"></span></button>
+    </div>
+    <div id="queue-panel"></div>
+  </div>
 
   <script>
 {SECTOR_COLORS_JS}
@@ -862,6 +988,13 @@ resultsEl.addEventListener("click", e => {{
   if (card) go(card.dataset.name);
 }});
 
+// The "Ajouter" button posts lastQuery straight to /api/ingest as a URL --
+// only makes sense to show it when the query actually looks like one, since a
+// plain startup name (no dot, has spaces) would just fail the ingest call.
+function looksLikeUrl(q) {{
+  return /^https?:\/\//i.test(q) || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(q);
+}}
+
 function doSearch(q) {{
   lastQuery = q;
   if (q.length < 2) {{ resultsEl.innerHTML = ""; addBtn.style.display = "none"; return; }}
@@ -872,20 +1005,26 @@ function doSearch(q) {{
 
 function render(data) {{
   if (!data.length) {{
-    resultsEl.innerHTML = '<div class="empty">No startup found</div>';
-    addBtn.style.display = "inline-block";
+    if (looksLikeUrl(lastQuery)) {{
+      resultsEl.innerHTML = '<div class="empty">No startup found</div>';
+      addBtn.style.display = "inline-block";
+    }} else {{
+      resultsEl.innerHTML = '<div class="empty">No startup found. Enter the startup’s website URL to add it.</div>';
+      addBtn.style.display = "none";
+    }}
     return;
   }}
   addBtn.style.display = "none";
   resultsEl.innerHTML = data.map(s => {{
-    const badges = (s.sectors || []).map(sec =>
-      `<span class="badge" style="background:${{SECTOR_COLORS[sec] || DEFAULT_COLOR}}">${{sec}}</span>`
-    ).join("");
+    const badges = (s.sectors || []).map(sec => {{
+      const c = SECTOR_COLORS[sec] || DEFAULT_COLOR;
+      return `<span class="badge" style="background:${{c}}26; color:${{c}}">${{sec}}</span>`;
+    }}).join("");
     const color   = sectorColor(s.sectors);
     const initial = (s.name || "?")[0].toUpperCase();
     const logoHtml = s.flaticon_url
       ? `<img class="card-logo" src="${{s.flaticon_url}}" alt="">`
-      : `<div class="card-logo-initial" style="background:${{color}}">${{initial}}</div>`;
+      : `<div class="card-logo-initial" style="background:${{color}}26; color:${{color}}">${{initial}}</div>`;
     return `<div class="card" data-name="${{s.name}}">
       ${{logoHtml}}
       <div class="card-body">
@@ -901,40 +1040,47 @@ function go(name) {{
   window.location.href = "/startup/" + encodeURIComponent(name);
 }}
 
-const tabSearch  = document.getElementById("tab-search");
-const tabQueue   = document.getElementById("tab-queue");
-const searchWrap = document.getElementById("search-wrap");
-const queuePanel = document.getElementById("queue-panel");
+const queuePanel     = document.getElementById("queue-panel");
+const queueDrawer    = document.getElementById("queue-drawer");
+const queueBackdrop  = document.getElementById("queue-backdrop");
+const queueToggleBtn = document.getElementById("queue-toggle-btn");
+const queueCloseBtn  = document.getElementById("queue-close-btn");
+const queueTabs      = document.querySelectorAll(".queue-tab");
 let queuePollTimer;
+let queueStatusFilter = "";  // "" = Tous, "error" = Échecs tab
 
-function showSearchTab() {{
-  tabSearch.classList.add("active");
-  tabQueue.classList.remove("active");
-  searchWrap.style.display = "flex";
-  resultsEl.style.display = "flex";
-  queuePanel.style.display = "none";
-  if (queuePollTimer) clearInterval(queuePollTimer);
-}}
-
-function showQueueTab() {{
-  tabQueue.classList.add("active");
-  tabSearch.classList.remove("active");
-  searchWrap.style.display = "none";
-  resultsEl.style.display = "none";
-  queuePanel.style.display = "flex";
-  if (queuePollTimer) clearInterval(queuePollTimer);
+queueTabs.forEach(tab => tab.addEventListener("click", () => {{
+  queueStatusFilter = tab.dataset.status;
+  queueTabs.forEach(t => t.classList.toggle("active", t === tab));
   pollQueue();
+}}));
+
+function openQueueDrawer() {{
+  queueDrawer.classList.add("open");
+  queueBackdrop.classList.add("open");
+  queueToggleBtn.classList.add("open");
+  pollQueue();
+  if (queuePollTimer) clearInterval(queuePollTimer);
   queuePollTimer = setInterval(pollQueue, 2000);
   fetch("/api/ingestion-queue/mark-seen", {{ method: "POST" }})
     .then(() => pollSummary())
     .catch(() => {{}});
 }}
 
-tabSearch.addEventListener("click", showSearchTab);
-tabQueue.addEventListener("click", showQueueTab);
+function closeQueueDrawer() {{
+  queueDrawer.classList.remove("open");
+  queueBackdrop.classList.remove("open");
+  queueToggleBtn.classList.remove("open");
+  if (queuePollTimer) clearInterval(queuePollTimer);
+}}
+
+queueToggleBtn.addEventListener("click", openQueueDrawer);
+queueCloseBtn.addEventListener("click", closeQueueDrawer);
+queueBackdrop.addEventListener("click", closeQueueDrawer);
 
 function pollQueue() {{
-  fetch("/api/ingestion-queue")
+  const qs = queueStatusFilter ? "?status=" + encodeURIComponent(queueStatusFilter) : "";
+  fetch("/api/ingestion-queue" + qs)
     .then(r => r.json())
     .then(renderQueue)
     .catch(err => {{
@@ -942,17 +1088,20 @@ function pollQueue() {{
     }});
 }}
 
-const tabDotError  = document.getElementById("tab-dot-error");
-const tabDotUnseen = document.getElementById("tab-dot-unseen");
+const queueDotError      = document.getElementById("queue-dot-error");
+const queueDotUnseen     = document.getElementById("queue-dot-unseen");
+const queueTabErrorCount = document.getElementById("queue-tab-error-count");
 
 function pollSummary() {{
   fetch("/api/ingestion-queue/summary")
     .then(r => r.json())
     .then(data => {{
-      tabDotError.textContent = data.error_count;
-      tabDotError.classList.toggle("show", data.error_count > 0);
-      tabDotUnseen.textContent = data.unseen_done_count;
-      tabDotUnseen.classList.toggle("show", data.unseen_done_count > 0);
+      queueDotError.textContent = data.error_count;
+      queueDotError.classList.toggle("show", data.error_count > 0);
+      queueDotUnseen.textContent = data.unseen_done_count;
+      queueDotUnseen.classList.toggle("show", data.unseen_done_count > 0);
+      queueTabErrorCount.textContent = data.error_count;
+      queueTabErrorCount.classList.toggle("show", data.error_count > 0);
     }})
     .catch(() => {{ /* transient failure -- leave badges at their last-known values */ }});
 }}
@@ -986,7 +1135,9 @@ const QUEUE_BADGES = {{
 
 function renderQueue(data) {{
   if (!data.length) {{
-    queuePanel.innerHTML = '<div class="empty">Aucun élément en file d’attente.</div>';
+    queuePanel.innerHTML = queueStatusFilter === "error"
+      ? '<div class="empty">Aucun échec.</div>'
+      : '<div class="empty">Aucun élément en file d’attente.</div>';
     return;
   }}
   queuePanel.innerHTML = data.map(row => {{
@@ -1054,10 +1205,13 @@ addBtn.addEventListener("click", () => {{
     }})
     .then(() => {{
       // Enqueued for background processing (Epic 6, Story 6.1). The item's
-      // live status badge is shown in the "En attente" tab (Story 6.2).
+      // live status badge is shown in the "En attente" drawer (Story 6.2) --
+      // stay on the search view instead of jumping there automatically.
       addBtn.disabled = false;
       addBtn.textContent = "Ajouter";
-      showQueueTab();
+      addBtn.style.display = "none";
+      resultsEl.innerHTML = '<div class="empty">Startup ajoutée — suivez son traitement dans « En attente ».</div>';
+      pollSummary();
     }})
     .catch(err => {{
       addBtn.disabled = false;
@@ -1285,6 +1439,7 @@ fetch("/api/graph/" + encodeURIComponent(STARTUP_NAME))
       .attr("r",      d => d._isCenter ? 30 : 10 + scoreOf(d) * 12)
       .attr("fill",   d => d.flaticon_url ? "none" : (d._isCenter ? "#ffffff" : sectorColor(d.sectors)))
       .attr("stroke", d => d._isCenter ? "#fff" : (d.flaticon_url ? sectorColor(d.sectors) : "#0f0f0f"))
+      .style("pointer-events", "all")
       .on("click", (e, d) => {{
         nodeSel.selectAll("circle").classed("selected", false);
         d3.select(e.currentTarget).classed("selected", true);
@@ -1383,7 +1538,8 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
     .search-result-empty {{ padding: 12px; font-size: 12px; color: #555; text-align: center; }}
     #main {{ flex: 1; display: flex; overflow: hidden; }}
     #graph-col {{ flex: 0 0 100%; position: relative; }}
-    svg#graph {{ width: 100%; height: 100%; display: block; cursor: grab; }}
+    #links-canvas {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; touch-action: none; }}
+    svg#graph {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; cursor: grab; background: transparent; touch-action: none; }}
     svg#graph:active {{ cursor: grabbing; }}
     #panel {{
       flex: 0 0 30%; background: #111; border-left: 1px solid #1e1e1e;
@@ -1440,6 +1596,7 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
   </div>
   <div id="main">
     <div id="graph-col">
+      <canvas id="links-canvas"></canvas>
       <svg id="graph"></svg>
     </div>
     <div id="panel">
@@ -1514,14 +1671,76 @@ fetch("/api/graph/all")
     const maxDeg = Math.max(...Object.values(deg), 1);
     const nodeR = n => 5 + ((deg[n.name] || 0) / maxDeg) * 15;
 
-    const W = document.getElementById("graph-col").clientWidth;
-    const H = document.getElementById("graph-col").clientHeight;
+    let W = document.getElementById("graph-col").clientWidth;
+    let H = document.getElementById("graph-col").clientHeight;
     const svg = d3.select("svg#graph").attr("width", W).attr("height", H);
+
+    // Links are drawn on a <canvas> instead of as SVG <line> elements -- with
+    // ~6000 links, redrawing that many DOM nodes every simulation tick (and on
+    // every pan/zoom) is what made the graph laggy. A canvas repaint of the
+    // same lines is one imperative draw call per link with no DOM/layout cost.
+    const linkCanvas = document.getElementById("links-canvas");
+    const lctx = linkCanvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    linkCanvas.width  = W * dpr;
+    linkCanvas.height = H * dpr;
+    let currentTransform = d3.zoomIdentity;
+
+    function drawLinks() {{
+      lctx.save();
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lctx.clearRect(0, 0, W, H);
+      lctx.translate(currentTransform.x, currentTransform.y);
+      lctx.scale(currentTransform.k, currentTransform.k);
+      lctx.strokeStyle = "#aaaaaa";
+      for (const l of links) {{
+        lctx.globalAlpha = 0.15 + (l.score || 0) * 0.45;
+        lctx.lineWidth = 1 + (l.score || 0) * 4;
+        lctx.beginPath();
+        lctx.moveTo(l.source.x, l.source.y);
+        lctx.lineTo(l.target.x, l.target.y);
+        lctx.stroke();
+      }}
+      lctx.restore();
+    }}
+
+    // #graph-col's width changes whenever the side panel opens/closes (its flex-basis
+    // flips between 100% and 70%, see showPanel()/panel-close below) and on a plain
+    // window resize. svg#graph has no viewBox, so a CSS-driven box resize just clips
+    // its visible area -- node positions (translate(d.x,d.y), unaffected) stay correct
+    // automatically. links-canvas is a raster <canvas>, though: resizing its CSS box
+    // without also resizing its width/height attributes makes the browser stretch the
+    // existing bitmap to fit, scaling every already-drawn line -- producing exactly the
+    // "nodes don't move but edges do (or vice versa)" mismatch this fixes. Re-reading W/H
+    // and re-applying them to both svg and canvas keeps the two perfectly in sync.
+    function syncGraphViewportSize() {{
+      const newW = document.getElementById("graph-col").clientWidth;
+      const newH = document.getElementById("graph-col").clientHeight;
+      if (newW === W && newH === H) return;
+      W = newW; H = newH;
+      svg.attr("width", W).attr("height", H);
+      linkCanvas.width  = W * dpr;
+      linkCanvas.height = H * dpr;
+      drawLinks();
+    }}
+    new ResizeObserver(syncGraphViewportSize).observe(document.getElementById("graph-col"));
 
     const g = svg.append("g");
     const defs = svg.append("defs");
 
-    const zoom = d3.zoom().scaleExtent([0.05, 4]).on("zoom", e => g.attr("transform", e.transform));
+    const zoom = d3.zoom()
+      .scaleExtent([0.05, 4])
+      // d3's default only boosts wheel delta 10x for ctrlKey events (how browsers
+      // report a trackpad pinch) -- a plain two-finger scroll gets the un-boosted
+      // 0.002 multiplier, which reads as "nothing happens". Applying the same
+      // boost regardless of ctrlKey makes a two-finger scroll zoom just as
+      // responsively as a pinch, without needing to pinch.
+      .wheelDelta(event => -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002) * 10)
+      .on("zoom", e => {{
+        currentTransform = e.transform;
+        g.attr("transform", e.transform);
+        drawLinks();
+      }});
     svg.call(zoom);
 
     const sim = d3.forceSimulation(nodes)
@@ -1529,14 +1748,6 @@ fetch("/api/graph/all")
       .force("charge",    d3.forceManyBody().strength(-300))
       .force("center",    d3.forceCenter(W / 2, H / 2))
       .force("collision", d3.forceCollide().radius(d => nodeR(d) + 4));
-
-    const linkSel = g.append("g")
-      .selectAll("line")
-      .data(links)
-      .join("line")
-        .attr("class", "link")
-        .attr("stroke-width",   d => 1 + (d.score || 0) * 4)
-        .attr("stroke-opacity", d => 0.15 + (d.score || 0) * 0.45);
 
     const nodeSel = g.append("g")
       .selectAll("g")
@@ -1574,6 +1785,7 @@ fetch("/api/graph/all")
       .attr("r",      nodeR)
       .attr("fill",   d => d.flaticon_url ? "none" : sectorColor(d.sectors))
       .attr("stroke", d => d.flaticon_url ? sectorColor(d.sectors) : "#0f0f0f")
+      .style("pointer-events", "all")
       .on("click", (e, d) => {{
         selectNode(d);
         e.stopPropagation();
@@ -1606,12 +1818,21 @@ fetch("/api/graph/all")
       .style("pointer-events", "none")
       .text(d => d.name.length > 20 ? d.name.slice(0, 18) + "…" : d.name);
 
-    sim.on("tick", () => {{
-      linkSel
-        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    function renderAll() {{
+      drawLinks();
       nodeSel.attr("transform", d => `translate(${{d.x}},${{d.y}})`);
-    }});
+    }}
+
+    // Run the layout to convergence headlessly (pure math, no DOM writes) instead
+    // of animating from a random scatter -- that animation was the other big
+    // source of lag, since every one of ~300 in-between frames repainted every
+    // node and link. simulation.tick() applies the same alpha decay as the
+    // internal timer, so this reaches the same resting layout, just instantly.
+    sim.stop();
+    for (let i = 0; i < 300; ++i) sim.tick();
+    renderAll();
+
+    sim.on("tick", renderAll);
 
     // ── Search bar ──────────────────────────────────────────────────────────
     const searchInput   = document.getElementById("topbar-search-input");
@@ -1683,6 +1904,219 @@ fetch("/api/graph/all")
 </html>"""
 
 
+ADMIN_DASHBOARD_HTML = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — Smap</title>
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background: #0f0f0f; color: #e8e4dc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh; padding: 28px 32px 60px;
+    }}
+    #dash-header {{ display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }}
+    #dash-header a {{ color: #8a8680; font-size: 13px; text-decoration: none; }}
+    #dash-header a:hover {{ color: #c7c3bb; }}
+    #dash-header h1 {{ font-size: 20px; font-weight: 700; }}
+    #dash-generated {{ margin-left: auto; font-size: 12px; color: #55524c; }}
+    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px; }}
+    .card {{
+      background: #161614; border: 1px solid #2a2a27; border-radius: 12px; padding: 18px 20px;
+    }}
+    .card h2 {{ font-size: 13px; font-weight: 600; color: #8a8680; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 14px; }}
+    .stat-row {{ display: flex; gap: 24px; flex-wrap: wrap; }}
+    .stat {{ min-width: 90px; }}
+    .stat-value {{ font-size: 26px; font-weight: 700; color: #fff; line-height: 1.2; }}
+    .stat-label {{ font-size: 12px; color: #8a8680; margin-top: 2px; }}
+    .bar-row {{ display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; }}
+    .bar-row:last-child {{ margin-bottom: 0; }}
+    .bar-label {{ width: 140px; flex-shrink: 0; color: #c7c3bb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .bar-track {{ flex: 1; height: 8px; background: #201f1c; border-radius: 4px; overflow: hidden; }}
+    .bar-fill {{ height: 100%; border-radius: 4px; }}
+    .bar-fill.warn {{ background: #d1a565; }}
+    .bar-fill.ok {{ background: #6fcf6f; }}
+    .bar-value {{ width: 68px; flex-shrink: 0; text-align: right; color: #8a8680; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; }}
+    th {{ text-align: left; color: #8a8680; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; padding: 0 10px 8px 0; border-bottom: 1px solid #2a2a27; }}
+    td {{ padding: 9px 10px 9px 0; border-bottom: 1px solid #201f1c; color: #c7c3bb; vertical-align: middle; }}
+    tr:last-child td {{ border-bottom: none; }}
+    .recent-name {{ display: flex; align-items: center; gap: 8px; color: #e8e4dc; font-weight: 600; }}
+    .recent-logo {{ width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #201f1c; }}
+    .mini-badge {{ font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; color: #111; white-space: nowrap; }}
+    .cost-day-bars {{ display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 4px; }}
+    .cost-day-bar {{ flex: 1; background: #7cb8e8; border-radius: 2px 2px 0 0; min-height: 2px; }}
+    .empty-note {{ color: #55524c; font-size: 12.5px; }}
+    #loading {{ color: #55524c; font-size: 13px; }}
+  </style>
+</head>
+<body>
+  <div id="dash-header">
+    <a href="/">← Smap</a>
+    <h1>Dashboard</h1>
+    <span id="dash-generated"></span>
+  </div>
+  <div id="loading">Chargement…</div>
+  <div id="dash-content" style="display:none">
+    <div class="grid">
+      <div class="card" id="card-overview"><h2>Vue d'ensemble</h2><div class="stat-row" id="overview-stats"></div></div>
+      <div class="card" id="card-cost"><h2>Coût API Mistral</h2><div class="stat-row" id="cost-stats"></div><div class="cost-day-bars" id="cost-day-bars"></div></div>
+      <div class="card" id="card-health"><h2>Santé de l'ingestion</h2><div class="stat-row" id="health-stats"></div></div>
+    </div>
+    <div class="grid">
+      <div class="card" id="card-completeness"><h2>Complétude des données</h2><div id="completeness-bars"></div></div>
+      <div class="card" id="card-sectors"><h2>Répartition par secteur</h2><div id="sector-bars"></div></div>
+      <div class="card" id="card-cost-breakdown"><h2>Coût par type d'appel</h2><div id="cost-breakdown-bars"></div></div>
+    </div>
+    <div class="card">
+      <h2>Derniers ajouts</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Startup</th><th>Secteurs</th><th>Concurrents</th><th>Candidats scorés</th><th>Coût</th><th>Ajouté par</th><th>Terminé</th>
+          </tr></thead>
+          <tbody id="recent-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+{SECTOR_COLORS_JS}
+
+function escapeHtml(str) {{
+  const map = {{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }};
+  return String(str == null ? "" : str).replace(/[&<>"']/g, ch => map[ch]);
+}}
+
+function fmtUsd(n) {{
+  if (n == null) return "—";
+  return "$" + n.toFixed(n < 0.01 ? 5 : 4);
+}}
+
+function timeAgo(iso) {{
+  if (!iso) return "—";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return mins + " min";
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return hours + " h";
+  return Math.round(hours / 24) + " j";
+}}
+
+function barRow(label, value, valueText, pct, cls) {{
+  return `<div class="bar-row">
+    <div class="bar-label" title="${{escapeHtml(label)}}">${{escapeHtml(label)}}</div>
+    <div class="bar-track"><div class="bar-fill ${{cls || ''}}" style="width:${{pct}}%"></div></div>
+    <div class="bar-value">${{escapeHtml(valueText)}}</div>
+  </div>`;
+}}
+
+fetch("/api/dashboard")
+  .then(r => {{
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }})
+  .then(data => {{
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("dash-content").style.display = "block";
+    document.getElementById("dash-generated").textContent =
+      "Généré " + new Date(data.generated_at).toLocaleString("fr-FR");
+
+    const ov = data.overview;
+    document.getElementById("overview-stats").innerHTML = `
+      <div class="stat"><div class="stat-value">${{ov.total_startups.toLocaleString()}}</div><div class="stat-label">Startups</div></div>
+      <div class="stat"><div class="stat-value">${{ov.total_competitor_links.toLocaleString()}}</div><div class="stat-label">Liens concurrents</div></div>
+      <div class="stat"><div class="stat-value">${{ov.non_owner_users}}${{ov.max_users ? '/' + ov.max_users : ''}}</div><div class="stat-label">Comptes inscrits</div></div>
+    `;
+
+    const c = data.cost;
+    document.getElementById("cost-stats").innerHTML = `
+      <div class="stat"><div class="stat-value">${{fmtUsd(c.total_cost_usd)}}</div><div class="stat-label">Coût total</div></div>
+      <div class="stat"><div class="stat-value">${{fmtUsd(c.avg_cost_per_startup_usd)}}</div><div class="stat-label">Coût moyen / startup</div></div>
+      <div class="stat"><div class="stat-value">${{c.total_calls.toLocaleString()}}</div><div class="stat-label">Appels API</div></div>
+    `;
+    const days = c.cost_by_day || [];
+    const maxDay = Math.max(...days.map(d => d.cost_usd), 0.000001);
+    document.getElementById("cost-day-bars").innerHTML = days.length
+      ? days.map(d => `<div class="cost-day-bar" style="height:${{Math.max(4, d.cost_usd / maxDay * 60)}}px" title="${{d.day}} — ${{fmtUsd(d.cost_usd)}}"></div>`).join("")
+      : '<span class="empty-note">Pas encore de données de coût.</span>';
+
+    const breakdownEl = document.getElementById("cost-breakdown-bars");
+    const byType = Object.entries(c.by_call_type || {{}});
+    if (!byType.length) {{
+      breakdownEl.innerHTML = '<span class="empty-note">Pas encore de données de coût.</span>';
+    }} else {{
+      const maxCost = Math.max(...byType.map(([, v]) => v.cost_usd), 0.000001);
+      breakdownEl.innerHTML = byType
+        .sort((a, b) => b[1].cost_usd - a[1].cost_usd)
+        .map(([type, v]) => barRow(type, v.cost_usd, fmtUsd(v.cost_usd) + " (" + v.calls + ")", v.cost_usd / maxCost * 100, "ok"))
+        .join("");
+    }}
+
+    const h = data.ingestion_health;
+    document.getElementById("health-stats").innerHTML = `
+      <div class="stat"><div class="stat-value">${{h.success_rate_pct}}%</div><div class="stat-label">Taux de succès</div></div>
+      <div class="stat"><div class="stat-value">${{h.error}}</div><div class="stat-label">Échecs</div></div>
+      <div class="stat"><div class="stat-value">${{h.avg_processing_seconds != null ? Math.round(h.avg_processing_seconds) + 's' : '—'}}</div><div class="stat-label">Temps moyen</div></div>
+    `;
+
+    const compl = data.completeness;
+    const fieldLabels = {{
+      linkedin_url: "LinkedIn", logo_url: "Logo", flaticon_url: "Favicon",
+      description: "Description", country: "Pays", sub_subsectors: "Sous-sous-secteurs", embedding: "Embedding",
+    }};
+    document.getElementById("completeness-bars").innerHTML = compl.fields
+      .map(f => barRow(fieldLabels[f.field] || f.field, f.missing, f.missing_pct + "%", f.missing_pct, f.missing_pct > 30 ? "warn" : ""))
+      .join("");
+
+    const sectorsEl = document.getElementById("sector-bars");
+    const maxSectorCount = Math.max(...data.sectors.map(s => s.count), 1);
+    sectorsEl.innerHTML = data.sectors
+      .map(s => barRow(s.sector, s.count, s.count + " (" + s.pct + "%)", s.count / maxSectorCount * 100))
+      .join("");
+    // Color each sector's bar to match the graph's own sector-color legend
+    sectorsEl.querySelectorAll(".bar-row").forEach((row, i) => {{
+      row.querySelector(".bar-fill").style.background = sectorColor([data.sectors[i].sector]);
+    }});
+
+    const recentEl = document.getElementById("recent-rows");
+    if (!data.recent.length) {{
+      recentEl.innerHTML = '<tr><td colspan="7" class="empty-note">Aucun ajout terminé pour l\\'instant.</td></tr>';
+    }} else {{
+      recentEl.innerHTML = data.recent.map(r => {{
+        const logo = r.flaticon_url
+          ? `<img class="recent-logo" src="${{r.flaticon_url}}" alt="">`
+          : `<div class="recent-logo"></div>`;
+        const badges = (r.sectors || []).slice(0, 2).map(s =>
+          `<span class="mini-badge" style="background:${{sectorColor([s])}}">${{escapeHtml(s)}}</span>`
+        ).join(" ");
+        return `<tr>
+          <td><div class="recent-name">${{logo}}${{escapeHtml(r.name)}}</div></td>
+          <td>${{badges}}</td>
+          <td>${{r.competitors_found ?? "—"}}</td>
+          <td>${{r.candidates_scored ?? "—"}}</td>
+          <td>${{fmtUsd(r.cost_usd)}}</td>
+          <td>${{escapeHtml(r.added_by || "—")}}</td>
+          <td>${{timeAgo(r.completed_at)}}</td>
+        </tr>`;
+      }}).join("");
+    }}
+  }})
+  .catch(err => {{
+    document.getElementById("loading").textContent = "Erreur de chargement : " + err.message;
+  }});
+  </script>
+</body>
+</html>"""
+
+
+@app.get("/admin")
+def admin_page():
+    return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
+
+
 @app.get("/")
 def index(request: Request):
     # request.state.user is set by auth_gate (Design Notes) -- by the time this
@@ -1690,7 +2124,9 @@ def index(request: Request):
     # /login by the middleware, so user here is always the logged-in account.
     user = getattr(request.state, "user", None)
     graph_link = (
-        '<a href="/graph" id="graph-link">View full graph →</a>'
+        '<a href="/graph" id="graph-link">Vue graphe complet →</a>'
+        '<a href="/admin" id="admin-link">Dashboard →</a>'
+        '<div id="nav-divider"></div>'
         if user and user.get("is_owner")
         else ""
     )
