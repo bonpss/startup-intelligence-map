@@ -131,28 +131,28 @@ def check_pair(a: dict, b: dict, fine_labels: dict[str, set[str]]) -> dict | Non
     a_sub_subs = set(a.get("sub_subsectors") or [])
     b_sub_subs = set(b.get("sub_subsectors") or [])
 
-    per_subsector = []
+    # Only a subsector where BOTH sides have at least one sub_subsector label
+    # is actually comparable -- an empty side is a data gap, not evidence of
+    # divergence (e.g. "General Purpose AI Models" has no sub_subsectors
+    # defined in TAXONOMY at all, so it must never reach this point flagged).
+    reasons = []
     for sub in sorted(shared):  # every remaining shared subsector is fine
         labels = fine_labels[sub]
         a_own = sorted(a_sub_subs & labels)
         b_own = sorted(b_sub_subs & labels)
-        per_subsector.append({"subsector": sub, "company_a_labels": a_own, "company_b_labels": b_own})
+        if not a_own or not b_own:
+            continue  # nothing to compare on this subsector -- skip, not a mismatch
         if set(a_own) & set(b_own):
             return None  # genuine overlap on this subsector -- pair stays valid
+        reasons.append({
+            "subsector": sub,
+            "company_a_labels": a_own,
+            "company_b_labels": b_own,
+            "why": "both sides have sub_subsectors for this subsector, but they don't overlap",
+        })
 
-    reasons = []
-    for row in per_subsector:
-        a_empty = not row["company_a_labels"]
-        b_empty = not row["company_b_labels"]
-        if a_empty and b_empty:
-            why = "neither side has a sub_subsector for this subsector"
-        elif a_empty:
-            why = "company_a has no sub_subsector for this subsector"
-        elif b_empty:
-            why = "company_b has no sub_subsector for this subsector"
-        else:
-            why = "both sides have sub_subsectors for this subsector, but they don't overlap"
-        reasons.append({**row, "why": why})
+    if not reasons:
+        return None  # no comparable subsector had data on both sides -- not a mismatch
 
     return {"exclusion_reason": "fine_subsector_mismatch", "per_subsector": reasons}
 
