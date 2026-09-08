@@ -55,11 +55,16 @@ def mark_done(name: str) -> None:
 
 def candidates_for(company: dict) -> list[dict]:
     name = company["name"]
+    # include_embedding=False: this script scores candidates via
+    # score_candidates() (LLM-based), never prefilter_by_embedding() -- pulling
+    # the ~20KB-per-row embedding column here was pure wasted egress across a
+    # backlog of hundreds of startups (2026-09-04 incident).
     candidates = get_by_subsectors(
         company.get("subsectors") or [],
         company.get("sectors") or [],
         name,
         company.get("sub_subsectors") or [],
+        include_embedding=False,
     )
     # Score each unordered pair once: only candidates after this company alphabetically
     candidates = [c for c in candidates if c["name"] > name]
