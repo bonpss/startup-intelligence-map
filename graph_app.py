@@ -119,6 +119,7 @@ async def _lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=_lifespan)
+os.makedirs("assets/logos", exist_ok=True)  # fresh clone: git doesn't track empty dirs
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 # Auth-gating allowlist: exact-path or prefix match only (not regex), to keep

@@ -17,9 +17,9 @@ __pycache__/
 # OS
 .DS_Store
 
-# Proprietary classification/matching logic -- kept out of the public repo
-taxonomy.py
-competitor.py
+# Proprietary classification/matching logic -- kept out of the public repo.
+# (taxonomy.py/competitor.py ARE tracked here: they're illustrative
+# placeholders, not the real ones -- see README's "Scope of this repo".)
 competitor_validator.py
 graph_analysis.py
 _tmp_fix_payment.py

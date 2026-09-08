@@ -20,9 +20,9 @@ Built out of frustration with how competitor-mapping is handled in existing tool
 
 1. **Queue**: `POST /api/ingest` (or `main.py <url>` from the CLI) drops a row into `ingestion_queue` and returns immediately (`202`). A single in-process background worker (concurrency 1) consumes the queue so two ingests never race on the same domain; failed rows land in an "En attente" tab in the UI with per-row retry/dismiss.
 2. **Scrape** (`main.py`): a light `httpx` fetch runs first; if the page looks JS-rendered or content-thin, it falls back to a full Playwright browser. HTML is cleaned into markdown (boilerplate/nav-dense block stripping, paragraph dedup), and the startup's logo/favicon and LinkedIn URL are extracted from the raw HTML in the same pass.
-3. **Extract** (`extractor.py`): a four-step LLM extraction over the cleaned text — Step 1 pulls free-form descriptive labels, Step 2a/2b/2c match them to the taxonomy's sector → subsector → sub-subsector levels. Taxonomy-side rules (not shipped in this repo, see [Scope of this repo](#scope-of-this-repo)) demote a handful of over-broad generic tags and drop redundant `Uncategorized` labels.
+3. **Extract** (`extractor.py`): a four-step LLM extraction over the cleaned text — Step 1 pulls free-form descriptive labels, Step 2a/2b/2c match them to the taxonomy's sector → subsector → sub-subsector levels (`taxonomy.py`, see [Scope of this repo](#scope-of-this-repo)). Taxonomy-side rules demote a handful of over-broad generic tags and drop redundant `Uncategorized` labels.
 4. **Embed** (`embeddings.py`): a `mistral-embed` vector is computed for the description, used to pre-filter the competitor-candidate pool before the (more expensive) scoring call.
-5. **Match competitors** (`competitor.py`, not shipped — see below): the new startup is scored against same-subsector candidates and linked bidirectionally in `competitors`.
+5. **Match competitors** (`competitor.py`, see below): the new startup is scored against same-subsector candidates and linked bidirectionally in `competitors`.
 6. **Visualize** (`graph_app.py`): a FastAPI app serves the graph UI — search, per-startup detail with its competitor neighborhood, and the ingestion queue's live status.
 
 Every Mistral call is retried with exponential backoff on transient errors (`retry.py`, shared across the extraction, embedding and matching steps) and logged with token counts + estimated cost (`api_call_log`, surfaced on `/admin`).
@@ -55,9 +55,9 @@ Python · Mistral (LLM extraction, embeddings) · Supabase (storage) · FastAPI 
 
 This is the pipeline and app code, not a data export. It does **not** include:
 - A live database — there's no access to my own Supabase project or the startups already in it. Running this yourself means pointing it at your **own** Supabase project (schema via `migrations/`), starting from empty.
-- The classification/matching logic — `taxonomy.py`, `competitor.py`, `competitor_validator.py`, and `graph_analysis.py` (the actual sector/subsector taxonomy and competitor-scoring rules) are proprietary and intentionally excluded (see `.gitignore`).
+- My real classification/matching logic — the actual, refined `taxonomy.py` (the real sector/subsector tree, iterated on for months) and `competitor.py` (the tuned scoring prompt) are proprietary and stay private. What's in this repo under those names is a small **illustrative placeholder**: a generic example taxonomy and a simplified scoring prompt, with the exact same function signatures the rest of the pipeline expects — so the app is genuinely runnable end-to-end, just classifying into example categories instead of the real ones. `competitor_validator.py` and `graph_analysis.py` (unused by the runnable path above) are excluded entirely (see `.gitignore`).
 
-So this repo shows the architecture — scraping, LLM extraction pipeline, storage layer, auth, graph UI — but isn't a drop-in clone of the real thing.
+So this repo shows the real architecture — scraping, LLM extraction pipeline, storage layer, auth, graph UI — running against placeholder classification logic instead of the real one.
 
 ## Running it
 
@@ -79,6 +79,8 @@ Tests (`test_auth.py`, `test_retry.py`, `test_storage.py`) cover auth hashing/se
 | File | Role |
 |---|---|
 | `extractor.py` | LLM extraction: free labels → taxonomy matching |
+| `taxonomy.py` | **Placeholder** 3-level sector → subsector → sub-subsector taxonomy |
+| `competitor.py` | **Placeholder** competitor scoring and relationship saving |
 | `embeddings.py` | `mistral-embed` vectors for the competitor pre-filter |
 | `storage.py` | Supabase read/write helpers, ingestion queue, cost logging |
 | `retry.py` | Shared Mistral retry/backoff predicate |
@@ -87,7 +89,7 @@ Tests (`test_auth.py`, `test_retry.py`, `test_storage.py`) cover auth hashing/se
 | `dashboard.py` | Owner-only usage and API cost aggregation |
 | `pricing.py` | Mistral pricing table used for cost tracking |
 
-Not included: `taxonomy.py` (3-level sector → subsector → sub-subsector taxonomy) and `competitor.py` (competitor scoring and relationship saving) — see [Scope of this repo](#scope-of-this-repo).
+`taxonomy.py`/`competitor.py` are placeholders, not my real classification logic — see [Scope of this repo](#scope-of-this-repo).
 
 ## Ops tooling
 
