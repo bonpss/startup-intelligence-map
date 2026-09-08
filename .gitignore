@@ -3,6 +3,7 @@ _bmad/
 _bmad-output/
 .claude/
 .cursor/
+.vscode/
 .log_review_pending.json
 
 # Python / venv
