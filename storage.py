@@ -319,6 +319,7 @@ def get_by_subsectors(
     exclude_name: str,
     sub_subsectors: list[str] = [],
     include_embedding: bool = True,
+    exclude_id: str | None = None,
 ) -> list[dict]:
     """Return rows from compspro overlapping both subsectors AND sectors.
 
@@ -348,19 +349,26 @@ def get_by_subsectors(
     candidates across a large backlog is real PostgREST egress for no benefit
     (2026-09-04 incident: an unthrottled --dry-run backlog scan alone drove a
     single day's egress past the project's entire monthly quota).
+
+    exclude_id, when given, excludes the querying startup by compspro.id
+    instead of by name -- two startups can legitimately share a display name
+    (e.g. "Corma" at corma.io and corma.ai), so a name-based exclude would
+    wrongly hide a real candidate. exclude_name is still required (used by
+    _cap_candidate_pool's deterministic tie-break seed) and is the fallback
+    exclusion key for callers that don't yet have an id (backfill_competitors.py).
     """
     if not subsectors or not sectors:
         return []
     client = _client()
-    columns = "name, sectors, subsectors, sub_subsectors, description"
+    columns = "id, name, sectors, subsectors, sub_subsectors, description"
     columns += ", embedding" if include_embedding else ""
     query = (
         client.table("compspro")
         .select(columns)
         .overlaps("sectors", sectors)
         .overlaps("subsectors", subsectors)
-        .neq("name", exclude_name)
     )
+    query = query.neq("id", exclude_id) if exclude_id is not None else query.neq("name", exclude_name)
     rows = _execute(query).data or []
 
     fine_own = _fine_subsector_own_labels(sectors, subsectors, sub_subsectors)
@@ -385,19 +393,29 @@ def get_by_subsectors(
     return _cap_candidate_pool(kept, subsectors, exclude_name)
 
 
-def get_known_competitors(name: str) -> list[str]:
-    """Return all company names linked to name in competitors (either direction)."""
+def get_known_competitors(company_id: str) -> list[dict]:
+    """Return [{id, name}, ...] for every company linked to company_id in
+    competitors (either direction) -- keyed by company_a_id/company_b_id,
+    never the company_a/company_b name-text columns (two unrelated startups
+    can share a display name, e.g. "Corma" at corma.io and corma.ai)."""
     client = _client()
-    as_a = _execute(client.table("competitors").select("company_b").eq("company_a", name))
-    as_b = _execute(client.table("competitors").select("company_a").eq("company_b", name))
+    as_a = _execute(client.table("competitors").select("company_b_id, company_b").eq("company_a_id", company_id))
+    as_b = _execute(client.table("competitors").select("company_a_id, company_a").eq("company_b_id", company_id))
     return (
-        [r["company_b"] for r in (as_a.data or [])]
-        + [r["company_a"] for r in (as_b.data or [])]
+        [{"id": r["company_b_id"], "name": r["company_b"]} for r in (as_a.data or []) if r["company_b_id"] is not None]
+        + [{"id": r["company_a_id"], "name": r["company_a"]} for r in (as_b.data or []) if r["company_a_id"] is not None]
     )
 
 
 def get_company(name: str) -> dict | None:
-    """Fetch a single startup's data from compspro."""
+    """Fetch a single startup's data from compspro by name.
+
+    Caveat: two startups can share a display name (e.g. "Corma" at corma.io
+    and corma.ai) -- this returns whichever row Postgres happens to return
+    first, with no tiebreaker. Kept for human-supervised maintenance scripts
+    (delete_stale_competitor_pairs.py); the pipeline itself uses
+    get_company_by_id() instead, which has no such ambiguity.
+    """
     client = _client()
     response = _execute(
         client.table("compspro")
@@ -408,24 +426,40 @@ def get_company(name: str) -> dict | None:
     return response.data[0] if response.data else None
 
 
-def relationship_exists(company_a: str, company_b: str) -> bool:
-    """Check if the exact (company_a, company_b) row exists in competitors."""
+def get_company_by_id(company_id: str) -> dict | None:
+    """Fetch a single startup's data from compspro by id -- unambiguous even
+    when two rows share a display name, unlike get_company(name)."""
+    client = _client()
+    response = _execute(
+        client.table("compspro")
+        .select("id, name, sectors, subsectors, sub_subsectors, description, website, flaticon_url, domain")
+        .eq("id", company_id)
+        .limit(1)
+    )
+    return response.data[0] if response.data else None
+
+
+def relationship_exists(company_a_id: str, company_b_id: str) -> bool:
+    """Check if the exact (company_a_id, company_b_id) row exists in competitors."""
     client = _client()
     response = _execute(
         client.table("competitors")
         .select("id")
-        .eq("company_a", company_a)
-        .eq("company_b", company_b)
+        .eq("company_a_id", company_a_id)
+        .eq("company_b_id", company_b_id)
         .limit(1)
     )
     return bool(response.data)
 
 
-def save_relationships(company_a: str, results: list[dict]) -> list[dict]:
-    """Insert (company_a, company_b) rows for results with score >= COMPETITOR_THRESHOLD.
+def save_relationships(company_a_id: str, company_a_name: str, results: list[dict]) -> list[dict]:
+    """Insert (company_a_id, company_b_id) rows for results with score >= COMPETITOR_THRESHOLD.
 
-    Skips if the exact (company_a, company_b) pair already exists.
-    Returns list of dicts {company_a, company_b, score} that were inserted.
+    Skips if the exact (company_a_id, company_b_id) pair already exists.
+    company_a/company_b (name) are written alongside the ids as human-readable
+    labels only -- never read back for lookups, so a later rename or a shared
+    display name can't cause a mismatch.
+    Returns list of dicts {company_a_id, company_a, company_b_id, company_b, score} that were inserted.
     """
     candidates = [r for r in results if r.get("score", 0) >= COMPETITOR_THRESHOLD]
     if not candidates:
@@ -435,20 +469,32 @@ def save_relationships(company_a: str, results: list[dict]) -> list[dict]:
     saved = []
 
     for r in candidates:
-        company_b = r["name"]
-        if not relationship_exists(company_a, company_b):
-            _execute(client.table("competitors").insert({
-                "company_a": company_a,
-                "company_b": company_b,
+        company_b_id = r["id"]
+        if not relationship_exists(company_a_id, company_b_id):
+            row = {
+                "company_a_id": company_a_id,
+                "company_a": company_a_name,
+                "company_b_id": company_b_id,
+                "company_b": r["name"],
                 "score": r["score"],
-            }))
-            saved.append({"company_a": company_a, "company_b": company_b, "score": r["score"]})
+            }
+            _execute(client.table("competitors").insert(row))
+            saved.append(row)
 
     return saved
 
 
-def save_startup(data: dict, added_by_user_id: int | None = None) -> str:
-    """Insert or update a startup. Returns 'saved' or 'updated'.
+def save_startup(data: dict, added_by_user_id: int | None = None) -> tuple[str, str, str]:
+    """Insert or update a startup, keyed by normalized domain -- NEVER by name.
+
+    Two startups can legitimately share a display name (e.g. "Corma" at
+    corma.io vs corma.ai); matching by name used to silently overwrite one
+    with the other's data. No match on domain -> always INSERT, never a
+    name-based fallback.
+
+    Returns (action, id, domain): action is 'saved' or 'updated', id is the
+    compspro.id (uuid) of the affected row, domain is the normalized value
+    written -- callers use both instead of re-deriving/re-looking-up by name.
 
     added_by_user_id is only written on first insert -- a re-ingestion of an
     already-existing startup (the 'updated' branch) never overwrites its
@@ -459,36 +505,31 @@ def save_startup(data: dict, added_by_user_id: int | None = None) -> str:
     if not name:
         raise ValueError("Cannot save startup without a name")
 
-    client = _client()
-
-    existing = None
     website = data.get("website")
-    if website:
-        by_website = _execute(
-            client.table("compspro")
-            .select("id, name")
-            .eq("website", website)
-            .limit(1)
-        )
-        if by_website.data:
-            existing = by_website.data[0]
+    if not website:
+        raise ValueError("Cannot save startup without a website")
 
-    if not existing:
-        by_name = _execute(
-            client.table("compspro")
-            .select("id, name")
-            .eq("name", name)
-            .limit(1)
-        )
-        if by_name.data:
-            existing = by_name.data[0]
+    domain = normalize_domain(website)
+    if not domain:
+        raise ValueError(f"Could not extract a domain from website: {website!r}")
 
-    if existing:
-        _execute(client.table("compspro").update({**data, "taxonomy_version": "v2"}).eq("id", existing["id"]))
-        return "updated"
-    else:
-        _execute(client.table("compspro").insert({**data, "taxonomy_version": "v2", "added_by_user_id": added_by_user_id}))
-        return "saved"
+    client = _client()
+    payload = {**data, "domain": domain, "taxonomy_version": "v2"}
+
+    existing = _execute(
+        client.table("compspro").select("id").eq("domain", domain).limit(1)
+    )
+    if existing.data:
+        row_id = existing.data[0]["id"]
+        _execute(client.table("compspro").update(payload).eq("id", row_id))
+        return "updated", row_id, domain
+
+    response = _execute(
+        client.table("compspro").insert({**payload, "added_by_user_id": added_by_user_id})
+    )
+    if not response.data:
+        raise ValueError("compspro insert returned no row")
+    return "saved", response.data[0]["id"], domain
 
 
 # ingestion_queue contract (Epic 6, Story 6.1): status is a small, fixed,
@@ -987,9 +1028,12 @@ def get_recent_done_ingestions(limit: int = 25) -> list[dict]:
 
 
 def get_compspro_by_names(names: list[str]) -> dict[str, dict]:
-    """name -> {sectors, flaticon_url} for a given set of startup names, for the
-    dashboard's "recent additions" feed to show sector badges/logos without a
-    per-row round trip. Empty dict for an empty/duplicate-only input, no query.
+    """name -> {sectors, flaticon_url} for a given set of startup names.
+
+    Caveat: two rows can share a display name, in which case one silently
+    overwrites the other in the returned dict. Kept only as a fallback for
+    dashboard.get_recent_additions() rows whose stored ingestion result
+    predates the "id" key (see get_compspro_by_ids, the unambiguous version).
     """
     unique = list(set(names))
     if not unique:
@@ -997,6 +1041,20 @@ def get_compspro_by_names(names: list[str]) -> dict[str, dict]:
     client = _client()
     rows = _execute(client.table("compspro").select("name, sectors, flaticon_url").in_("name", unique)).data or []
     return {r["name"]: r for r in rows}
+
+
+def get_compspro_by_ids(ids: list[str]) -> dict[str, dict]:
+    """id -> {sectors, flaticon_url} for a given set of startup ids, for the
+    dashboard's "recent additions" feed to show sector badges/logos without a
+    per-row round trip, and without get_compspro_by_names()'s name-collision
+    risk. Empty dict for an empty input, no query.
+    """
+    unique = [i for i in set(ids) if i is not None]
+    if not unique:
+        return {}
+    client = _client()
+    rows = _execute(client.table("compspro").select("id, sectors, flaticon_url").in_("id", unique)).data or []
+    return {r["id"]: r for r in rows}
 
 
 def get_users_by_ids(ids: list[int]) -> dict[int, str]:

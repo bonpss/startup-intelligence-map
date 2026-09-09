@@ -138,17 +138,20 @@ def _logo_candidates_from_html(html: str, base_url: str) -> list[dict]:
     return candidates[:8]
 
 
-def fetch_and_save_favicon(name: str, website: str) -> str | None:
+def fetch_and_save_favicon(domain: str, website: str) -> str | None:
     """Download the site favicon — used for graph circles (flaticon_url).
 
     Tries Google's favicon service (128px) first; if the domain is not in
     Google's index, falls back to the favicon declared in the site's own HTML.
+
+    Keyed by normalized domain, not the startup's display name -- two
+    startups can share a name (e.g. "Corma" at corma.io and corma.ai), which
+    used to make them silently overwrite each other's logo file on disk.
     """
     if not website:
         return None
 
-    domain = normalize_domain(website)
-    slug   = slugify(name)
+    slug = slugify(domain)
     os.makedirs("assets/logos", exist_ok=True)
 
     url = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
@@ -185,12 +188,15 @@ def fetch_and_save_favicon(name: str, website: str) -> str | None:
     return None
 
 
-def fetch_and_save_real_logo(name: str, logo_url: str) -> str | None:
-    """Download the actual logo found by the LLM — used for market maps (logo_url)."""
+def fetch_and_save_real_logo(domain: str, logo_url: str) -> str | None:
+    """Download the actual logo found by the LLM — used for market maps (logo_url).
+
+    Keyed by normalized domain -- see fetch_and_save_favicon's docstring.
+    """
     if not logo_url:
         return None
 
-    slug = slugify(name)
+    slug = slugify(domain)
     os.makedirs("assets/logos", exist_ok=True)
 
     ext = urlparse(logo_url).path.rsplit(".", 1)[-1].lower()
@@ -502,10 +508,11 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
     if data.get("description"):
         data["embedding"] = embed_one(data["description"])
 
-    action  = save_startup(data, added_by_user_id=added_by_user_id)
+    action, row_id, domain = save_startup(data, added_by_user_id=added_by_user_id)
+    data["id"] = row_id  # threaded through compare()/save_competitors()/explore_transitive() below
     name    = data.get("name", "unknown")
     website = data.get("website", "")
-    slug    = slugify(name)
+    slug    = slugify(domain)  # domain, not name -- two same-named startups must not collide on disk
     print(f"Startup {action}: {name}")
 
     # Favicon — displayed in graph circles
@@ -515,7 +522,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
             flaticon_url = f"/assets/logos/{slug}.{ext}"
             break
     if not flaticon_url:
-        flaticon_url = fetch_and_save_favicon(name, website)
+        flaticon_url = fetch_and_save_favicon(domain, website)
 
     # Real logo — for market maps
     logo_url = None
@@ -524,7 +531,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
             logo_url = f"/assets/logos/{slug}_logo.{ext}"
             break
     if not logo_url:
-        logo_url = fetch_and_save_real_logo(name, extracted_logo_url)
+        logo_url = fetch_and_save_real_logo(domain, extracted_logo_url)
 
     updates = {}
     if flaticon_url:
@@ -532,7 +539,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
     if logo_url:
         updates["logo_url"] = logo_url
     if updates:
-        _db_client().table("compspro").update(updates).eq("name", name).execute()
+        _db_client().table("compspro").update(updates).eq("id", row_id).execute()
 
     print(f"Favicon: {flaticon_url or 'not found'}")
     print(f"Logo:    {logo_url or 'not found'}")
@@ -552,8 +559,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
             for rel in saved:
                 print(f"  Relationship saved: {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
 
-        direct_names = [rel["company_b"] for rel in saved]
-        transitive_saved = explore_transitive(data, direct_names)
+        transitive_saved = explore_transitive(data, saved)
         saved_relationships.extend(transitive_saved)
         if transitive_saved:
             print()
@@ -562,7 +568,7 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
     else:
         print("No candidates found in same subsectors.")
 
-    return {"name": name, "action": action, "competitors_found": len(saved_relationships)}
+    return {"name": name, "domain": domain, "id": row_id, "action": action, "competitors_found": len(saved_relationships)}
 
 
 async def ingest(url: str, interactive: bool = True, added_by_user_id: int | None = None, ingestion_queue_id: int | None = None) -> dict:

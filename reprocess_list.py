@@ -130,11 +130,11 @@ def process(url: str) -> dict:
     if data.get("description"):
         data["embedding"] = embed_one(data["description"])
 
-    action = save_startup(data)
+    action, row_id, domain = save_startup(data)
 
     name    = data.get("name", "unknown")
     website = data.get("website", "")
-    slug    = slugify(name)
+    slug    = slugify(domain)  # domain, not name -- two same-named startups must not collide on disk
 
     # Favicon — displayed in graph circles
     flaticon_url = None
@@ -143,7 +143,7 @@ def process(url: str) -> dict:
             flaticon_url = f"/assets/logos/{slug}.{ext}"
             break
     if not flaticon_url:
-        flaticon_url = fetch_and_save_favicon(name, website)
+        flaticon_url = fetch_and_save_favicon(domain, website)
 
     # Real logo — for market maps
     logo_url = None
@@ -152,7 +152,7 @@ def process(url: str) -> dict:
             logo_url = f"/assets/logos/{slug}_logo.{ext}"
             break
     if not logo_url:
-        logo_url = fetch_and_save_real_logo(name, extracted_logo_url)
+        logo_url = fetch_and_save_real_logo(domain, extracted_logo_url)
 
     updates = {}
     if flaticon_url:
@@ -160,7 +160,7 @@ def process(url: str) -> dict:
     if logo_url:
         updates["logo_url"] = logo_url
     if updates:
-        _db_client().table("compspro").update(updates).eq("name", name).execute()
+        _db_client().table("compspro").update(updates).eq("id", row_id).execute()
 
     return {
         "name":           name,

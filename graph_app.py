@@ -138,9 +138,9 @@ async def auth_gate(request: Request, call_next):
     """Single choke point for auth (spec-public-demo-auth.md) instead of
     per-route Depends, to keep the diff small across the app's 12 pre-existing
     routes. Order of checks: allowlist -> session presence -> owner-only
-    /graph, /api/graph/all block. /api/graph/{name} (per-startup neighborhood,
-    used by /startup/{name}) is deliberately NOT blocked here -- the PRD marks
-    /startup/{name} as eligible for public/beta opening, unlike the full graph.
+    /graph, /api/graph/all block. /api/graph/{domain} (per-startup neighborhood,
+    used by /startup/{domain}) is deliberately NOT blocked here -- the PRD marks
+    /startup/{domain} as eligible for public/beta opening, unlike the full graph.
 
     request.state.user is set here (to the session's user dict, or None) so
     index()/startup_page() can read it synchronously afterwards to decide
@@ -253,7 +253,7 @@ def api_search(q: str = ""):
     domain_q = normalize_domain(q)
     rows = (
         db.table("compspro")
-        .select("name, sectors, subsectors, description, flaticon_url, website")
+        .select("name, sectors, subsectors, description, flaticon_url, website, domain")
         .or_(f"name.ilike.%{q}%,website.ilike.%{domain_q}%")
         .limit(10)
         .execute()
@@ -415,7 +415,7 @@ def api_graph_all():
     while True:
         batch = (
             db.table("compspro")
-            .select("name, sectors, flaticon_url, logo_url, description, website, linkedin_url")
+            .select("id, name, domain, sectors, flaticon_url, logo_url, description, website, linkedin_url")
             .range(page, page + size - 1)
             .execute()
             .data or []
@@ -431,7 +431,7 @@ def api_graph_all():
     while True:
         batch = (
             db.table("competitors")
-            .select("company_a, company_b, score")
+            .select("company_a_id, company_b_id, score")
             .eq("active", True)
             .range(page, page + size - 1)
             .execute()
@@ -441,8 +441,12 @@ def api_graph_all():
         if len(batch) < size:
             break
         page += size
+    # Nodes are identified by domain (unique) rather than name (two startups
+    # can share a display name) -- a row with no domain yet (pre-migration,
+    # no website) can't be placed unambiguously, so it's skipped here.
     nodes = [
         {
+            "domain":      s["domain"],
             "name":        s["name"],
             "sectors":     s.get("sectors")     or [],
             "flaticon_url":    s.get("flaticon_url")    or "",
@@ -451,60 +455,80 @@ def api_graph_all():
             "website":     s.get("website")     or "",
             "linkedin_url": s.get("linkedin_url") or "",
         }
-        for s in startups
+        for s in startups if s.get("domain")
     ]
+    id_to_domain = {s["id"]: s["domain"] for s in startups if s.get("domain")}
     # Drop links whose endpoints are missing from nodes — one bad link
     # would make d3.forceLink throw and blank the whole graph
-    node_names = {n["name"] for n in nodes}
+    node_domains = {n["domain"] for n in nodes}
     links = [
-        {"source": r["company_a"], "target": r["company_b"], "score": r.get("score") or 0}
+        {"source": id_to_domain[r["company_a_id"]], "target": id_to_domain[r["company_b_id"]], "score": r.get("score") or 0}
         for r in links_raw
-        if r["company_a"] in node_names and r["company_b"] in node_names
+        if r.get("company_a_id") in id_to_domain and r.get("company_b_id") in id_to_domain
+        and id_to_domain[r["company_a_id"]] in node_domains and id_to_domain[r["company_b_id"]] in node_domains
     ]
     return {"nodes": nodes, "links": links}
 
 
-@app.get("/api/graph/{name}")
-def api_graph(name: str):
+@app.get("/api/graph/{domain}")
+def api_graph(domain: str):
     db = _client()
 
-    as_a = db.table("competitors").select("company_a, company_b, score").eq("company_a", name).eq("active", True).execute().data or []
-    as_b = db.table("competitors").select("company_a, company_b, score").eq("company_b", name).eq("active", True).execute().data or []
-
-    links: list[dict] = []
-    competitor_names: set[str] = set()
-    seen: set[frozenset] = set()
-
-    for row in as_a:
-        b, score = row["company_b"], row.get("score", 0)
-        pair = frozenset({name, b})
-        if pair not in seen:
-            seen.add(pair)
-            links.append({"source": name, "target": b, "score": score})
-        competitor_names.add(b)
-
-    for row in as_b:
-        a, score = row["company_a"], row.get("score", 0)
-        pair = frozenset({name, a})
-        if pair not in seen:
-            seen.add(pair)
-            links.append({"source": a, "target": name, "score": score})
-        competitor_names.add(a)
-
-    all_names = list(competitor_names | {name})
-    startups = (
+    center_rows = (
         db.table("compspro")
-        .select("name, sectors, subsectors, description, website, flaticon_url, logo_url, linkedin_url")
-        .in_("name", all_names)
+        .select("id, name, domain, sectors, subsectors, description, website, flaticon_url, logo_url, linkedin_url")
+        .eq("domain", domain)
+        .limit(1)
         .execute()
         .data or []
     )
-    sm = {s["name"]: s for s in startups}
+    if not center_rows:
+        return {"center": None, "nodes": [], "links": []}
+    center_row = center_rows[0]
+    center_id = center_row["id"]
 
-    def node(n: str) -> dict:
-        s = sm.get(n, {})
+    as_a = db.table("competitors").select("company_b_id, score").eq("company_a_id", center_id).eq("active", True).execute().data or []
+    as_b = db.table("competitors").select("company_a_id, score").eq("company_b_id", center_id).eq("active", True).execute().data or []
+
+    neighbor_ids: set[str] = set()
+    edges: list[tuple[str, str, float]] = []
+    seen_pairs: set[frozenset] = set()
+
+    for row in as_a:
+        b_id = row["company_b_id"]
+        if b_id is None:
+            continue
+        neighbor_ids.add(b_id)
+        pair = frozenset({center_id, b_id})
+        if pair not in seen_pairs:
+            seen_pairs.add(pair)
+            edges.append((center_id, b_id, row.get("score", 0)))
+
+    for row in as_b:
+        a_id = row["company_a_id"]
+        if a_id is None:
+            continue
+        neighbor_ids.add(a_id)
+        pair = frozenset({center_id, a_id})
+        if pair not in seen_pairs:
+            seen_pairs.add(pair)
+            edges.append((a_id, center_id, row.get("score", 0)))
+
+    neighbors = (
+        db.table("compspro")
+        .select("id, name, domain, sectors, subsectors, description, website, flaticon_url, logo_url, linkedin_url")
+        .in_("id", list(neighbor_ids))
+        .execute()
+        .data or []
+    ) if neighbor_ids else []
+    by_id = {r["id"]: r for r in neighbors}
+    by_id[center_id] = center_row
+
+    def node(company_id: str) -> dict:
+        s = by_id.get(company_id, {})
         return {
-            "name":        n,
+            "domain":      s.get("domain")      or "",
+            "name":        s.get("name")        or "",
             "sectors":     s.get("sectors")     or [],
             "subsectors":  s.get("subsectors")  or [],
             "description": s.get("description") or "",
@@ -514,9 +538,15 @@ def api_graph(name: str):
             "linkedin_url": s.get("linkedin_url") or "",
         }
 
+    links = [
+        {"source": by_id[a]["domain"], "target": by_id[b]["domain"], "score": score}
+        for a, b, score in edges
+        if a in by_id and b in by_id
+    ]
+
     return {
-        "center": node(name),
-        "nodes":  [node(n) for n in competitor_names],
+        "center": node(center_id),
+        "nodes":  [node(nid) for nid in neighbor_ids if nid in by_id],
         "links":  links,
     }
 
@@ -991,7 +1021,7 @@ searchEl.addEventListener("input", () => {{
 
 resultsEl.addEventListener("click", e => {{
   const card = e.target.closest(".card");
-  if (card) go(card.dataset.name);
+  if (card) go(card.dataset.domain);
 }});
 
 // The "Ajouter" button posts lastQuery straight to /api/ingest as a URL --
@@ -1031,7 +1061,7 @@ function render(data) {{
     const logoHtml = s.flaticon_url
       ? `<img class="card-logo" src="${{s.flaticon_url}}" alt="">`
       : `<div class="card-logo-initial" style="background:${{color}}26; color:${{color}}">${{initial}}</div>`;
-    return `<div class="card" data-name="${{s.name}}">
+    return `<div class="card" data-domain="${{s.domain}}">
       ${{logoHtml}}
       <div class="card-body">
         <div class="card-name">${{s.name}}</div>
@@ -1042,8 +1072,8 @@ function render(data) {{
   }}).join("");
 }}
 
-function go(name) {{
-  window.location.href = "/startup/" + encodeURIComponent(name);
+function go(domain) {{
+  window.location.href = "/startup/" + encodeURIComponent(domain);
 }}
 
 const queuePanel     = document.getElementById("queue-panel");
@@ -1216,6 +1246,8 @@ addBtn.addEventListener("click", () => {{
       addBtn.disabled = false;
       addBtn.textContent = "Ajouter";
       addBtn.style.display = "none";
+      searchEl.value = "";
+      lastQuery = "";
       resultsEl.innerHTML = '<div class="empty">Startup ajoutée — suivez son traitement dans « En attente ».</div>';
       pollSummary();
     }})
@@ -1327,10 +1359,10 @@ GRAPH_HTML_TEMPLATE = f"""<!DOCTYPE html>
   <script>
 {SECTOR_COLORS_JS}
 
-const STARTUP_NAME = __STARTUP_NAME_JSON__;
+const STARTUP_DOMAIN = __STARTUP_DOMAIN_JSON__;
 
-document.getElementById("page-title").textContent = STARTUP_NAME;
-document.getElementById("page-name").textContent  = STARTUP_NAME;
+document.getElementById("page-title").textContent = STARTUP_DOMAIN;
+document.getElementById("page-name").textContent  = STARTUP_DOMAIN;
 
 function showPanel(node, isCenter) {{
   document.getElementById("panel").style.display = "flex";
@@ -1378,16 +1410,19 @@ function showPanel(node, isCenter) {{
   const btn = document.getElementById("panel-view-btn");
   if (!isCenter) {{
     btn.style.display = "";
-    btn.onclick = () => {{ window.location.href = "/startup/" + encodeURIComponent(node.name); }};
+    btn.onclick = () => {{ window.location.href = "/startup/" + encodeURIComponent(node.domain); }};
   }} else {{
     btn.style.display = "none";
   }}
 }}
 
-fetch("/api/graph/" + encodeURIComponent(STARTUP_NAME))
+fetch("/api/graph/" + encodeURIComponent(STARTUP_DOMAIN))
   .then(r => r.json())
   .then(data => {{
     const {{ center, nodes, links }} = data;
+
+    document.getElementById("page-title").textContent = center.name;
+    document.getElementById("page-name").textContent  = center.name;
 
     showPanel(center, true);
 
@@ -1404,19 +1439,20 @@ fetch("/api/graph/" + encodeURIComponent(STARTUP_NAME))
     const allNodes = [{{ ...center, _isCenter: true }}, ...nodes.map(n => ({{ ...n, _isCenter: false }}))];
     const allLinks = links;
 
-    // Works before and after D3 resolves string refs to objects
-    const nameOf = x => (typeof x === "object" ? x.name : x);
+    // Works before and after D3 resolves string refs to objects. Keyed by
+    // domain, not name -- two startups can share a display name.
+    const domainOf = x => (typeof x === "object" ? x.domain : x);
 
     const scoreOf = n => {{
       const link = allLinks.find(l =>
-        (nameOf(l.source) === n.name || nameOf(l.target) === n.name) &&
-        (nameOf(l.source) === center.name || nameOf(l.target) === center.name)
+        (domainOf(l.source) === n.domain || domainOf(l.target) === n.domain) &&
+        (domainOf(l.source) === center.domain || domainOf(l.target) === center.domain)
       );
       return link ? (link.score || 0) : 0;
     }};
 
     const sim = d3.forceSimulation(allNodes)
-      .force("link",      d3.forceLink(allLinks).id(d => d.name).distance(160))
+      .force("link",      d3.forceLink(allLinks).id(d => d.domain).distance(160))
       .force("charge",    d3.forceManyBody().strength(-350))
       .force("center",    d3.forceCenter(W / 2, H / 2))
       .force("collision", d3.forceCollide().radius(d => d._isCenter ? 36 : 14 + scoreOf(d) * 14));
@@ -1658,7 +1694,7 @@ function showPanel(node) {{
   document.getElementById("panel-desc").textContent = node.description || "";
   const btn = document.getElementById("panel-view-btn");
   btn.style.display = "";
-  btn.onclick = () => {{ window.location.href = "/startup/" + encodeURIComponent(node.name); }};
+  btn.onclick = () => {{ window.location.href = "/startup/" + encodeURIComponent(node.domain); }};
 }}
 
 fetch("/api/graph/all")
@@ -1666,7 +1702,8 @@ fetch("/api/graph/all")
   .then(data => {{
     const nodes = data.nodes;
     const links = data.links;
-    const nodeByName = new Map(nodes.map(n => [n.name, n]));
+    // Keyed by domain, not name -- two startups can share a display name.
+    const nodeByDomain = new Map(nodes.map(n => [n.domain, n]));
 
     // Compute degree before D3 resolves link source/target to objects
     const deg = {{}};
@@ -1675,7 +1712,7 @@ fetch("/api/graph/all")
       deg[l.target] = (deg[l.target] || 0) + 1;
     }});
     const maxDeg = Math.max(...Object.values(deg), 1);
-    const nodeR = n => 5 + ((deg[n.name] || 0) / maxDeg) * 15;
+    const nodeR = n => 5 + ((deg[n.domain] || 0) / maxDeg) * 15;
 
     let W = document.getElementById("graph-col").clientWidth;
     let H = document.getElementById("graph-col").clientHeight;
@@ -1750,7 +1787,7 @@ fetch("/api/graph/all")
     svg.call(zoom);
 
     const sim = d3.forceSimulation(nodes)
-      .force("link",      d3.forceLink(links).id(d => d.name).distance(120))
+      .force("link",      d3.forceLink(links).id(d => d.domain).distance(120))
       .force("charge",    d3.forceManyBody().strength(-300))
       .force("center",    d3.forceCenter(W / 2, H / 2))
       .force("collision", d3.forceCollide().radius(d => nodeR(d) + 4));
@@ -1768,7 +1805,7 @@ fetch("/api/graph/all")
 
     function selectNode(d) {{
       nodeSel.selectAll("circle").classed("selected", false);
-      nodeSel.filter(n => n.name === d.name).select("circle").classed("selected", true);
+      nodeSel.filter(n => n.domain === d.domain).select("circle").classed("selected", true);
       showPanel(d);
     }}
 
@@ -1845,8 +1882,8 @@ fetch("/api/graph/all")
     const searchResults = document.getElementById("topbar-search-results");
     let searchTimer;
 
-    function jumpToNode(name) {{
-      const d = nodeByName.get(name);
+    function jumpToNode(domain) {{
+      const d = nodeByDomain.get(domain);
       if (!d) return;
       searchInput.value = "";
       searchResults.classList.remove("open");
@@ -1867,7 +1904,7 @@ fetch("/api/graph/all")
         const logoHtml = s.flaticon_url
           ? `<img class="search-result-logo" src="${{s.flaticon_url}}" alt="">`
           : `<div class="search-result-logo-initial" style="background:${{color}}">${{initial}}</div>`;
-        return `<div class="search-result" data-name="${{s.name}}">
+        return `<div class="search-result" data-domain="${{s.domain}}">
           ${{logoHtml}}
           <div class="search-result-name">${{s.name}}</div>
         </div>`;
@@ -1892,7 +1929,7 @@ fetch("/api/graph/all")
 
     searchResults.addEventListener("click", e => {{
       const card = e.target.closest(".search-result");
-      if (card) jumpToNode(card.dataset.name);
+      if (card) jumpToNode(card.dataset.domain);
     }});
 
     document.addEventListener("click", e => {{
@@ -2145,9 +2182,9 @@ def graph_page():
     return HTMLResponse(content=GLOBAL_GRAPH_HTML)
 
 
-@app.get("/startup/{name}")
-def startup_page(name: str):
-    html = GRAPH_HTML_TEMPLATE.replace("__STARTUP_NAME_JSON__", json.dumps(name))
+@app.get("/startup/{domain}")
+def startup_page(domain: str):
+    html = GRAPH_HTML_TEMPLATE.replace("__STARTUP_DOMAIN_JSON__", json.dumps(domain))
     return HTMLResponse(content=html)
 
 

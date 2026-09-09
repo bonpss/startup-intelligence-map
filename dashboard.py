@@ -155,9 +155,16 @@ def get_recent_additions(cost_summary: dict, limit: int = 25) -> list[dict]:
     once, not once per section that needs them.
     """
     rows = storage.get_recent_done_ingestions(limit)
-    names = [(r["result"] or {}).get("name") for r in rows]
-    names = [n for n in names if n]
-    compspro_by_name = storage.get_compspro_by_names(names)
+    ids = [(r["result"] or {}).get("id") for r in rows]
+    ids = [i for i in ids if i is not None]
+    compspro_by_id = storage.get_compspro_by_ids(ids)
+    # Fallback for ingestion_queue rows completed before this deploy, whose
+    # stored result has no "id" key yet -- avoids blank sector/logo badges
+    # for the handful of rows still in the window right after rollout. Kept
+    # name-keyed (get_compspro_by_names' collision caveat) only as a
+    # temporary bridge for that legacy data.
+    legacy_names = [(r["result"] or {}).get("name") for r in rows if not (r["result"] or {}).get("id")]
+    compspro_by_name = storage.get_compspro_by_names([n for n in legacy_names if n])
     users_by_id = storage.get_users_by_ids([r["requested_by_user_id"] for r in rows])
 
     per_ingestion_cost = cost_summary["_per_ingestion_cost"]
@@ -167,7 +174,7 @@ def get_recent_additions(cost_summary: dict, limit: int = 25) -> list[dict]:
     for r in rows:
         result = r["result"] or {}
         name = result.get("name")
-        cs = compspro_by_name.get(name, {})
+        cs = compspro_by_id.get(result.get("id")) or compspro_by_name.get(name, {})
         out.append({
             "ingestion_queue_id": r["id"],
             "name": name or r["url"],
