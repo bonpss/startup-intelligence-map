@@ -1,9 +1,10 @@
 """Read-only audit: which existing `competitors` rows would no longer pass
 storage.get_by_subsectors()'s fine-subsector filter if recomputed today.
 
-Context: that filter (Productivity Tools / AI Driven Developer Productivity /
-AI Security And Guardrails today, generically any subsector TAXONOMY breaks
-into sub_subsectors) only changes candidate-pool construction for FUTURE
+Context: that filter (currently 7 subsectors that TAXONOMY breaks into
+sub_subsectors -- see _fine_subsector_labels() for the live list --
+generically any subsector TAXONOMY breaks into sub_subsectors) only changes
+candidate-pool construction for FUTURE
 scoring. The 5295 rows already saved in `competitors` were computed against
 the old, broader pool, so some of them are false positives of the same shape
 as Freestyle<->Fluidstack: one side has sub_subsectors=[] for a subsector the
@@ -16,16 +17,34 @@ that the current filter would now reject.
 
 Zero writes. Deletion is a separate, human-approved step (not this script).
 
-Usage: .venv/bin/python3 audit_stale_competitors.py
+Usage:
+  .venv/bin/python3 audit_stale_competitors.py
+      Default scope: pairs touching one of the fine subsectors, checked for
+      BOTH no_shared_subsector and fine_subsector_mismatch (unchanged behavior).
+
+  .venv/bin/python3 audit_stale_competitors.py --subsector "API Infrastructure"
+      Targeted scope for reuse after a reprocess_list.py run: pairs touching
+      any startup currently tagged with this subsector (resolved via
+      reprocess_list.names_for_subsector() -- same resolution reprocess_list.py
+      itself uses), checked ONLY for no_shared_subsector. The fine_subsector_
+      mismatch check stays independent and unaffected -- it always runs against
+      its own fixed fine-subsector scope, never merged with this one.
+
+  .venv/bin/python3 audit_stale_competitors.py --companies names.txt
+      Same targeted no_shared_subsector-only check, scoped to an explicit list
+      of compspro.name values (one per line) instead of a subsector.
+
 Output: console report (style matches audit_taxonomy.py) +
         audit_stale_competitors_report.json
 """
 
+import argparse
 import json
 from collections import Counter
 from dotenv import load_dotenv
 from storage import _client
 from taxonomy import TAXONOMY
+from reprocess_list import names_for_subsector
 
 load_dotenv()
 
@@ -44,9 +63,8 @@ W = 64
 def _fine_subsector_labels() -> dict[str, set[str]]:
     """subsector name -> its sub_subsectors set, for every subsector TAXONOMY
     breaks into sub_subsectors under at least one sector -- discovered
-    dynamically, no subsector name hardcoded, so this covers today's three
-    (Productivity Tools, AI Driven Developer Productivity, AI Security And
-    Guardrails) and whatever taxonomy.py adds later.
+    dynamically, no subsector name or count hardcoded, so this covers
+    whatever set taxonomy.py currently defines (and whatever it adds later).
 
     Flat name -> labels map (not scoped per sector) is safe here: verified
     2026-08-29 that no subsector name other than "Uncategorized" is reused
@@ -72,23 +90,38 @@ def _fetch_all(table: str, columns: str) -> list[dict]:
     return rows
 
 
+def check_no_shared_subsector(a: dict, b: dict) -> dict | None:
+    """Standalone no_shared_subsector check -- the only check run in --subsector/
+    --companies scoped mode, and also the first thing check_pair() below checks
+    for the default fine-subsector scope. Kept as its own function so scoped
+    mode doesn't have to run (or care about) the fine_subsector_mismatch logic,
+    per the ticket's "don't merge the two checks" requirement.
+    """
+    a_subs = set(a.get("subsectors") or [])
+    b_subs = set(b.get("subsectors") or [])
+    if a_subs & b_subs:
+        return None
+    return {
+        "exclusion_reason": "no_shared_subsector",
+        "detail": "company_a and company_b no longer share any subsector at all "
+                  "(taxonomy drift since this link was made -- unrelated to the "
+                  "sub_subsector fix itself, but the pair wouldn't pass "
+                  "get_by_subsectors' base overlap query either)",
+    }
+
+
 def check_pair(a: dict, b: dict, fine_labels: dict[str, set[str]]) -> dict | None:
     """Mirrors get_by_subsectors()'s fine-subsector matching logic for one
     already-saved pair. Returns None if the pair would still pass today's
     filter (keep); otherwise a dict explaining why it would now be excluded.
     """
+    no_shared = check_no_shared_subsector(a, b)
+    if no_shared is not None:
+        return no_shared
+
     a_subs = set(a.get("subsectors") or [])
     b_subs = set(b.get("subsectors") or [])
     shared = a_subs & b_subs
-
-    if not shared:
-        return {
-            "exclusion_reason": "no_shared_subsector",
-            "detail": "company_a and company_b no longer share any subsector at all "
-                      "(taxonomy drift since this link was made -- unrelated to the "
-                      "sub_subsector fix itself, but the pair wouldn't pass "
-                      "get_by_subsectors' base overlap query either)",
-        }
 
     # Rule 2: a coarse (no sub_subsectors defined) shared subsector alone is
     # enough to keep the pair, exactly like get_by_subsectors' short-circuit.
@@ -98,33 +131,53 @@ def check_pair(a: dict, b: dict, fine_labels: dict[str, set[str]]) -> dict | Non
     a_sub_subs = set(a.get("sub_subsectors") or [])
     b_sub_subs = set(b.get("sub_subsectors") or [])
 
-    per_subsector = []
+    # Only a subsector where BOTH sides have at least one sub_subsector label
+    # is actually comparable -- an empty side is a data gap, not evidence of
+    # divergence (e.g. "General Purpose AI Models" has no sub_subsectors
+    # defined in TAXONOMY at all, so it must never reach this point flagged).
+    reasons = []
     for sub in sorted(shared):  # every remaining shared subsector is fine
         labels = fine_labels[sub]
         a_own = sorted(a_sub_subs & labels)
         b_own = sorted(b_sub_subs & labels)
-        per_subsector.append({"subsector": sub, "company_a_labels": a_own, "company_b_labels": b_own})
+        if not a_own or not b_own:
+            continue  # nothing to compare on this subsector -- skip, not a mismatch
         if set(a_own) & set(b_own):
             return None  # genuine overlap on this subsector -- pair stays valid
+        reasons.append({
+            "subsector": sub,
+            "company_a_labels": a_own,
+            "company_b_labels": b_own,
+            "why": "both sides have sub_subsectors for this subsector, but they don't overlap",
+        })
 
-    reasons = []
-    for row in per_subsector:
-        a_empty = not row["company_a_labels"]
-        b_empty = not row["company_b_labels"]
-        if a_empty and b_empty:
-            why = "neither side has a sub_subsector for this subsector"
-        elif a_empty:
-            why = "company_a has no sub_subsector for this subsector"
-        elif b_empty:
-            why = "company_b has no sub_subsector for this subsector"
-        else:
-            why = "both sides have sub_subsectors for this subsector, but they don't overlap"
-        reasons.append({**row, "why": why})
+    if not reasons:
+        return None  # no comparable subsector had data on both sides -- not a mismatch
 
     return {"exclusion_reason": "fine_subsector_mismatch", "per_subsector": reasons}
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument(
+        "--subsector",
+        help='Restrict the audit to pairs touching a startup currently tagged with this '
+             'subsector (e.g. "API Infrastructure"), for reuse after a reprocess_list.py '
+             'run. Runs ONLY the no_shared_subsector check -- fine_subsector_mismatch stays '
+             'scoped to its own fixed 3 subsectors regardless of this flag.',
+    )
+    scope.add_argument(
+        "--companies",
+        help="Path to a text file, one compspro.name per line -- same targeted "
+             "no_shared_subsector-only check, scoped to this explicit list instead of a subsector.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
     print(f"\n  Chargement des données Supabase…", end="", flush=True)
     companies = {r["name"]: r for r in _fetch_all("compspro", "name, sectors, subsectors, sub_subsectors")}
     pairs = _fetch_all("competitors", "id, company_a, company_b, score")
@@ -133,14 +186,33 @@ def main() -> None:
     fine_labels = _fine_subsector_labels()
     fine_names = set(fine_labels)
 
-    touching_names = {
-        name for name, c in companies.items()
-        if set(c.get("subsectors") or []) & fine_names
-    }
-    relevant_pairs = [
-        p for p in pairs
-        if p["company_a"] in touching_names or p["company_b"] in touching_names
-    ]
+    if args.subsector or args.companies:
+        if args.subsector:
+            target_names = set(names_for_subsector(args.subsector))
+            scope = f"subsector:{args.subsector}"
+            scope_desc = f'startups tagged "{args.subsector}"'
+        else:
+            with open(args.companies, encoding="utf-8") as f:
+                target_names = {line.strip() for line in f if line.strip()}
+            scope = f"companies_file:{args.companies}"
+            scope_desc = f"startups listed in {args.companies}"
+        relevant_pairs = [
+            p for p in pairs
+            if p["company_a"] in target_names or p["company_b"] in target_names
+        ]
+        checker = check_no_shared_subsector
+    else:
+        target_names = {
+            name for name, c in companies.items()
+            if set(c.get("subsectors") or []) & fine_names
+        }
+        relevant_pairs = [
+            p for p in pairs
+            if p["company_a"] in target_names or p["company_b"] in target_names
+        ]
+        scope = "fine_subsectors_default"
+        scope_desc = "subsector fin"
+        checker = lambda a, b: check_pair(a, b, fine_labels)
 
     stale, dangling = [], []
     for p in relevant_pairs:
@@ -148,7 +220,7 @@ def main() -> None:
         if not a or not b:
             dangling.append(p)
             continue
-        verdict = check_pair(a, b, fine_labels)
+        verdict = checker(a, b)
         if verdict is not None:
             stale.append({"company_a": p["company_a"], "company_b": p["company_b"], "score": p["score"], **verdict})
 
@@ -157,9 +229,10 @@ def main() -> None:
     print(hr)
     print(f"{BOLD}  STALE COMPETITORS AUDIT (post get_by_subsectors fix){RESET}")
     print(sep)
+    print(f"  Scope                             : {BOLD}{scope}{RESET}")
     print(f"  Subsectors 'fins' pris en compte : {', '.join(sorted(fine_names))}")
     print(f"  Total competitors rows           : {BOLD}{len(pairs)}{RESET}")
-    print(f"  Pairs touchant un subsector fin   : {BOLD}{len(relevant_pairs)}{RESET}")
+    print(f"  Pairs touchant {scope_desc:<17} : {BOLD}{len(relevant_pairs)}{RESET}")
     color = GREEN if not stale else (YELLOW if len(stale) < 50 else RED)
     print(f"  Stale (seraient exclues)          : {color}{len(stale)}{RESET}")
     if dangling:
@@ -187,6 +260,7 @@ def main() -> None:
     print(f"\n{hr}\n")
 
     report = {
+        "scope": scope,
         "summary": {
             "total_competitors_rows": len(pairs),
             "pairs_touching_fine_subsector": len(relevant_pairs),

@@ -28,7 +28,7 @@ def fetch_all_startups() -> list[dict]:
     while True:
         batch = (
             client.table("compspro")
-            .select("name, description, sectors, subsectors, sub_subsectors")
+            .select("id, name, description, sectors, subsectors, sub_subsectors")
             .order("name")
             .range(page, page + size - 1)
             .execute()
@@ -42,30 +42,43 @@ def fetch_all_startups() -> list[dict]:
 
 
 def load_progress() -> set[str]:
+    """Progress is keyed by compspro.id (as a string), not name -- two
+    startups can share a display name (e.g. "Corma" at corma.io and
+    corma.ai), which used to make finishing one wrongly skip the other."""
     if not os.path.exists(PROGRESS_FILE):
         return set()
     with open(PROGRESS_FILE, encoding="utf-8") as f:
         return {line.strip() for line in f if line.strip()}
 
 
-def mark_done(name: str) -> None:
+def mark_done(company_id: str) -> None:
     with open(PROGRESS_FILE, "a", encoding="utf-8") as f:
-        f.write(name + "\n")
+        f.write(str(company_id) + "\n")
 
 
 def candidates_for(company: dict) -> list[dict]:
     name = company["name"]
+    # include_embedding=False: this script scores candidates via
+    # score_candidates() (LLM-based), never prefilter_by_embedding() -- pulling
+    # the ~20KB-per-row embedding column here was pure wasted egress across a
+    # backlog of hundreds of startups (2026-09-04 incident).
     candidates = get_by_subsectors(
         company.get("subsectors") or [],
         company.get("sectors") or [],
         name,
         company.get("sub_subsectors") or [],
+        include_embedding=False,
+        exclude_id=company["id"],
     )
-    # Score each unordered pair once: only candidates after this company alphabetically
-    candidates = [c for c in candidates if c["name"] > name]
+    # Score each unordered pair once: only candidates ordered after this
+    # company. Tie-broken by id (not just name) so two same-named startups
+    # (e.g. "Corma" at corma.io and corma.ai) still get a well-defined,
+    # single ordering instead of neither/both sides skipping the pair.
+    key = (name, company["id"])
+    candidates = [c for c in candidates if (c["name"], c["id"]) > key]
     # Never re-score pairs already in the competitors table
-    known = set(get_known_competitors(name))
-    return [c for c in candidates if c["name"] not in known]
+    known_ids = {c["id"] for c in get_known_competitors(company["id"])}
+    return [c for c in candidates if c["id"] not in known_ids]
 
 
 def main() -> None:
@@ -88,7 +101,7 @@ def main() -> None:
     if args.dry_run:
         pairs, calls = 0, 0
         for i, company in enumerate(batch, 1):
-            if company["name"] in done:
+            if str(company["id"]) in done:
                 continue
             n = len(candidates_for(company))
             pairs += n
@@ -100,7 +113,7 @@ def main() -> None:
     saved_total, errors = 0, []
     for i, company in enumerate(batch, 1):
         name = company["name"]
-        if name in done:
+        if str(company["id"]) in done:
             continue
         print(f"[{i}/{total}] {name}", flush=True)
         try:
@@ -111,7 +124,7 @@ def main() -> None:
                 for rel in saved:
                     print(f"    ↔ {rel['company_b']} (score {rel['score']:.2f})")
                 saved_total += len(saved)
-            mark_done(name)
+            mark_done(company["id"])
         except Exception as e:
             errors.append((name, str(e)))
             print(f"    ✗ ERROR — {e}")

@@ -9,8 +9,9 @@ from storage import (
     INTERACTIVE_TIMEOUT_MS,
     RETRY_INTERACTIVE_STOP,
     RETRY_INTERACTIVE_WAIT,
+    log_api_call,
 )
-from taxonomy import TAXONOMY, SUBSECTOR_DEFINITIONS, HORIZONTAL_SUBSECTORS, validate_subsectors, demote_generic_erp_tag, remove_redundant_uncategorized
+from taxonomy import TAXONOMY, SUBSECTOR_DEFINITIONS, HORIZONTAL_SUBSECTORS, validate_subsectors, demote_generic_erp_tag, demote_generic_mlops_tag, demote_generic_compute_tag, remove_redundant_uncategorized
 
 
 # Batch/backfill budget (reprocess_list.py's extract() calls) -- free-tier Mistral
@@ -31,8 +32,10 @@ _retry = build_retry(
 
 
 @_retry
-def _chat_complete_core(client: Mistral, timeout_ms: int, **kwargs) -> dict:
+def _chat_complete_core(client: Mistral, timeout_ms: int, call_type: str, **kwargs) -> dict:
     r = client.chat.complete(timeout_ms=timeout_ms, **kwargs)
+    usage = r.usage
+    log_api_call(call_type, kwargs.get("model", "unknown"), usage.prompt_tokens or 0, usage.completion_tokens or 0)
     return json.loads(r.choices[0].message.content)
 
 
@@ -45,15 +48,15 @@ _chat_complete_core_interactive = _chat_complete_core.retry_with(
 )
 
 
-def _chat_complete(client: Mistral, **kwargs) -> dict:
+def _chat_complete(client: Mistral, call_type: str, **kwargs) -> dict:
     """Dispatch to the interactive or batch retry/timeout budget based on
     INTERACTIVE_REQUEST (set by main.ingest() for the duration of a single
-    interactive ingest). Drop-in replacement for the old _chat_complete -- every
-    existing call site is unchanged.
+    interactive ingest). call_type identifies which extraction step this is
+    (extract_step1/2a/2b/2c) for storage.log_api_call's usage/cost log.
     """
     if INTERACTIVE_REQUEST.get():
-        return _chat_complete_core_interactive(client, timeout_ms=INTERACTIVE_TIMEOUT_MS, **kwargs)
-    return _chat_complete_core(client, timeout_ms=BATCH_TIMEOUT_MS, **kwargs)
+        return _chat_complete_core_interactive(client, timeout_ms=INTERACTIVE_TIMEOUT_MS, call_type=call_type, **kwargs)
+    return _chat_complete_core(client, timeout_ms=BATCH_TIMEOUT_MS, call_type=call_type, **kwargs)
 
 load_dotenv()
 
@@ -80,8 +83,7 @@ Return ONLY a valid JSON object:
     at the top of the user message. Pick the candidate most likely to be the company's own
     logo — NOT a client/partner logo, NOT a social network icon. Prefer <img> logos over
     icons, and icons over og:image. Return the URL exactly as listed.
-    Return null if the list is empty or no candidate is the company's own logo.",
-  "linkedin_url": "The URL of the company's LinkedIn page. Look for linkedin.com/company/ links in the page. Return the full URL or null if not found."
+    Return null if the list is empty or no candidate is the company's own logo."
 }
 
 Be precise and specific. Do not use generic labels.
@@ -107,7 +109,7 @@ VALID SECTORS (choose ONLY from this list):
 
 DISAMBIGUATION RULES — read before choosing:
 - `Enterprise Software` = ONLY horizontal business tools: CRM, ERP, project management, customer support, productivity tools (email assistants, scheduling, note-taking, meeting tools). If the startup has a more specific sector, use that instead.
-- `AI & Machine Learning` = AI infrastructure, foundation models, MLOps, AI agents, coding assistants, GPU cloud compute. Subsectors include: `MLOps & Infrastructure` (deploy/monitor models) vs `AI Compute & Cloud Infrastructure` (GPU cloud providers, serverless inference). NOT vertical AI applications (those go in their specific sector).
+- `AI & Machine Learning` = AI infrastructure, foundation models, MLOps, AI agents, coding assistants, GPU cloud compute. Subsectors include: `MLOps & Model Serving` (deploy/monitor models) vs `AI Compute & Cloud Infrastructure` (GPU cloud providers, serverless inference). NOT vertical AI applications (those go in their specific sector).
 - `Cybersecurity` = any product whose primary value is security: threat detection, identity, compliance, data protection, SOC tools.
 - `FinTech` = any product touching money, payments, financial compliance, treasury, crypto, insurance (B2B tools for financial industry).
 - `Developer Tools & Infrastructure` = tools built FOR developers: CI/CD, observability, APIs, infrastructure, DevOps, code generation. NOT productivity tools for general professionals, NOT enterprise software that happens to have an API.
@@ -140,6 +142,7 @@ Rules:
 """
     data       = _chat_complete(
         client,
+        call_type="extract_step2a",
         model="mistral-medium-latest",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
@@ -186,6 +189,7 @@ Rules:
 """
     data   = _chat_complete(
         client,
+        call_type="extract_step2b",
         model="mistral-medium-latest",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
@@ -228,6 +232,7 @@ Rules:
 """
     data   = _chat_complete(
         client,
+        call_type="extract_step2c",
         model="mistral-medium-latest",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
@@ -272,7 +277,7 @@ def _sector_exempt_from_removal(orig: set[str]) -> bool:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-def extract(markdown: str, website: str = None, logo_candidates: list[dict] = None) -> dict:
+def extract(markdown: str, website: str = None, logo_candidates: list[dict] = None, linkedin_url: str = None) -> dict:
     client = Mistral(api_key=os.environ["MISTRAL_API_KEY"], timeout_ms=BATCH_TIMEOUT_MS)
 
     markdown = markdown[:30000]
@@ -286,6 +291,7 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
     # Step 1: free extraction
     step1 = _chat_complete(
         client,
+        call_type="extract_step1",
         model="mistral-large-latest",
         messages=[
             {"role": "system", "content": _STEP1_SYSTEM},
@@ -318,6 +324,8 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
     # Step 3: validate_subsectors — remove horizontal tags in vertical contexts
     subsectors = validate_subsectors(subsectors, sectors=sectors)
     subsectors = demote_generic_erp_tag(subsectors)
+    subsectors = demote_generic_mlops_tag(subsectors)
+    subsectors = demote_generic_compute_tag(subsectors)
     subsectors = remove_redundant_uncategorized(subsectors)
     valid_subsector_set = set(subsectors)
 
@@ -344,21 +352,7 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
             scored_subs = {sub: conf for sub, conf in valid_subs.items() if sub != "Uncategorized"}
             if not valid_subs:
                 orig = original_sector_subs.get(sector, set())
-                # Exempt iff every one of orig's REAL (non-"Uncategorized") signals
-                # is horizontal -- "Uncategorized" itself carries no information, so
-                # it's excluded from the check either way. This is deliberately NOT
-                # "orig has at least one horizontal tag" (too lenient: a sector whose
-                # orig was e.g. {"Speech & Audio AI", "ERP & Business Operations"}
-                # also lost a real, non-horizontal signal to demote_generic_erp_tag's
-                # cross-sector redundancy rule -- that's a different, non-exempt
-                # removal reason, not "removed only because horizontal", even though
-                # a horizontal tag also happened to be present). It's also NOT "orig
-                # is entirely horizontal-or-Uncategorized" (too strict: the original
-                # bug this exemption exists to fix -- a sector whose orig was a lone
-                # "Uncategorized" has no real signal at all, so it must NOT be
-                # exempt just because "Uncategorized" is in the allowance set).
-                real_signals = orig - {"Uncategorized"}
-                if not (real_signals and real_signals.issubset(HORIZONTAL_SUBSECTORS)):
+                if not _sector_exempt_from_removal(orig):
                     sectors_to_remove.append(sector)
             elif scored_subs and all(conf < 0.9 for conf in scored_subs.values()):
                 sectors_to_remove.append(sector)
@@ -378,6 +372,50 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
         subsectors = [sub for sub in subsectors if sub in remaining_subs]
         for sector in sectors_to_remove:
             subsector_confidences.pop(sector, None)
+
+    # Step 5b: cap subsectors at 3 total across ALL sectors combined. Step 2b's
+    # "1-3 subsectors maximum" is enforced per LLM call (once per sector), so
+    # without this a startup with up to 3 sectors (Step 2a's own cap) could
+    # otherwise end up with as many as 9. Each surviving sector keeps its own
+    # highest-confidence subsector first (so a sector is never left backing
+    # its tag with zero subsectors), then any remaining slots up to 3 total
+    # are filled with the next highest-confidence subsectors across sectors.
+    MAX_SUBSECTORS_TOTAL = 3
+    if len(sector_subsector_pairs) > MAX_SUBSECTORS_TOTAL:
+        pairs_with_conf = [
+            (sec, sub, subsector_confidences.get(sec, {}).get(sub, 0.0))
+            for sec, sub in sector_subsector_pairs
+        ]
+        guaranteed = [
+            max((p for p in pairs_with_conf if p[0] == sector), key=lambda p: p[2])
+            for sector in sectors
+            if any(p[0] == sector for p in pairs_with_conf)
+        ]
+        # Defensive: more sectors than the cap would make "1 per sector"
+        # impossible to satisfy in full (Step 2a already caps at 3 sectors,
+        # so this shouldn't normally trigger) -- keep the strongest ones.
+        guaranteed.sort(key=lambda p: p[2], reverse=True)
+        guaranteed = guaranteed[:MAX_SUBSECTORS_TOTAL]
+        guaranteed_keys = {(sec, sub) for sec, sub, _ in guaranteed}
+
+        remaining_slots = MAX_SUBSECTORS_TOTAL - len(guaranteed)
+        remainder = sorted(
+            (p for p in pairs_with_conf if (p[0], p[1]) not in guaranteed_keys),
+            key=lambda p: p[2],
+            reverse=True,
+        )
+        selected_keys = guaranteed_keys | {(sec, sub) for sec, sub, _ in remainder[:remaining_slots]}
+
+        sector_subsector_pairs = [
+            (sec, sub) for sec, sub in sector_subsector_pairs if (sec, sub) in selected_keys
+        ]
+        remaining_subs = {sub for _, sub in sector_subsector_pairs}
+        subsectors = [sub for sub in subsectors if sub in remaining_subs]
+        for sec in subsector_confidences:
+            subsector_confidences[sec] = {
+                sub: conf for sub, conf in subsector_confidences[sec].items()
+                if (sec, sub) in selected_keys
+            }
 
     # Step 2c: sub-subsector classification — only for subsectors that actually
     # define sub-subsectors, to avoid a wasted LLM call in the common case
@@ -407,7 +445,7 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
         "country":               step1.get("country"),
         "description":           description,
         "logo_url":              logo_url,
-        "linkedin_url":          step1.get("linkedin_url"),
+        "linkedin_url":          linkedin_url,
         "website":               website,
         "sectors":               sectors,
         "subsectors":            subsectors,

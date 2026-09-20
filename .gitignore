@@ -2,6 +2,8 @@
 _bmad/
 _bmad-output/
 .claude/
+.cursor/
+.vscode/
 .log_review_pending.json
 
 # Python / venv
@@ -16,11 +18,33 @@ __pycache__/
 # OS
 .DS_Store
 
-# Proprietary classification/matching logic -- kept out of the public repo
-taxonomy.py
-competitor.py
+# Proprietary classification/matching logic -- kept out of the public repo.
+# (taxonomy.py/competitor.py ARE tracked here: they're illustrative
+# placeholders, not the real ones -- see README's "Scope of this repo".)
 competitor_validator.py
 graph_analysis.py
+_tmp_fix_payment.py
+fix_compute_tag.py
+fix_mlops_tag.py
+
+# One-off maintenance scripts, already applied -- kept locally, not on GitHub
+audit_taxonomy.py
+backfill_specific.py
+fix_empty_subsectors.py
+fix_redundant_uncategorized.py
+log_review.py
+readiness_check.py
+recalibrate_competitors.py
+
+# BMAD-generated docs -- internal bookkeeping, not for the public repo
+docs/api-contracts.md
+docs/architecture.md
+docs/data-models.md
+docs/development-guide.md
+docs/index.md
+docs/project-overview.md
+docs/project-scan-report.json
+docs/source-tree-analysis.md
 
 # Real database content / reports -- kept out of the public repo
 audit_report.json

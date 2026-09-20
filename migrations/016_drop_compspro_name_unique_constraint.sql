@@ -1,0 +1,27 @@
+-- Discovered live (2026-09-09): compspro has a pre-existing DB-level
+-- UNIQUE(name) constraint, named "startups2_name_key" -- a leftover from
+-- before the table was renamed (compspro was originally "startups2"; Postgres
+-- doesn't rename constraints on ALTER TABLE ... RENAME TO). It predates the
+-- migrations/ directory entirely, so nothing here documented it.
+--
+-- This constraint is exactly what the domain/id identity fix (migrations
+-- 013-015, storage.save_startup) was built to stop relying on: two startups
+-- CAN legitimately share a display name (e.g. "Corma" at corma.io and
+-- corma.ai) -- confirmed live by the failure this migration fixes:
+--   duplicate key value violates unique constraint "startups2_name_key"
+--   Key (name)=(Corma) already exists.
+-- Uniqueness is now enforced on domain instead (migrations/014's
+-- compspro_domain_uidx) -- name is purely a display field going forward.
+--
+-- CASCADE required, and confirmed safe: dropping this bare (no CASCADE)
+-- failed live with "other objects depend on it" -- competitors_company_a_fkey
+-- and competitors_company_b_fkey (on the competitors table) turned out to
+-- reference compspro(name) via this very index. This was a real DB-level FK,
+-- contrary to docs/data-models.md's "References compspro.name, not enforced
+-- at DB level" -- reverse-engineered docs without a migrations history for
+-- compspro/competitors' original schema missed it. CASCADE only drops these
+-- two now-obsolete FK constraints (no data, no columns) -- migrations/015's
+-- company_a_id/company_b_id (proper FKs to compspro.id) already replace them
+-- as the enforced relational identity; company_a/company_b (text) become
+-- pure display labels, exactly as migrations/015's comments describe.
+alter table compspro drop constraint startups2_name_key cascade;
