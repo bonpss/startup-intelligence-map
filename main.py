@@ -3,18 +3,46 @@ import os
 import re
 import json
 import asyncio
+import threading
 from urllib.parse import urlparse, urljoin
+from html import unescape as _html_unescape
 from playwright.async_api import async_playwright
+import boto3
+from botocore.exceptions import ClientError
 import html2text
 import httpx
 import trafilatura
 from embeddings import embed_one
 from extractor import extract
-from storage import save_startup, normalize_domain, COMPETITOR_THRESHOLD, INTERACTIVE_REQUEST, CURRENT_API_CALL_CONTEXT, _client as _db_client
-from competitor import compare, save_competitors, explore_transitive
+from storage import save_startup, normalize_domain, INTERACTIVE_REQUEST, CURRENT_API_CALL_CONTEXT, _client as _db_client
+from competitor import compare_jev, explore_transitive_jev, save_competitors_jev
+import net_security
+from net_security import UnsafeURLError
 
 
 LOGO_EXTENSIONS = ("svg", "png", "jpg", "jpeg", "webp", "ico")
+
+# Favicons/logos live in Cloudflare R2 by default (assets/logos/ is
+# gitignored, so a locally-saved file never reaches the VPS -- this is what
+# broke flaticon_url/logo_url for anything ingested outside the VPS). Set
+# LOGO_STORAGE=local to write to local disk instead, for offline debugging
+# only; production/VPS ingestion must never set this.
+LOGO_STORAGE = os.environ.get("LOGO_STORAGE", "r2")
+
+# Path-traversal defense-in-depth for the one place a file path is built out
+# of app-controlled-but-externally-derived data (slugify(normalize_domain(url))):
+# normalize_domain() shouldn't ever produce a slash/dot-dot, but this is
+# checked explicitly at the point the filename is actually constructed
+# rather than trusted implicitly from an upstream guarantee two functions
+# away. Only lowercase alnum, dot, underscore, hyphen -- deliberately
+# stricter than what a domain could theoretically contain, since this only
+# ever needs to match slugify()'s own output.
+_SAFE_ASSET_SLUG_RE = re.compile(r"^[a-z0-9._-]+$")
+
+
+def _validate_asset_slug(slug: str) -> None:
+    if not slug or ".." in slug or not _SAFE_ASSET_SLUG_RE.match(slug):
+        raise ValueError(f"Unsafe asset filename slug: {slug!r}")
 
 # One asyncio.Lock per normalized domain, serializing concurrent ingest() calls for
 # the same company so they can't interleave their check-then-write DB sequences
@@ -83,6 +111,25 @@ def _linkedin_url_from_html(html: str, base_url: str) -> str | None:
     return None
 
 
+def _page_title_from_html(html: str) -> str | None:
+    """Extract the page's <title> text (e.g. "Anemo Labs - Digitizing Smell").
+
+    Minimalist landing pages (Framer/Webflow templates especially) often never
+    spell out the company name anywhere in the visible body copy -- it only
+    lives in the browser tab title and in the logo image, which is unreadable
+    text. Without this, extractor.py's Step 1 has no textual signal at all for
+    `name` and correctly returns null (confirmed on anemolabs.com: good body
+    text, but zero occurrences of "Anemo Labs"). Prepended to the scraped text
+    in both scrape paths so the LLM gets the same hint regardless of which one
+    ran.
+    """
+    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+    if not m:
+        return None
+    title = _html_unescape(m.group(1)).strip()
+    return title or None
+
+
 def _favicon_url_from_html(html: str, base_url: str) -> str | None:
     """Find the favicon URL declared in the page's <link rel> tags.
 
@@ -138,6 +185,231 @@ def _logo_candidates_from_html(html: str, base_url: str) -> list[dict]:
     return candidates[:8]
 
 
+# Max redirect hops the safe-download helpers below will follow before
+# giving up -- generous enough for a normal www-canonicalization/HTTPS-upgrade
+# chain, but bounded so a malicious/misconfigured site can't wedge this in an
+# infinite-redirect loop.
+_MAX_REDIRECTS = 5
+
+# Hard cap on any single favicon/logo download, enforced while streaming (not
+# after the fact on a fully-buffered response) -- a malicious or
+# misconfigured server can otherwise serve an arbitrarily large body at a
+# URL that passed every other check, exhausting memory/disk for what's
+# ultimately discarded as "too big to be a favicon" anyway.
+_MAX_ASSET_BYTES = 512 * 1024  # 512 KiB
+
+# Only these response Content-Types are ever trusted for a saved asset --
+# the remote URL's own path/extension is NEVER consulted (a malicious site
+# fully controls that string). image/gif is deliberately excluded even
+# though browsers render it -- it's not in this project's LOGO_EXTENSIONS
+# allowlist and animated GIFs have their own historical parser bugs.
+_CONTENT_TYPE_TO_EXT = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+    "image/x-icon": "ico",
+    "image/vnd.microsoft.icon": "ico",
+    "image/svg+xml": "svg",
+}
+
+# Reverse of _CONTENT_TYPE_TO_EXT -- used to set the Content-Type an R2
+# upload is served back with, since R2/S3 doesn't infer it from the key.
+_EXT_TO_CONTENT_TYPE = {ext: mime for mime, ext in _CONTENT_TYPE_TO_EXT.items()}
+
+# Regex byte-patterns that make a downloaded SVG unsafe to save/serve, even
+# behind this project's /assets nosniff+sandboxed-CSP headers (defense in
+# depth, not a substitute for those headers): inline scripts, on*= event
+# handlers, <foreignObject> (can embed arbitrary HTML/JS inside an SVG),
+# javascript: URIs, external DTD/entity declarations (XXE), any http(s)/
+# protocol-relative href or xlink:href (a self-contained favicon never needs
+# one -- only local #fragment references do), and @import (external
+# stylesheet loading). Deliberately broad/allowlist-flavored: a legitimate
+# favicon SVG is simple, self-contained vector art, so refusing anything
+# that even looks like it might reach outside the file is the safe default,
+# not an overreach.
+_SVG_DANGEROUS_PATTERNS = (
+    re.compile(rb"<\s*script", re.I),
+    re.compile(rb"\bon[a-zA-Z]+\s*=", re.I),
+    re.compile(rb"<\s*foreignObject", re.I),
+    re.compile(rb"javascript\s*:", re.I),
+    re.compile(rb"<!ENTITY", re.I),
+    re.compile(rb"<!DOCTYPE[^>]*(SYSTEM|PUBLIC)", re.I),
+    re.compile(rb"\bhref\s*=\s*[\"']\s*(https?:)?//", re.I),  # matches xlink:href too (word boundary after ':')
+    re.compile(rb"@import", re.I),
+)
+
+
+def _is_safe_svg(content: bytes) -> bool:
+    """True if `content` looks like a real, self-contained SVG document with
+    none of _SVG_DANGEROUS_PATTERNS present. Not a full XML parse (this
+    project has no XML dependency and a regex scan is sufficient for an
+    allowlist-style "refuse anything suspicious" check) -- just requires an
+    <svg ...> tag to appear near the start of the document, matching how a
+    real favicon SVG looks (optionally preceded by an XML declaration/
+    comments/whitespace), and none of the dangerous patterns anywhere.
+    """
+    head = content[:512].lstrip()
+    if b"<svg" not in head[:256] and not head.startswith((b"<?xml", b"<!--")):
+        return False
+    if b"<svg" not in content:
+        return False
+    return not any(p.search(content) for p in _SVG_DANGEROUS_PATTERNS)
+
+
+def _magic_bytes_match(ext: str, content: bytes) -> bool:
+    if ext == "png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext == "jpg":
+        return content.startswith(b"\xff\xd8\xff")
+    if ext == "webp":
+        return content[:4] == b"RIFF" and content[8:12] == b"WEBP"
+    if ext == "ico":
+        return content[:4] == b"\x00\x00\x01\x00"
+    if ext == "svg":
+        return _is_safe_svg(content)
+    return False
+
+
+def _classify_downloaded_image(content: bytes, content_type_header: str | None) -> str | None:
+    """Returns a trusted extension (png/jpg/webp/ico/svg) for `content`, or
+    None if it can't be trusted enough to save. Two independent signals must
+    both agree: the response's own Content-Type header says what kind of
+    file this claims to be (never the remote URL's path, which the old
+    version of this code trusted and which a malicious/compromised site
+    fully controls), AND the actual bytes' magic number -- or, for SVG, the
+    strict content scan above -- confirm it. Either one alone isn't enough:
+    a header with no matching bytes is a lie, and bytes with no recognized
+    Content-Type are simply not saved as anything (this app never needs to
+    guess a file's type from its content alone).
+    """
+    if not content_type_header:
+        return None
+    mime = content_type_header.split(";", 1)[0].strip().lower()
+    ext = _CONTENT_TYPE_TO_EXT.get(mime)
+    if ext is None:
+        return None
+    if not _magic_bytes_match(ext, content):
+        return None
+    return ext
+
+
+def _safe_httpx_download(url: str, max_bytes: int = _MAX_ASSET_BYTES, **kwargs) -> tuple[bytes, str | None, str]:
+    """Download `url`'s body for saving as a favicon/logo asset: per-hop SSRF
+    re-validation (same as the old _safe_httpx_get, now removed since this
+    replaced its only callers) plus a streaming size cap that aborts the
+    download the moment it exceeds `max_bytes`, instead of buffering the
+    full response via response.content the way httpx normally would.
+
+    Returns (content, content_type_header, final_url) -- final_url is the
+    post-redirect URL (needed by fetch_and_save_favicon to resolve a
+    relative favicon href against the page's actual location, same as the
+    old code used response.url for). content_type_header is returned raw;
+    callers must run it through _classify_downloaded_image before trusting
+    it for anything.
+
+    Raises net_security.UnsafeURLError (unsafe/redirected-to-unsafe URL, or
+    too many redirects), ValueError (body exceeds max_bytes), or
+    httpx.HTTPStatusError (non-2xx final response) -- every caller already
+    wraps this in a blanket `except Exception: pass`, matching the existing
+    "logo/favicon not found" failure mode for any of these.
+    """
+    current = url
+    with httpx.Client() as client:
+        for _ in range(_MAX_REDIRECTS + 1):
+            net_security.assert_safe_url(current)
+            with client.stream("GET", current, follow_redirects=False, **kwargs) as resp:
+                location = resp.headers.get("location") if resp.is_redirect else None
+                if location:
+                    current = urljoin(str(resp.url), location)
+                    continue
+                resp.raise_for_status()
+                content_type = resp.headers.get("content-type")
+                content = bytearray()
+                for chunk in resp.iter_bytes():
+                    content.extend(chunk)
+                    if len(content) > max_bytes:
+                        raise ValueError(f"Response for {url!r} exceeds the {max_bytes}-byte limit.")
+                return bytes(content), content_type, str(resp.url)
+    raise UnsafeURLError(f"Too many redirects for {url!r}.")
+
+
+_r2 = None
+_r2_lock = threading.Lock()
+
+
+def _r2_client():
+    """Lazily create and cache a single R2 (S3-compatible) client. Same
+    lazy-init-with-lock pattern as storage.py::_client() for the Supabase
+    client -- one place this is constructed, imported everywhere, instead of
+    inlined per caller.
+    """
+    global _r2
+    if _r2 is None:
+        with _r2_lock:
+            if _r2 is None:
+                _r2 = boto3.client(
+                    "s3",
+                    endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+                    aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+                    aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+                    region_name="auto",
+                )
+    return _r2
+
+
+def _r2_object_exists(key: str) -> bool:
+    try:
+        _r2_client().head_object(Bucket=os.environ["R2_BUCKET_NAME"], Key=key)
+        return True
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey"):
+            return False
+        raise
+
+
+def _r2_upload(key: str, content: bytes, content_type: str | None) -> str:
+    extra = {"ContentType": content_type} if content_type else {}
+    _r2_client().put_object(Bucket=os.environ["R2_BUCKET_NAME"], Key=key, Body=content, **extra)
+    return f"{os.environ['R2_PUBLIC_URL']}/{key}"
+
+
+def _save_asset(slug: str, suffix: str, content: bytes, ext: str) -> str:
+    """Persist a validated favicon/logo image under slug{suffix}.ext and
+    return its servable URL. Writes to R2 by default; LOGO_STORAGE=local
+    writes to local disk instead (offline debugging only -- see
+    fetch_and_save_favicon's docstring for why R2 is the default).
+    """
+    if LOGO_STORAGE == "local":
+        os.makedirs("assets/logos", exist_ok=True)
+        path = f"assets/logos/{slug}{suffix}.{ext}"
+        with open(path, "wb") as f:
+            f.write(content)
+        return f"/{path}"
+    key = f"logos/{slug}{suffix}.{ext}"
+    return _r2_upload(key, content, _EXT_TO_CONTENT_TYPE.get(ext))
+
+
+def _existing_asset_url(slug: str, suffix: str = "") -> str | None:
+    """Return the URL of an already-saved favicon/logo for slug{suffix}, if
+    one exists -- checking each of LOGO_EXTENSIONS in turn, against R2 (or
+    local disk under LOGO_STORAGE=local). Centralizes the "don't re-fetch if
+    we already have it" check that main.ingest() and reprocess_list.process()
+    each used to implement inline against os.path.exists(), so both callers
+    share one implementation instead of drifting.
+    """
+    if LOGO_STORAGE == "local":
+        for ext in LOGO_EXTENSIONS:
+            path = f"assets/logos/{slug}{suffix}.{ext}"
+            if os.path.exists(path):
+                return f"/{path}"
+        return None
+    for ext in LOGO_EXTENSIONS:
+        key = f"logos/{slug}{suffix}.{ext}"
+        if _r2_object_exists(key):
+            return f"{os.environ['R2_PUBLIC_URL']}/{key}"
+    return None
+
+
 def fetch_and_save_favicon(domain: str, website: str) -> str | None:
     """Download the site favicon — used for graph circles (flaticon_url).
 
@@ -147,41 +419,42 @@ def fetch_and_save_favicon(domain: str, website: str) -> str | None:
     Keyed by normalized domain, not the startup's display name -- two
     startups can share a name (e.g. "Corma" at corma.io and corma.ai), which
     used to make them silently overwrite each other's logo file on disk.
+
+    The saved extension/filename is entirely app-controlled: extension comes
+    from _classify_downloaded_image (Content-Type + magic bytes, never the
+    remote URL), and slug is validated by _validate_asset_slug before it's
+    ever used to build a path.
     """
     if not website:
         return None
 
     slug = slugify(domain)
-    os.makedirs("assets/logos", exist_ok=True)
+    _validate_asset_slug(slug)
 
     url = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
     try:
-        r = httpx.get(url, timeout=5, follow_redirects=True)
-        if r.status_code == 200 and len(r.content) > 68:
-            path = f"assets/logos/{slug}.png"
-            with open(path, "wb") as f:
-                f.write(r.content)
-            return f"/{path}"
+        content, content_type, _final_url = _safe_httpx_download(url, timeout=5)
+        ext = _classify_downloaded_image(content, content_type)
+        if ext and len(content) > 68:
+            return _save_asset(slug, "", content, ext)
     except Exception:
         pass
 
     # Fallback: favicon declared in the site's own HTML
     try:
-        page = httpx.get(website, timeout=10, follow_redirects=True, headers={"User-Agent": _FULL_BROWSER_UA})
-        if page.status_code != 200:
+        page_content, page_content_type, page_final_url = _safe_httpx_download(
+            website, timeout=10, headers={"User-Agent": _FULL_BROWSER_UA}
+        )
+        page_mime = (page_content_type or "").split(";", 1)[0].strip().lower()
+        if page_mime not in ("text/html", "application/xhtml+xml"):
             return None
-        icon_url = _favicon_url_from_html(page.text, str(page.url))
+        icon_url = _favicon_url_from_html(page_content.decode("utf-8", errors="replace"), page_final_url)
         if not icon_url:
             return None
-        r = httpx.get(icon_url, timeout=10, follow_redirects=True, headers={"User-Agent": _FULL_BROWSER_UA})
-        if r.status_code == 200 and len(r.content) > 68:
-            ext = urlparse(icon_url).path.rsplit(".", 1)[-1].lower()
-            if ext not in LOGO_EXTENSIONS:
-                ext = "png"
-            path = f"assets/logos/{slug}.{ext}"
-            with open(path, "wb") as f:
-                f.write(r.content)
-            return f"/{path}"
+        content, content_type, _final_url = _safe_httpx_download(icon_url, timeout=10, headers={"User-Agent": _FULL_BROWSER_UA})
+        ext = _classify_downloaded_image(content, content_type)
+        if ext and len(content) > 68:
+            return _save_asset(slug, "", content, ext)
     except Exception:
         pass
 
@@ -192,24 +465,19 @@ def fetch_and_save_real_logo(domain: str, logo_url: str) -> str | None:
     """Download the actual logo found by the LLM — used for market maps (logo_url).
 
     Keyed by normalized domain -- see fetch_and_save_favicon's docstring.
+    Extension/filename handling: see that function's docstring too.
     """
     if not logo_url:
         return None
 
     slug = slugify(domain)
-    os.makedirs("assets/logos", exist_ok=True)
-
-    ext = urlparse(logo_url).path.rsplit(".", 1)[-1].lower()
-    if ext not in LOGO_EXTENSIONS:
-        ext = "png"
+    _validate_asset_slug(slug)
 
     try:
-        r = httpx.get(logo_url, timeout=10, follow_redirects=True)
-        if r.status_code == 200 and len(r.content) > 100:
-            path = f"assets/logos/{slug}_logo.{ext}"
-            with open(path, "wb") as f:
-                f.write(r.content)
-            return f"/{path}"
+        content, content_type, _final_url = _safe_httpx_download(logo_url, timeout=10)
+        ext = _classify_downloaded_image(content, content_type)
+        if ext and len(content) > 100:
+            return _save_asset(slug, "_logo", content, ext)
     except Exception:
         pass
 
@@ -391,18 +659,44 @@ def _parse_light_fetch(html: str, base_url: str) -> tuple[str, list[dict], str |
     # instead of asking the LLM to find it, now that every link is gone below.
     linkedin_url = _linkedin_url_from_html(html, base_url)
     text = _clean_scraped_text(text)
+    title = _page_title_from_html(html)
+    if title:
+        text = f"PAGE TITLE: {title}\n\n{text}"
 
     return text, _logo_candidates_from_html(html, base_url), linkedin_url
+
+
+async def _safe_httpx_get_async(client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
+    """Async counterpart to _safe_httpx_get -- same manual, per-hop
+    SSRF re-validated redirect handling, for _fetch_light's async client.
+    """
+    current = url
+    for _ in range(_MAX_REDIRECTS + 1):
+        await asyncio.to_thread(net_security.assert_safe_url, current)
+        resp = await client.get(current, follow_redirects=False, **kwargs)
+        if not resp.is_redirect:
+            return resp
+        location = resp.headers.get("location")
+        if not location:
+            return resp
+        current = urljoin(str(resp.url), location)
+    raise UnsafeURLError(f"Too many redirects for {url!r}.")
 
 
 async def _fetch_light(url: str) -> tuple[str, list[dict], str | None] | None:
     """Fast path for server-rendered pages: plain HTTP GET + trafilatura extraction,
     no browser. Returns None (triggering the Playwright fallback) on any HTTP error,
     extraction failure, or if the extracted text is too short to be useful.
+
+    A redirect to an unsafe address (net_security.UnsafeURLError) is NOT
+    caught here -- it propagates out of scrape()/ingest() as a hard failure
+    instead of silently falling back to Playwright, which would just repeat
+    the same navigation (safely, thanks to _scrape_playwright's context.route
+    guard, but pointlessly).
     """
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
-            resp = await client.get(url, headers={
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await _safe_httpx_get_async(client, url, headers={
                 "User-Agent": _FULL_BROWSER_UA,
                 "Accept-Language": "en-US,en;q=0.9",
             })
@@ -418,11 +712,51 @@ async def scrape(url: str) -> tuple[str, list[dict], str | None]:
     works for server-rendered sites, which covers most cases. Falls back to
     Playwright only when the light fetch fails or comes back too short (JS-rendered
     content, anti-bot interstitial). Returns (markdown, logo_candidates, linkedin_url).
+
+    Validated against net_security's SSRF guard up front (scheme, credentials,
+    IP-literal/private-range checks, and a DNS resolution of the hostname) --
+    both branches below still re-check every request they actually make
+    (_fetch_light's redirects, _scrape_playwright's context.route guard for
+    every navigation/redirect/subresource), since this initial check can't
+    account for a redirect discovered mid-fetch or a DNS answer that changes
+    between now and the moment of connection.
     """
+    await asyncio.to_thread(net_security.assert_safe_url, url)
     light = await _fetch_light(url)
     if light is not None:
         return light
     return await _scrape_playwright(url)
+
+
+async def _guard_playwright_route(route) -> None:
+    """context.route handler applied to every request Playwright's browser
+    context issues -- the top-level navigation, every redirect the browser
+    follows internally, and every subresource (script/image/xhr/fetch) the
+    rendered page loads. This is the layer that actually stops a page from
+    steering the browser at an internal address after the initial scrape()
+    check already passed: a malicious/compromised page can redirect its own
+    navigation, or load an <img>/fetch() pointed at a private/loopback/
+    link-local/CGNAT address, and neither is visible to scrape()'s one-time
+    pre-check.
+
+    Only http(s) requests are validated -- data:/blob:/about: etc. never hit
+    the network and would otherwise be wrongly aborted (breaking inline
+    images and other same-document resources). Any request whose host fails
+    net_security.assert_safe_url() is aborted rather than allowed to
+    continue.
+    """
+    request_url = route.request.url
+    scheme = urlparse(request_url).scheme
+    if scheme not in ("http", "https"):
+        await route.continue_()
+        return
+    try:
+        await asyncio.to_thread(net_security.assert_safe_url, request_url)
+    except UnsafeURLError as e:
+        print(f"[scrape] Blocked unsafe request during Playwright render: {request_url} ({e})")
+        await route.abort()
+        return
+    await route.continue_()
 
 
 async def _scrape_playwright(url: str) -> tuple[str, list[dict], str | None]:
@@ -438,15 +772,34 @@ async def _scrape_playwright(url: str) -> tuple[str, list[dict], str | None]:
             viewport={"width": 1280, "height": 800},
             ignore_https_errors=True,
         )
+        await ctx.route("**/*", _guard_playwright_route)
         page = await ctx.new_page()
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            resp = await page.goto(url, wait_until="domcontentloaded", timeout=60000)
         except Exception as e:
             if url.startswith("https://") and "ERR_SSL_" in str(e):
                 url = "http://" + url[len("https://"):]
-                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                resp = await page.goto(url, wait_until="domcontentloaded", timeout=60000)
             else:
                 raise
+        if resp is not None and resp.status in (401, 403, 429):
+            # Unlike _fetch_light (resp.raise_for_status()), page.goto() doesn't
+            # raise on a non-2xx status -- it happily renders the WAF/anti-bot
+            # block page's HTML (e.g. Cloudflare's generic "403 - Forbidden"),
+            # which then sails through extraction as ordinary page content with
+            # no company name in it, surfacing as the misleading "Could not
+            # extract startup info from this page" (main.py's _ingest_sync)
+            # instead of naming the real cause: the site blocked the scraper,
+            # there was never anything to extract (confirmed on
+            # impossible-objects.com, 2026-09-16 bug report). Bailing here
+            # also skips the ~45s of wait_for_function/networkidle timeouts
+            # below, which can't help since a block page never grows real
+            # content. Limited to 401/403/429 (auth/block/rate-limit) rather
+            # than every 4xx/5xx, since e.g. a transient 500 or a client-side
+            # SPA that free-renders over a non-200 document response
+            # shouldn't be misread the same way.
+            await browser.close()
+            raise ValueError(f"Ce site a bloqué le scraping (HTTP {resp.status}) au lieu de servir la page.")
         try:
             await page.wait_for_function(
                 "() => document.body && document.body.innerText.length > 200 && !document.body.innerText.includes('Checking your browser')",
@@ -475,6 +828,9 @@ async def _scrape_playwright(url: str) -> tuple[str, list[dict], str | None]:
     converter.ignore_images = True
     text = _clean_scraped_text(converter.handle(html))
     linkedin_url = _linkedin_url_from_html(html, final_url)
+    title = _page_title_from_html(html)
+    if title:
+        text = f"PAGE TITLE: {title}\n\n{text}"
     return text, _logo_candidates_from_html(html, final_url), linkedin_url
 
 
@@ -509,27 +865,20 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
         data["embedding"] = embed_one(data["description"])
 
     action, row_id, domain = save_startup(data, added_by_user_id=added_by_user_id)
-    data["id"] = row_id  # threaded through compare()/save_competitors()/explore_transitive() below
+    data["id"] = row_id  # threaded through compare_jev()/save_competitors_jev() below
     name    = data.get("name", "unknown")
     website = data.get("website", "")
     slug    = slugify(domain)  # domain, not name -- two same-named startups must not collide on disk
+    _validate_asset_slug(slug)  # checked once here since it's reused below for the on-disk existence check too, not just inside the fetchers
     print(f"Startup {action}: {name}")
 
     # Favicon — displayed in graph circles
-    flaticon_url = None
-    for ext in LOGO_EXTENSIONS:
-        if os.path.exists(f"assets/logos/{slug}.{ext}"):
-            flaticon_url = f"/assets/logos/{slug}.{ext}"
-            break
+    flaticon_url = _existing_asset_url(slug)
     if not flaticon_url:
         flaticon_url = fetch_and_save_favicon(domain, website)
 
     # Real logo — for market maps
-    logo_url = None
-    for ext in LOGO_EXTENSIONS:
-        if os.path.exists(f"assets/logos/{slug}_logo.{ext}"):
-            logo_url = f"/assets/logos/{slug}_logo.{ext}"
-            break
+    logo_url = _existing_asset_url(slug, "_logo")
     if not logo_url:
         logo_url = fetch_and_save_real_logo(domain, extracted_logo_url)
 
@@ -544,31 +893,57 @@ def _ingest_sync(markdown: str, logo_candidates: list[dict], linkedin_url: str |
     print(f"Favicon: {flaticon_url or 'not found'}")
     print(f"Logo:    {logo_url or 'not found'}")
 
+    # Jev scoring path (default since 2026-09-17 -- see competitor.py's Jev
+    # section docstring for the decision trail). The Mistral path
+    # (compare/save_competitors/explore_transitive) stays in competitor.py,
+    # importable directly, but is no longer called from here.
+    #
+    # explore_transitive_jev() (2026-09-17) is the Jev port of
+    # explore_transitive() -- same 2nd-degree discovery via each direct
+    # competitor's own known links, scored/saved through the Jev zone split.
+    # Wired here so every future ingest gets transitive discovery, not just
+    # one-off backfills (see reprocess_list.py for backfilling startups
+    # already in compspro before this was wired in).
     saved_relationships = []
-    results = compare(data)
+    pending_review = []
+    results = compare_jev(data)
     if results:
-        print(f"\nCompetitor analysis ({len(results)} candidates):")
+        print(f"\nCompetitor analysis via Jev ({len(results)} candidates):")
         for r in results:
-            mark = "✓ competitor" if r["score"] >= COMPETITOR_THRESHOLD else "✗ not competitor"
-            print(f"  {r['name']} → score: {r['score']:.2f} {mark}")
+            print(f"  {r['name']} → score: {r['score']:.2f} [{r['zone']}]")
 
-        saved = save_competitors(data, results)
-        saved_relationships.extend(saved)
-        if saved:
+        outcome = save_competitors_jev(data, results)
+        saved_relationships.extend(outcome["saved"])
+        pending_review.extend(outcome["review_queued"])
+        if outcome["saved"]:
             print()
-            for rel in saved:
+            for rel in outcome["saved"]:
                 print(f"  Relationship saved: {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
-
-        transitive_saved = explore_transitive(data, saved)
-        saved_relationships.extend(transitive_saved)
-        if transitive_saved:
+        if outcome["review_queued"]:
             print()
-            for rel in transitive_saved:
-                print(f"  Relationship saved (transitive): {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
+            for rel in outcome["review_queued"]:
+                print(f"  Queued for review: {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
+
+        if outcome["saved"]:
+            transitive_outcome = explore_transitive_jev(data, outcome["saved"])
+            saved_relationships.extend(transitive_outcome["saved"])
+            pending_review.extend(transitive_outcome["review_queued"])
+            if transitive_outcome["saved"]:
+                print()
+                for rel in transitive_outcome["saved"]:
+                    print(f"  Transitive relationship saved: {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
+            if transitive_outcome["review_queued"]:
+                print()
+                for rel in transitive_outcome["review_queued"]:
+                    print(f"  Transitive relationship queued for review: {rel['company_a']} ↔ {rel['company_b']} (score: {rel['score']:.2f})")
     else:
         print("No candidates found in same subsectors.")
 
-    return {"name": name, "domain": domain, "id": row_id, "action": action, "competitors_found": len(saved_relationships)}
+    return {
+        "name": name, "domain": domain, "id": row_id, "action": action,
+        "competitors_found": len(saved_relationships),
+        "competitors_pending_review": len(pending_review),
+    }
 
 
 async def ingest(url: str, interactive: bool = True, added_by_user_id: int | None = None, ingestion_queue_id: int | None = None) -> dict:

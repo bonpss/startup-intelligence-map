@@ -1,10 +1,9 @@
 import asyncio
-import os
 import sys
 import time
 
 from embeddings import embed_one
-from main import scrape, fetch_and_save_favicon, fetch_and_save_real_logo, slugify, LOGO_EXTENSIONS
+from main import scrape, fetch_and_save_favicon, fetch_and_save_real_logo, slugify, _existing_asset_url
 from extractor import extract
 from storage import save_startup, _client as _db_client
 
@@ -137,20 +136,12 @@ def process(url: str) -> dict:
     slug    = slugify(domain)  # domain, not name -- two same-named startups must not collide on disk
 
     # Favicon — displayed in graph circles
-    flaticon_url = None
-    for ext in LOGO_EXTENSIONS:
-        if os.path.exists(f"assets/logos/{slug}.{ext}"):
-            flaticon_url = f"/assets/logos/{slug}.{ext}"
-            break
+    flaticon_url = _existing_asset_url(slug)
     if not flaticon_url:
         flaticon_url = fetch_and_save_favicon(domain, website)
 
     # Real logo — for market maps
-    logo_url = None
-    for ext in LOGO_EXTENSIONS:
-        if os.path.exists(f"assets/logos/{slug}_logo.{ext}"):
-            logo_url = f"/assets/logos/{slug}_logo.{ext}"
-            break
+    logo_url = _existing_asset_url(slug, "_logo")
     if not logo_url:
         logo_url = fetch_and_save_real_logo(domain, extracted_logo_url)
 
