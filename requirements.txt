@@ -4,6 +4,16 @@ python-dotenv
 supabase
 boto3
 typesafe-sdk==0.6.0
+# typesafe-sdk's httpx2 client unconditionally passes output_buffer_limit to
+# its brotli decoder (a real bug, same as real httpx's own BrotliDecoder --
+# see brotli.py shim note in the venv setup memory). The `brotli` package's
+# Decompressor never accepts that kwarg at any version; brotlicffi's does.
+# If a plain `brotli` package is also importable in this environment (e.g.
+# pulled in by another tool sharing the same site-packages), it will still
+# shadow this one since httpx2 tries `import brotli` first -- block it (a
+# venv-local `brotli.py` shim that raises ImportError works) so this actually
+# gets used.
+brotlicffi
 html2text
 httpx
 tenacity

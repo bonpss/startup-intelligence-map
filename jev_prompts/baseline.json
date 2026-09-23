@@ -1,0 +1,6 @@
+{
+  "_note": "Simplified example rubric for the public repo -- the real tuned instructions/criteria (built up over many corrections) are proprietary and kept out of this repo, same as competitor.py's SYSTEM_PROMPT. Swap this file out for your own rubric; nothing else in the pipeline needs to change.",
+  "instructions": "Decide whether Company A and Company B are competitors based only on the two descriptions given. Focus on whether they sell a similar product to a similar target customer, not just whether they share an industry label.",
+  "criteria_true": "The companies offer comparable products or services aimed at overlapping customers, such that a buyer evaluating one would plausibly also evaluate the other.",
+  "criteria_false": "The companies operate in different markets, serve different customers, or one's offering does not meaningfully overlap with the other's core product."
+}

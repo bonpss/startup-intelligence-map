@@ -206,6 +206,21 @@ def demote_generic_compute_tag(subsectors: list[str]) -> list[str]:
     return _demote_if_redundant(subsectors, "Cloud Infrastructure")
 
 
+def demote_generic_productivity_tag(subsectors: list[str]) -> list[str]:
+    """Illustrative placeholder, same pattern as demote_generic_erp_tag."""
+    return _demote_if_redundant(subsectors, "Productivity Tools")
+
+
+def demote_generic_epm_tag(subsectors: list[str]) -> list[str]:
+    """Illustrative placeholder, same pattern as demote_generic_erp_tag."""
+    return _demote_if_redundant(subsectors, "Enterprise Project Management")
+
+
+def demote_generic_ai_industrial_ops_tag(subsectors: list[str]) -> list[str]:
+    """Illustrative placeholder, same pattern as demote_generic_erp_tag."""
+    return _demote_if_redundant(subsectors, "AI Industrial Operations")
+
+
 def remove_redundant_uncategorized(subsectors: list[str]) -> list[str]:
     """Drops the 'Uncategorized' fallback once a real subsector is present."""
     return _demote_if_redundant(subsectors, "Uncategorized")
