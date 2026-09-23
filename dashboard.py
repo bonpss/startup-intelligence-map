@@ -190,6 +190,28 @@ def get_recent_additions(cost_summary: dict, limit: int = 25) -> list[dict]:
     return out
 
 
+def get_recent_failures() -> list[dict]:
+    """Every ingestion_queue row with status='error', no cap -- unlike
+    get_recent_additions() this must never drop an old failure out of view
+    just because newer rows pushed past a limit, since the owner triages
+    these from this list (retry/delete lives in the "En attente" > Échecs
+    tab this mirrors, storage.list_ingestions(status="error"), already
+    uncapped for the same reason).
+    """
+    rows = storage.list_ingestions(status="error")
+    users_by_id = storage.get_users_by_ids([r["requested_by_user_id"] for r in rows])
+    return [
+        {
+            "ingestion_queue_id": r["id"],
+            "url": r["url"],
+            "error_message": r["error_message"],
+            "added_by": users_by_id.get(r["requested_by_user_id"]),
+            "failed_at": r["updated_at"],
+        }
+        for r in rows
+    ]
+
+
 def get_dashboard() -> dict:
     cost = get_cost_summary()
     recent = get_recent_additions(cost)
@@ -202,4 +224,5 @@ def get_dashboard() -> dict:
         "ingestion_health": get_ingestion_health(),
         "cost": cost,
         "recent": recent,
+        "failures": get_recent_failures(),
     }

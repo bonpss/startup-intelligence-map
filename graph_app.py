@@ -12,10 +12,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
 from starlette.middleware.sessions import SessionMiddleware
-from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, create_user, get_user_by_email, normalize_domain
+from storage import _client, enqueue_ingestion, mark_processing, mark_done, mark_error, get_pending_ingestions, list_ingestions, get_ingestion, retry_ingestion, delete_ingestion, mark_done_rows_seen, get_ingestion_summary, get_users_by_ids, create_user, get_user_by_email, normalize_domain
 from main import ingest as ingest_startup
 import auth
 import dashboard
+import net_security
+from rate_limit import SlidingWindowRateLimiter
 
 load_dotenv()
 
@@ -26,10 +28,18 @@ load_dotenv()
 # module-level instance is safe here.
 _ingestion_queue: asyncio.Queue = asyncio.Queue()
 
+# Row ids currently sitting in _ingestion_queue or being processed by the
+# worker -- lets _ingestion_reconciler tell "genuinely in flight" apart from
+# "orphaned" among the DB's 'queued'/'processing' rows (see that function).
+_tracked_ingestion_ids: set[int] = set()
+
 # Holds the worker's asyncio.Task so it isn't garbage-collected mid-run --
 # asyncio.create_task() only keeps a *weak* reference internally; a Task with no
 # other strong reference can be silently collected before it finishes.
 _ingestion_worker_task: asyncio.Task | None = None
+_ingestion_reconciler_task: asyncio.Task | None = None
+
+_RECONCILE_INTERVAL_S = 300
 
 
 async def _ingestion_worker() -> None:
@@ -92,7 +102,50 @@ async def _ingestion_worker() -> None:
         except Exception as e:
             print(f"[ingestion worker] unexpected failure on row {row_id} ({url}): {e}")
         finally:
+            _tracked_ingestion_ids.discard(row_id)
             _ingestion_queue.task_done()
+
+
+async def _ingestion_reconciler() -> None:
+    """Periodic version of _lifespan's startup-recovery sweep -- catches a row
+    that gets orphaned *while the app keeps running*, not just across a
+    restart.
+
+    A 'queued' row can lose its spot in the in-memory _ingestion_queue without
+    ever reaching the worker: api_ingest's insert-then-push is two steps
+    (storage.enqueue_ingestion's DB insert, then queue.put()), and if the
+    insert's response is lost to a transient error (this environment's
+    Supabase client hits httpx.RemoteProtocolError: Server disconnected
+    often enough to see in practice) after the insert already committed
+    server-side, the exception fires before queue.put() ever runs. asyncio.
+    shield (see api_ingest) only protects against the *caller* disconnecting
+    mid-request; it does nothing for this case. Previously the only recovery
+    was a full app restart (_lifespan's sweep) -- meaning a demo user's
+    ingestion could silently vanish behind a permanently-spinning "queued"
+    badge with no way to retry it (api_retry_ingestion only accepts
+    status='error' rows, deliberately, since re-pushing a row that's still
+    legitimately in flight would run main.ingest() twice).
+
+    _tracked_ingestion_ids is how this tells "genuinely in flight" apart from
+    "orphaned": every push (here, _lifespan's sweep, api_ingest,
+    api_retry_ingestion) adds its row id before/with the queue.put(), and the
+    worker discards it once the row leaves 'queued'/'processing'. A pending
+    DB row whose id isn't in that set was never pushed (or its push was lost)
+    and is safe to push now without risking a duplicate run.
+    """
+    while True:
+        await asyncio.sleep(_RECONCILE_INTERVAL_S)
+        try:
+            pending = await asyncio.to_thread(get_pending_ingestions)
+        except Exception as e:
+            print(f"[ingestion reconciler] sweep failed, will retry next interval: {e}")
+            continue
+        for row in pending:
+            if row["id"] in _tracked_ingestion_ids:
+                continue
+            print(f"[ingestion reconciler] recovering orphaned row {row['id']} ({row['url']}), stuck at '{row['status']}' with no in-memory tracker")
+            _tracked_ingestion_ids.add(row["id"])
+            await _ingestion_queue.put((row["id"], row["url"], row.get("requested_by_user_id")))
 
 
 @asynccontextmanager
@@ -100,27 +153,32 @@ async def _lifespan(app: FastAPI):
     """Startup-recovery sweep (AC #4): re-enqueue any row still 'queued'/
     'processing' from a previous run before the worker starts consuming new
     requests -- a crash between items must not silently strand a row forever.
-    Then start the single worker coroutine (concurrency=1, AC #3).
+    Then start the single worker coroutine (concurrency=1, AC #3) and the
+    periodic reconciler that catches the same kind of orphaning without
+    requiring a restart (see _ingestion_reconciler).
 
     Code review (2026-08-28): the sweep is wrapped in try/except so a Supabase
     outage at boot doesn't prevent the whole app (not just ingestion) from
     starting -- it logs and continues with an empty pending list instead.
     """
-    global _ingestion_worker_task
+    global _ingestion_worker_task, _ingestion_reconciler_task
     try:
         pending = await asyncio.to_thread(get_pending_ingestions)
     except Exception as e:
         print(f"[ingestion worker] startup-recovery sweep failed, continuing with an empty queue: {e}")
         pending = []
     for row in pending:
+        _tracked_ingestion_ids.add(row["id"])
         await _ingestion_queue.put((row["id"], row["url"], row.get("requested_by_user_id")))
     _ingestion_worker_task = asyncio.create_task(_ingestion_worker())
+    _ingestion_reconciler_task = asyncio.create_task(_ingestion_reconciler())
     yield
 
 
 app = FastAPI(lifespan=_lifespan)
 os.makedirs("assets/logos", exist_ok=True)  # fresh clone: git doesn't track empty dirs
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+
 
 # Auth-gating allowlist: exact-path or prefix match only (not regex), to keep
 # it auditable at a glance (Design Notes). Everything not listed here requires
@@ -210,6 +268,52 @@ app.add_middleware(
     max_age=7 * 24 * 60 * 60,
 )
 
+
+@app.middleware("http")
+async def asset_security_headers(request: Request, call_next):
+    """Every response under /assets/ -- 200s, 304s, 404s, and even a
+    hypothetical redirect/401 that some future change to auth_gate's
+    allowlist logic might produce for this prefix -- gets nosniff and a
+    strict per-file CSP, so a saved file (a favicon/logo this app downloaded
+    from an arbitrary third-party site) can never execute in this app's own
+    origin no matter how it's reached:
+      - X-Content-Type-Options: nosniff stops the browser from ignoring our
+        asserted Content-Type based on sniffing the file's actual bytes --
+        StaticFiles derives Content-Type from the file extension, which is
+        itself app-controlled (main.py's _classify_downloaded_image), but a
+        browser's own content-sniffing heuristic is a second, independent
+        thing this closes off.
+      - Content-Security-Policy: sandbox; default-src 'none' treats a direct
+        navigation to (or <iframe>/<object> embed of) one of these files as
+        coming from a unique, script-disabled origin with no ability to load
+        further resources. This does NOT affect an <img> reference to the
+        same URL from a normal page -- <img> never executes an SVG's
+        embedded script or evaluates its own CSP as a document in the first
+        place, so every existing flaticon_url/logo_url <img> usage keeps
+        working exactly as before.
+
+    Registered LAST (after auth_gate and SessionMiddleware above), so it's
+    the OUTERMOST middleware -- Starlette's add_middleware()/
+    @app.middleware("http") both insert at the front of the stack, meaning
+    whichever is registered last wraps every other layer (same rule the
+    SessionMiddleware comment above documents). This matters here
+    specifically: /assets/ is allowlisted in auth_gate today and always
+    falls through to StaticFiles, but if that allowlist were ever
+    registered BEFORE auth_gate, a redirect/401 auth_gate might someday
+    produce for an /assets/ path (e.g. a future bug in the allowlist check)
+    would bypass it entirely, since an inner middleware never runs unless
+    the outer one calls call_next(). Being outermost means every response
+    for this prefix passes through here regardless of what any inner layer
+    -- auth_gate, StaticFiles' own 404/405 HTTPExceptions, anything -- does
+    with the request.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+    return response
+
+
 SECTOR_COLORS_JS = """
 const SECTOR_COLORS = {
   "AI & Machine Learning":      "#4e79a7",
@@ -246,19 +350,70 @@ def api_search(q: str = ""):
     if len(q) < 2:
         return []
     db = _client()
-    # website is matched against the normalized domain, not the raw pasted
-    # string -- a stored "https://www.neo.ai" never contains "https://www.neo.ai/"
-    # (trailing slash) or "http://neo.ai" (different scheme/www) as a literal
-    # substring, even though they're the same site.
+    # Matched against the normalized `domain` column, not a raw substring of
+    # `website` -- an arbitrary "%domain_q%" ILIKE matches any stored domain
+    # that merely *contains* domain_q anywhere (e.g. querying "ed.ai" used to
+    # match "nevermined.ai", since it literally ends in "...ed.ai"), which
+    # wrongly told the caller the startup already existed and hid the
+    # "Ajouter" button. Anchored as a prefix ("domain_q%") instead: still
+    # matches while the user is progressively typing a domain (e.g. "neo"
+    # against "neo.ai"), but a candidate domain can only match query strings
+    # it actually starts with.
     domain_q = normalize_domain(q)
+    filters = [f"name.ilike.%{q}%"]
+    if domain_q:
+        filters.append(f"domain.ilike.{domain_q}%")
     rows = (
         db.table("compspro")
         .select("name, sectors, subsectors, description, flaticon_url, website, domain")
-        .or_(f"name.ilike.%{q}%,website.ilike.%{domain_q}%")
+        .or_(",".join(filters))
         .limit(10)
         .execute()
     )
     return rows.data or []
+
+
+async def _validate_ingest_url(url: str) -> None:
+    """SSRF guard (net_security.py): scheme/credentials/IP-literal checks
+    plus a DNS resolution of the hostname, rejecting anything that resolves
+    to loopback/private/link-local/CGNAT/multicast/unspecified. Shared by
+    api_ingest and api_retry_ingestion -- a retry re-runs the full
+    scrape/LLM pipeline against a URL submitted (possibly long) in the past,
+    and DNS can change between then and now, so a retry needs this exact
+    same check, not just the original submission.
+
+    This is a point-in-time check -- main.scrape() (run by the background
+    worker, not this handler) re-validates every redirect and subresource at
+    fetch time regardless, since DNS can also change between this check and
+    the moment of actual connection.
+    """
+    try:
+        await asyncio.to_thread(net_security.assert_safe_url, url)
+    except net_security.UnsafeURLError as e:
+        raise HTTPException(status_code=400, detail=f"URL refusée : {e}")
+
+
+async def _enforce_ingestion_quota(user: dict) -> None:
+    """Cost/abuse guardrail shared by api_ingest and api_retry_ingestion:
+    each ingestion runs a real browser render plus several Mistral calls.
+    Owner is exempt, same convention as the /graph, /api/graph/all, /admin,
+    /api/dashboard owner-only block in auth_gate above.
+
+    Fails closed on a quota-check failure (auth.QuotaCheckError, e.g. a
+    Supabase outage): a non-owner user is refused with 503 rather than let
+    the ingestion through because the count couldn't be verified, or let the
+    exception surface as an opaque 500. The owner is never subject to this
+    check at all, so an outage never blocks them.
+    """
+    if user.get("is_owner"):
+        return
+    try:
+        quota_reached = await asyncio.to_thread(auth.ingestion_quota_reached, user["id"])
+    except auth.QuotaCheckError as e:
+        print(f"[ingestion quota] check failed, failing closed for user {user['id']}: {e}")
+        raise HTTPException(status_code=503, detail="Impossible de vérifier le quota, réessayez plus tard.")
+    if quota_reached:
+        raise HTTPException(status_code=429, detail="Quota quotidien d'ingestions atteint, réessayez demain.")
 
 
 @app.post("/api/ingest", status_code=202)
@@ -278,17 +433,23 @@ async def api_ingest(url: str, request: Request):
         raise HTTPException(status_code=400, detail="URL manquante.")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    user_id = request.state.user["id"]
 
-    async def _enqueue_and_push() -> dict:
+    await _validate_ingest_url(url)
+
+    user = request.state.user
+    user_id = user["id"]
+    await _enforce_ingestion_quota(user)
+
+    async def _enqueue_and_push() -> tuple[dict, bool]:
         row, is_new = await asyncio.to_thread(enqueue_ingestion, url, user_id)
         if is_new:
             # A reused row (already queued or actively processing for this same
             # URL) is not re-pushed -- the worker already has it, or will pick it
             # up via the startup-recovery sweep. Pushing it again would let the
             # worker run main.ingest() twice for one row (code review, 2026-08-28).
+            _tracked_ingestion_ids.add(row["id"])
             await _ingestion_queue.put((row["id"], url, user_id))
-        return row
+        return row, is_new
 
     try:
         # Shielded (code review 2026-09-04): a client disconnect (closed tab,
@@ -303,7 +464,7 @@ async def api_ingest(url: str, request: Request):
         # startup-recovery sweep would ever pick it back up. Shielding keeps
         # insert+push atomic from the caller's perspective regardless of
         # disconnect.
-        row = await asyncio.shield(_enqueue_and_push())
+        row, is_new = await asyncio.shield(_enqueue_and_push())
     except ValueError as e:
         # Code review (2026-08-29): enqueue_ingestion now rejects a
         # malformed/host-less url (empty normalize_domain()) with a
@@ -312,12 +473,52 @@ async def api_ingest(url: str, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Échec de la mise en file d'attente : {e}")
+
+    # A reused row (is_new=False) submitted by someone else must not be
+    # exposed to this caller at all -- not its id, not its status -- for a
+    # non-owner: with per-user visibility now enforced everywhere else (see
+    # api_ingestion_queue et al.), handing back an id the caller can never
+    # subsequently see or act on would just be a confusing dead end, and it
+    # still leaks the fact that this exact domain is already tracked by
+    # *someone*. The owner is exempt (they can see/reuse any row, matching
+    # their unrestricted visibility elsewhere).
+    if not is_new and not user.get("is_owner") and row.get("requested_by_user_id") != user_id:
+        raise HTTPException(status_code=409, detail="Cette URL est déjà en cours de traitement.")
+
     return {"id": row["id"]}
 
 
+def _ingestion_scope_owner_filter(user: dict, scope: str) -> int | None:
+    """The requested_by_user_id to filter ingestion_queue on for a read
+    (list/summary), or None for "no filter" (unrestricted, including
+    orphaned rows) -- the legacy/default behavior, only ever valid for the
+    owner.
+
+    A non-owner ALWAYS gets their own id back regardless of `scope` -- the
+    query param can only ever WIDEN what the owner sees (all vs. mine), it
+    can never be used by a non-owner to widen their own view beyond their
+    own rows. scope="mine" narrows the owner down to the same "own rows
+    only" view a non-owner always gets; anything else (including the
+    default "all") is unrestricted.
+    """
+    if not user.get("is_owner"):
+        return user["id"]
+    return user["id"] if scope == "mine" else None
+
+
+def _ingestion_owner_scope_id(user: dict) -> int | None:
+    """The requested_by_user_id ownership filter for a single-row mutation
+    (retry/delete) -- None for the owner (unrestricted, matches their
+    unrestricted read access), else the caller's own id. Unlike the read-side
+    scope filter above, mutations have no "all" vs. "mine" toggle: the owner
+    can always act on any row, a non-owner only ever their own.
+    """
+    return None if user.get("is_owner") else user["id"]
+
+
 @app.get("/api/ingestion-queue")
-def api_ingestion_queue(status: str | None = None):
-    """All ingestion_queue rows, most recent first, for the "En attente" tab
+def api_ingestion_queue(request: Request, status: str | None = None, scope: str = "all"):
+    """ingestion_queue rows, most recent first, for the "En attente" tab
     (Epic 6, Story 6.2). Plain `def` like /api/search -- FastAPI runs it in its
     own thread pool automatically, no asyncio.to_thread needed here.
 
@@ -325,23 +526,63 @@ def api_ingestion_queue(status: str | None = None):
     passed straight through to storage.list_ingestions -- an uncapped view so
     an old failure can't drop off the panel just because enough newer rows of
     other statuses exist (see that function's docstring).
+
+    Per-user visibility: a non-owner only ever sees their own rows (never an
+    orphaned row with no requested_by_user_id, which only the owner can see)
+    -- enforced by storage.list_ingestions' query-level filter, not by
+    fetching everything and discarding rows here. The owner sees everything
+    by default (scope="all", matching pre-existing behavior) or can narrow
+    to their own rows with scope="mine". The owner's response additionally
+    carries requester_email per row (None for an orphaned row) -- a non-owner
+    never needs it, since every row they see is already their own.
     """
+    user = request.state.user
+    requested_by_user_id = _ingestion_scope_owner_filter(user, scope)
     try:
-        return list_ingestions(status=status)
+        rows = list_ingestions(status=status, requested_by_user_id=requested_by_user_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    if user.get("is_owner"):
+        emails = get_users_by_ids([r.get("requested_by_user_id") for r in rows])
+        for r in rows:
+            r["requester_email"] = emails.get(r.get("requested_by_user_id"))
+    return rows
 
 
 @app.post("/api/ingestion-queue/{id}/retry", status_code=202)
-async def api_retry_ingestion(id: int):
+async def api_retry_ingestion(id: int, request: Request):
     """Reset an errored ingestion_queue row to 'queued' and re-push it onto
     the worker's queue (Epic 6, Story 6.3) -- writing 'queued' to the DB alone
     doesn't wake the worker, since it consumes the in-memory _ingestion_queue,
     not a DB poll. async def like api_ingest, since it awaits queue.put().
+
+    Re-validated exactly like a fresh /api/ingest submission (SSRF guard +
+    daily quota) before the row is actually re-queued -- without this, a
+    "Relancer" click on an old failure would (a) skip the SSRF check
+    entirely for a URL that may have started resolving somewhere unsafe
+    since it was first submitted, and (b) be a free way to keep re-running
+    the full scrape/LLM pipeline forever without ever touching the daily
+    quota, since it doesn't go through api_ingest at all. Charged against
+    the CALLER's quota (request.state.user), not the original row's
+    requested_by_user_id -- it's the caller's click driving this run.
+
+    Ownership: get_ingestion/retry_ingestion both take the caller's ownership
+    scope (None for the owner, else their own id) as a query-level filter --
+    a non-owner's row lookup for someone else's (or an orphaned) row simply
+    finds nothing, indistinguishable from a bad id, so this returns 404
+    (never 403) either way.
     """
+    owner_scope_id = _ingestion_owner_scope_id(request.state.user)
+    row = await asyncio.to_thread(get_ingestion, id, owner_scope_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Élément introuvable ou n'est pas en échec.")
+
+    await _validate_ingest_url(row["url"])
+    await _enforce_ingestion_quota(request.state.user)
 
     async def _retry_and_push() -> dict:
-        row = await asyncio.to_thread(retry_ingestion, id)
+        row = await asyncio.to_thread(retry_ingestion, id, owner_scope_id)
+        _tracked_ingestion_ids.add(row["id"])
         await _ingestion_queue.put((row["id"], row["url"], row.get("requested_by_user_id")))
         return row
 
@@ -364,13 +605,18 @@ async def api_retry_ingestion(id: int):
 
 
 @app.delete("/api/ingestion-queue/{id}", status_code=204)
-async def api_delete_ingestion(id: int):
+async def api_delete_ingestion(id: int, request: Request):
     """Permanently remove an errored ingestion_queue row so the "En attente"
     tab can be cleared of stale failures. async def to match the retry
     endpoint's shape, even though this one never touches _ingestion_queue.
+
+    Ownership: same query-level filter as the retry endpoint -- a non-owner
+    deleting someone else's (or an orphaned) row matches nothing and gets a
+    404, never a 403.
     """
+    owner_scope_id = _ingestion_owner_scope_id(request.state.user)
     try:
-        await asyncio.to_thread(delete_ingestion, id)
+        await asyncio.to_thread(delete_ingestion, id, owner_scope_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Élément introuvable ou n'est pas en échec.")
     except Exception as e:
@@ -378,20 +624,34 @@ async def api_delete_ingestion(id: int):
 
 
 @app.get("/api/ingestion-queue/summary")
-def api_ingestion_queue_summary():
+def api_ingestion_queue_summary(request: Request, scope: str = "all"):
     """Counts backing the "En attente" tab's two notification badges (Epic 6,
     Story 6.4). Plain `def` like /api/search/GET /api/ingestion-queue --
     doesn't touch _ingestion_queue, nothing to await.
+
+    Scoped exactly like GET /api/ingestion-queue above -- a non-owner's
+    badges only ever count rows they can actually see.
     """
-    return get_ingestion_summary()
+    user = request.state.user
+    requested_by_user_id = _ingestion_scope_owner_filter(user, scope)
+    return get_ingestion_summary(requested_by_user_id=requested_by_user_id)
 
 
 @app.post("/api/ingestion-queue/mark-seen")
-def api_mark_ingestion_seen():
+def api_mark_ingestion_seen(request: Request):
     """Bulk-marks currently-done rows as seen (Epic 6, Story 6.4), called once
     when the "En attente" tab opens. Plain `def`, no request body.
+
+    Always scoped to the caller's own rows -- one user's "seen" state must
+    never dismiss another user's unseen-done badge. The owner's call
+    additionally covers orphaned rows (no requested_by_user_id at all): an
+    orphaned row is only ever visible to the owner (see
+    api_ingestion_queue), so nobody else could ever otherwise clear its
+    unseen flag.
     """
-    return {"marked": mark_done_rows_seen()}
+    user = request.state.user
+    marked = mark_done_rows_seen(requested_by_user_id=user["id"], include_orphaned=bool(user.get("is_owner")))
+    return {"marked": marked}
 
 
 @app.get("/api/dashboard")
@@ -627,6 +887,38 @@ def api_signup(body: SignupRequest, request: Request):
 # roughly indistinguishable by response time.
 _DUMMY_PASSWORD_HASH = auth.hash_password("not-a-real-password-timing-decoy")
 
+# Login brute-force throttle: two independent, differently-scoped limits --
+# neither alone is a full defense.
+#
+# _LOGIN_IP_RATE_LIMITER counts EVERY attempt (success or failure), keyed by
+# request.client.host -- the TCP peer address Starlette/uvicorn records from
+# the actual socket, never a client-supplied header (a forged
+# X-Forwarded-For is never read anywhere in this file, so it cannot move
+# which bucket an attacker is charged against). Catches a single attacker
+# hammering many different email addresses from one place.
+#
+# _LOGIN_EMAIL_IP_FAILURE_LIMITER counts only FAILED attempts, keyed by
+# (email, ip) together rather than email alone. Email-alone would let an
+# attacker who merely knows a victim's address lock that victim out just by
+# submitting wrong passwords for it (an availability attack that needs no
+# real guessing at all); keying on the pair instead means that only repeated
+# failures from the SAME source against that email are throttled, while a
+# legitimate user's own correct logins never count against it at all (only
+# failures do). Distributed brute force (many IPs, one target email) isn't
+# caught by this pair-keyed limiter, but it still has to get past the
+# per-IP limiter on every one of those IPs individually.
+#
+# Both in-process, resets on restart -- see rate_limit.py's docstring for
+# why that's an accepted tradeoff here.
+_LOGIN_IP_RATE_LIMITER = SlidingWindowRateLimiter(max_calls=20, window_seconds=60)
+_LOGIN_EMAIL_IP_FAILURE_LIMITER = SlidingWindowRateLimiter(max_calls=5, window_seconds=60)
+
+
+def _login_email_ip_key(email: str, client_ip: str) -> str:
+    # "|" can't appear in a normalized email or an IP literal, so this can't
+    # collide two distinct (email, ip) pairs onto the same key.
+    return f"{email}|{client_ip}"
+
 
 @app.post("/api/login")
 def api_login(body: LoginRequest, request: Request):
@@ -635,6 +927,18 @@ def api_login(body: LoginRequest, request: Request):
     way, so the response can't be used to enumerate registered emails.
     """
     email = auth.normalize_email(body.email)
+    client_ip = request.client.host if request.client else "unknown"
+    email_ip_key = _login_email_ip_key(email, client_ip) if email else None
+
+    # The per-IP limiter charges this attempt immediately (every attempt
+    # counts, per its docstring above). The per-(email,ip) limiter is only
+    # PEEKED here (check(), not allow()/record()) -- it must not charge a
+    # hit until we actually know the attempt failed, below.
+    ip_ok = _LOGIN_IP_RATE_LIMITER.allow(client_ip)
+    email_ip_ok = _LOGIN_EMAIL_IP_FAILURE_LIMITER.check(email_ip_key) if email_ip_key else True
+    if not ip_ok or not email_ip_ok:
+        raise HTTPException(status_code=429, detail="Trop de tentatives, réessayez plus tard.")
+
     user = get_user_by_email(email) if email else None
     if user:
         password_ok = auth.verify_password(body.password, user["password_hash"])
@@ -642,6 +946,8 @@ def api_login(body: LoginRequest, request: Request):
         auth.verify_password(body.password, _DUMMY_PASSWORD_HASH)
         password_ok = False
     if not user or not password_ok:
+        if email_ip_key:
+            _LOGIN_EMAIL_IP_FAILURE_LIMITER.record(email_ip_key)
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     is_owner = bool(user.get("is_owner"))
@@ -668,9 +974,13 @@ AUTH_PAGE_STYLE = """
     h1 { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 28px; }
     form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
     input {
-      padding: 14px 16px; font-size: 15px;
+      padding: 14px 16px; font-size: 16px;
       background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 10px;
       color: #eee; outline: none; transition: border-color 0.15s;
+    }
+    @media (max-width: 480px) {
+      body { padding: 24px 16px; }
+      h1 { font-size: 1.5rem; margin-bottom: 20px; }
     }
     input::placeholder { color: #444; }
     input:focus { border-color: #555; }
@@ -691,6 +1001,7 @@ LOGIN_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Se connecter — Smap</title>
   <style>{AUTH_PAGE_STYLE}</style>
 </head>
@@ -742,6 +1053,7 @@ SIGNUP_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Créer un compte — Smap</title>
   <style>{AUTH_PAGE_STYLE}</style>
 </head>
@@ -803,6 +1115,7 @@ SEARCH_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Smap</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -923,12 +1236,20 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       border-radius: 10px; padding: 1px 6px; display: none;
     }}
     .queue-tab-count.show {{ display: inline-block; }}
+    #queue-scope-toggle {{ display: flex; gap: 8px; margin-bottom: 14px; flex-shrink: 0; }}
+    .queue-scope-btn {{
+      padding: 5px 10px; font-size: 12px; font-weight: 600; color: #8a8680; background: none;
+      border: 1px solid #2a2a27; border-radius: 20px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }}
+    .queue-scope-btn:hover {{ color: #e8e4dc; }}
+    .queue-scope-btn.active {{ color: #e8e4dc; border-color: #4a4a45; }}
     #queue-panel {{ display: flex; width: 100%; flex-direction: column; gap: 10px; overflow-y: auto; }}
     .queue-row {{
       background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
       padding: 14px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px;
     }}
     .queue-row-label {{ font-size: 14px; color: #e8e4dc; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+    .queue-row-requester {{ font-size: 11px; color: #8a8680; display: block; margin-top: 2px; }}
     .queue-status {{
       display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
       gap: 8px; min-width: 0; max-width: 100%;
@@ -959,6 +1280,17 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       animation: spin 0.7s linear infinite;
     }}
     @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+    @media (max-width: 480px) {{
+      body {{ padding: 24px 16px 32px; }}
+      h1 {{ font-size: 1.4rem; }}
+      .subtitle {{ margin-bottom: 32px; }}
+      #header-row {{ flex-wrap: wrap; row-gap: 10px; }}
+      #nav-actions {{ gap: 12px; }}
+      #search-wrap {{ flex-wrap: wrap; }}
+      #add-btn {{ flex: 1 1 100%; padding: 12px; }}
+      .card {{ padding: 14px; gap: 10px; }}
+      #queue-drawer {{ width: 100%; max-width: 100vw; padding: 16px; }}
+    }}
   </style>
 </head>
 <body>
@@ -1002,6 +1334,7 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       <button class="queue-tab active" data-status="" type="button">Tous</button>
       <button class="queue-tab" data-status="error" type="button">Échecs<span id="queue-tab-error-count" class="queue-tab-count"></span></button>
     </div>
+    __QUEUE_SCOPE_TOGGLE__
     <div id="queue-panel"></div>
   </div>
 
@@ -1059,7 +1392,7 @@ function render(data) {{
     const color   = sectorColor(s.sectors);
     const initial = (s.name || "?")[0].toUpperCase();
     const logoHtml = s.flaticon_url
-      ? `<img class="card-logo" src="${{s.flaticon_url}}" alt="">`
+      ? `<img class="card-logo" src="${{s.flaticon_url}}" alt="" onerror="handleLogoImgError(this)" data-fallback-class="card-logo-initial" data-fallback-bg="${{color}}26" data-fallback-color="${{color}}" data-fallback-initial="${{initial}}">`
       : `<div class="card-logo-initial" style="background:${{color}}26; color:${{color}}">${{initial}}</div>`;
     return `<div class="card" data-domain="${{s.domain}}">
       ${{logoHtml}}
@@ -1082,13 +1415,24 @@ const queueBackdrop  = document.getElementById("queue-backdrop");
 const queueToggleBtn = document.getElementById("queue-toggle-btn");
 const queueCloseBtn  = document.getElementById("queue-close-btn");
 const queueTabs      = document.querySelectorAll(".queue-tab");
+const queueScopeBtns = document.querySelectorAll(".queue-scope-btn");
 let queuePollTimer;
 let queueStatusFilter = "";  // "" = Tous, "error" = Échecs tab
+// Owner-only ("all" vs "mine") -- absent for a non-owner, whose view is
+// always restricted to their own rows server-side regardless of this value.
+let queueScope = "all";
 
 queueTabs.forEach(tab => tab.addEventListener("click", () => {{
   queueStatusFilter = tab.dataset.status;
   queueTabs.forEach(t => t.classList.toggle("active", t === tab));
   pollQueue();
+}}));
+
+queueScopeBtns.forEach(btn => btn.addEventListener("click", () => {{
+  queueScope = btn.dataset.scope;
+  queueScopeBtns.forEach(b => b.classList.toggle("active", b === btn));
+  pollQueue();
+  pollSummary();
 }}));
 
 function openQueueDrawer() {{
@@ -1115,7 +1459,10 @@ queueCloseBtn.addEventListener("click", closeQueueDrawer);
 queueBackdrop.addEventListener("click", closeQueueDrawer);
 
 function pollQueue() {{
-  const qs = queueStatusFilter ? "?status=" + encodeURIComponent(queueStatusFilter) : "";
+  const params = new URLSearchParams();
+  if (queueStatusFilter) params.set("status", queueStatusFilter);
+  if (queueScopeBtns.length) params.set("scope", queueScope);
+  const qs = params.toString() ? "?" + params.toString() : "";
   fetch("/api/ingestion-queue" + qs)
     .then(r => r.json())
     .then(renderQueue)
@@ -1129,7 +1476,8 @@ const queueDotUnseen     = document.getElementById("queue-dot-unseen");
 const queueTabErrorCount = document.getElementById("queue-tab-error-count");
 
 function pollSummary() {{
-  fetch("/api/ingestion-queue/summary")
+  const qs = queueScopeBtns.length ? "?scope=" + encodeURIComponent(queueScope) : "";
+  fetch("/api/ingestion-queue/summary" + qs)
     .then(r => r.json())
     .then(data => {{
       queueDotError.textContent = data.error_count;
@@ -1148,6 +1496,22 @@ setInterval(pollSummary, 5000);
 function escapeHtml(str) {{
   const map = {{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }};
   return String(str == null ? "" : str).replace(/[&<>"']/g, ch => map[ch]);
+}}
+
+// Shared onerror fallback for every <img> pointing at a flaticon_url/logo_url
+// -- a missing file (StaticFiles 404) or an unreadable one otherwise shows
+// the browser's native broken-image glyph, in cards and in the graph alike.
+// Reads its replacement's styling off data-fallback-* attributes (set by
+// each caller) and builds it via DOM APIs, not string concatenation --
+// textContent is used for the initial, so this is safe regardless of what
+// characters a startup's name happens to start with.
+function handleLogoImgError(imgEl) {{
+  const div = document.createElement("div");
+  div.className = imgEl.dataset.fallbackClass;
+  if (imgEl.dataset.fallbackBg) div.style.background = imgEl.dataset.fallbackBg;
+  if (imgEl.dataset.fallbackColor) div.style.color = imgEl.dataset.fallbackColor;
+  div.textContent = imgEl.dataset.fallbackInitial || "";
+  imgEl.replaceWith(div);
 }}
 
 // Error messages can be arbitrarily long (raw API error bodies) -- clamp what's
@@ -1179,8 +1543,14 @@ function renderQueue(data) {{
   queuePanel.innerHTML = data.map(row => {{
     const label = row.status === "done" ? ((row.result || {{}}).name || row.url) : row.url;
     const badge = (QUEUE_BADGES[row.status] || QUEUE_BADGES.error)(row);
+    // requester_email is only ever present in the owner's response (see
+    // api_ingestion_queue) -- a non-owner's rows are always their own, so
+    // there's nothing useful to label there.
+    const requester = row.requester_email
+      ? `<span class="queue-row-requester">${{escapeHtml(row.requester_email)}}</span>`
+      : (("requester_email" in row) ? `<span class="queue-row-requester">(non attribué)</span>` : "");
     return `<div class="queue-row">
-      <div class="queue-row-label">${{escapeHtml(label)}}</div>
+      <div class="queue-row-label">${{escapeHtml(label)}}${{requester}}</div>
       <div class="queue-status">${{badge}}</div>
     </div>`;
   }}).join("");
@@ -1266,6 +1636,7 @@ GRAPH_HTML_TEMPLATE = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title id="page-title">Loading…</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -1295,11 +1666,25 @@ GRAPH_HTML_TEMPLATE = f"""<!DOCTYPE html>
     #panel {{
       flex: 0 0 30%; background: #111; border-left: 1px solid #1e1e1e;
       padding: 24px 20px; overflow-y: auto; display: none; flex-direction: column; gap: 16px;
+      position: relative;
     }}
+    #panel-close {{
+      display: none; position: absolute; top: 16px; right: 16px; width: 28px; height: 28px;
+      align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 50%;
+      color: #666; font-size: 18px; line-height: 1; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }}
+    #panel-close:hover {{ background: #222; color: #fff; }}
     #panel-logo-row {{ display: flex; align-items: center; gap: 10px; align-self: flex-start; }}
     #panel-logo {{
       width: 80px; height: 80px; border-radius: 12px; object-fit: contain;
       background: #1a1a1a; border: 1px solid #222; padding: 6px;
+    }}
+    #panel-logo-initial {{
+      width: 80px; height: 80px; border-radius: 12px;
+      display: none; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700;
     }}
     #panel-logo-download {{
       display: none; width: 28px; height: 28px; align-items: center; justify-content: center;
@@ -1328,6 +1713,18 @@ GRAPH_HTML_TEMPLATE = f"""<!DOCTYPE html>
     .node circle.selected {{ stroke: #fff !important; stroke-width: 3px; }}
     .node text {{ font-size: 11px; fill: #ccc; pointer-events: none; }}
     .link {{ stroke: #aaa; fill: none; }}
+    @media (max-width: 768px) {{
+      #panel {{
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        flex: none !important; width: 100%; max-height: 65vh;
+        border-left: none; border-top: 1px solid #1e1e1e;
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+        z-index: 15;
+      }}
+      #panel-close {{ display: flex; }}
+      #panel-name {{ padding-right: 24px; }}
+    }}
   </style>
 </head>
 <body>
@@ -1341,8 +1738,10 @@ GRAPH_HTML_TEMPLATE = f"""<!DOCTYPE html>
       <div id="empty-msg" style="display:none">No competitors found in the graph.</div>
     </div>
     <div id="panel">
+      <button id="panel-close" aria-label="Close" title="Close">&#10005;</button>
       <div id="panel-logo-row">
         <img id="panel-logo" src="" alt="" style="display:none">
+        <div id="panel-logo-initial"></div>
         <a id="panel-logo-download" href="#" download title="Télécharger le logo">&#8681;</a>
       </div>
       <div id="panel-name">—</div>
@@ -1364,21 +1763,42 @@ const STARTUP_DOMAIN = __STARTUP_DOMAIN_JSON__;
 document.getElementById("page-title").textContent = STARTUP_DOMAIN;
 document.getElementById("page-name").textContent  = STARTUP_DOMAIN;
 
+const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+let nodeSel = null;
+
+document.getElementById("panel-close").addEventListener("click", () => {{
+  document.getElementById("panel").style.display = "none";
+  document.getElementById("graph-col").style.flex = "0 0 100%";
+  if (nodeSel) nodeSel.selectAll("circle").classed("selected", false);
+}});
+
 function showPanel(node, isCenter) {{
   document.getElementById("panel").style.display = "flex";
-  document.getElementById("graph-col").style.flex = "0 0 70%";
-  const logoEl = document.getElementById("panel-logo");
-  const logoDlEl = document.getElementById("panel-logo-download");
+  if (!isMobile()) document.getElementById("graph-col").style.flex = "0 0 70%";
+  const logoEl        = document.getElementById("panel-logo");
+  const logoDlEl      = document.getElementById("panel-logo-download");
+  const logoInitialEl = document.getElementById("panel-logo-initial");
   const logoSrc = node.logo_url || node.flaticon_url;
+  const color   = sectorColor(node.sectors);
+  const initial = (node.name || "?")[0].toUpperCase();
+  function showLogoInitial() {{
+    logoEl.style.display = "none";
+    logoDlEl.style.display = "none";
+    logoInitialEl.style.background = color + "26";
+    logoInitialEl.style.color = color;
+    logoInitialEl.textContent = initial;
+    logoInitialEl.style.display = "flex";
+  }}
+  logoEl.onerror = showLogoInitial;
   if (logoSrc) {{
+    logoInitialEl.style.display = "none";
     logoEl.src           = logoSrc;
     logoEl.style.display = "";
     logoDlEl.href        = logoSrc;
     logoDlEl.download    = node.name.replace(/[^a-z0-9]+/gi, "_") + "_logo" + logoSrc.slice(logoSrc.lastIndexOf("."));
     logoDlEl.style.display = "flex";
   }} else {{
-    logoEl.style.display = "none";
-    logoDlEl.style.display = "none";
+    showLogoInitial();
   }}
 
   document.getElementById("panel-name").textContent = node.name;
@@ -1465,7 +1885,7 @@ fetch("/api/graph/" + encodeURIComponent(STARTUP_DOMAIN))
         .attr("stroke-width",   d => 1.5 + d.score * 5)
         .attr("stroke-opacity", d => 0.15 + d.score * 0.45);
 
-    const nodeSel = svg.append("g")
+    nodeSel = svg.append("g")
       .selectAll("g")
       .data(allNodes)
       .join("g")
@@ -1488,6 +1908,20 @@ fetch("/api/graph/" + encodeURIComponent(STARTUP_DOMAIN))
         showPanel(d, d._isCenter);
       }});
 
+    // Colored-initial fallback, shown whenever there's no logo image (never
+    // had one, or its <image> below failed to load) -- sits under the image
+    // in paint order, invisible whenever the image successfully renders.
+    nodeSel.append("text")
+      .attr("class",  "node-initial")
+      .attr("x", 0).attr("y", 4)
+      .attr("text-anchor", "middle")
+      .style("font-weight", "700")
+      .style("font-size", d => (d._isCenter ? 30 : 10 + scoreOf(d) * 12) * 0.7 + "px")
+      .style("fill", d => d._isCenter ? "#111" : "#0f0f0f")
+      .style("pointer-events", "none")
+      .style("display", d => d.flaticon_url ? "none" : null)
+      .text(d => (d.name || "?")[0].toUpperCase());
+
     // Circular logo images for nodes that have flaticon_url
     nodeSel.each(function(d, i) {{
       if (!d.flaticon_url) return;
@@ -1501,7 +1935,17 @@ fetch("/api/graph/" + encodeURIComponent(STARTUP_DOMAIN))
         .attr("width",  r * 2).attr("height", r * 2)
         .attr("clip-path", "url(#logo-clip-" + i + ")")
         .attr("preserveAspectRatio", "xMidYMid slice")
-        .style("pointer-events", "none");
+        .style("pointer-events", "none")
+        .on("error", function() {{
+          // Missing/unreadable file -- fall back to the same plain colored
+          // circle + initial a node with no flaticon_url at all would show.
+          const g = d3.select(this.parentNode);
+          d3.select(this).remove();
+          g.select("circle")
+            .attr("fill", d._isCenter ? "#ffffff" : sectorColor(d.sectors))
+            .attr("stroke", d._isCenter ? "#fff" : "#0f0f0f");
+          g.select(".node-initial").style("display", null);
+        }});
     }});
 
     nodeSel.append("text")
@@ -1533,6 +1977,7 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Full Startup Graph</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -1601,6 +2046,11 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
       width: 80px; height: 80px; border-radius: 12px; object-fit: contain;
       background: #1a1a1a; border: 1px solid #222; padding: 6px;
     }}
+    #panel-logo-initial {{
+      width: 80px; height: 80px; border-radius: 12px;
+      display: none; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700;
+    }}
     #panel-logo-download {{
       display: none; width: 28px; height: 28px; align-items: center; justify-content: center;
       background: #1a1a1a; border: 1px solid #2e2e2e; border-radius: 8px;
@@ -1626,6 +2076,19 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
     .node circle.selected {{ stroke: #fff !important; stroke-width: 3px; }}
     .node text {{ font-size: 11px; fill: #ccc; pointer-events: none; }}
     .link {{ stroke: #aaa; fill: none; }}
+    @media (max-width: 768px) {{
+      #topbar {{ padding: 0 12px; gap: 10px; }}
+      #topbar-search {{ width: 100%; }}
+      #topbar-search-input {{ font-size: 16px; }}
+      #panel {{
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        flex: none !important; width: 100%; max-height: 65vh;
+        border-left: none; border-top: 1px solid #1e1e1e;
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+        z-index: 15;
+      }}
+    }}
   </style>
 </head>
 <body>
@@ -1645,6 +2108,7 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
       <button id="panel-close" aria-label="Close" title="Close">&#10005;</button>
       <div id="panel-logo-row">
         <img id="panel-logo" src="" alt="" style="display:none">
+        <div id="panel-logo-initial"></div>
         <a id="panel-logo-download" href="#" download title="Télécharger le logo">&#8681;</a>
       </div>
       <div id="panel-name">Click a node</div>
@@ -1659,21 +2123,48 @@ GLOBAL_GRAPH_HTML = f"""<!DOCTYPE html>
   <script>
 {SECTOR_COLORS_JS}
 
+// Shared onerror fallback for a flaticon_url/logo_url <img> in a list --
+// see SEARCH_HTML's copy of this function for the full rationale (each page
+// here is a fully separate document with no shared script file, hence the
+// duplication).
+function handleLogoImgError(imgEl) {{
+  const div = document.createElement("div");
+  div.className = imgEl.dataset.fallbackClass;
+  if (imgEl.dataset.fallbackBg) div.style.background = imgEl.dataset.fallbackBg;
+  if (imgEl.dataset.fallbackColor) div.style.color = imgEl.dataset.fallbackColor;
+  div.textContent = imgEl.dataset.fallbackInitial || "";
+  imgEl.replaceWith(div);
+}}
+
+const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+
 function showPanel(node) {{
   document.getElementById("panel").style.display = "flex";
-  document.getElementById("graph-col").style.flex = "0 0 70%";
-  const logoEl = document.getElementById("panel-logo");
-  const logoDlEl = document.getElementById("panel-logo-download");
+  if (!isMobile()) document.getElementById("graph-col").style.flex = "0 0 70%";
+  const logoEl        = document.getElementById("panel-logo");
+  const logoDlEl      = document.getElementById("panel-logo-download");
+  const logoInitialEl = document.getElementById("panel-logo-initial");
   const logoSrc = node.logo_url || node.flaticon_url;
+  const color   = sectorColor(node.sectors);
+  const initial = (node.name || "?")[0].toUpperCase();
+  function showLogoInitial() {{
+    logoEl.style.display = "none";
+    logoDlEl.style.display = "none";
+    logoInitialEl.style.background = color + "26";
+    logoInitialEl.style.color = color;
+    logoInitialEl.textContent = initial;
+    logoInitialEl.style.display = "flex";
+  }}
+  logoEl.onerror = showLogoInitial;
   if (logoSrc) {{
+    logoInitialEl.style.display = "none";
     logoEl.src           = logoSrc;
     logoEl.style.display = "";
     logoDlEl.href        = logoSrc;
     logoDlEl.download    = node.name.replace(/[^a-z0-9]+/gi, "_") + "_logo" + logoSrc.slice(logoSrc.lastIndexOf("."));
     logoDlEl.style.display = "flex";
   }} else {{
-    logoEl.style.display = "none";
-    logoDlEl.style.display = "none";
+    showLogoInitial();
   }}
   document.getElementById("panel-name").textContent = node.name;
   const linkEl = document.getElementById("panel-link");
@@ -1834,6 +2325,19 @@ fetch("/api/graph/all")
         e.stopPropagation();
       }});
 
+    // Colored-initial fallback, shown whenever there's no logo image (never
+    // had one, or its <image> below failed to load).
+    nodeSel.append("text")
+      .attr("class",  "node-initial")
+      .attr("x", 0).attr("y", 4)
+      .attr("text-anchor", "middle")
+      .style("font-weight", "700")
+      .style("font-size", d => nodeR(d) * 0.7 + "px")
+      .style("fill", "#0f0f0f")
+      .style("pointer-events", "none")
+      .style("display", d => d.flaticon_url ? "none" : null)
+      .text(d => (d.name || "?")[0].toUpperCase());
+
     nodeSel.each(function(d, i) {{
       if (!d.flaticon_url) return;
       const r = nodeR(d);
@@ -1846,7 +2350,13 @@ fetch("/api/graph/all")
         .attr("width",  r * 2).attr("height", r * 2)
         .attr("clip-path", "url(#logo-clip-" + i + ")")
         .attr("preserveAspectRatio", "xMidYMid slice")
-        .style("pointer-events", "none");
+        .style("pointer-events", "none")
+        .on("error", function() {{
+          const g = d3.select(this.parentNode);
+          d3.select(this).remove();
+          g.select("circle").attr("fill", sectorColor(d.sectors)).attr("stroke", "#0f0f0f");
+          g.select(".node-initial").style("display", null);
+        }});
     }});
 
     nodeSel.append("text")
@@ -1902,7 +2412,7 @@ fetch("/api/graph/all")
         const color   = sectorColor(s.sectors);
         const initial = (s.name || "?")[0].toUpperCase();
         const logoHtml = s.flaticon_url
-          ? `<img class="search-result-logo" src="${{s.flaticon_url}}" alt="">`
+          ? `<img class="search-result-logo" src="${{s.flaticon_url}}" alt="" onerror="handleLogoImgError(this)" data-fallback-class="search-result-logo-initial" data-fallback-bg="${{color}}" data-fallback-initial="${{initial}}">`
           : `<div class="search-result-logo-initial" style="background:${{color}}">${{initial}}</div>`;
         return `<div class="search-result" data-domain="${{s.domain}}">
           ${{logoHtml}}
@@ -1951,6 +2461,7 @@ ADMIN_DASHBOARD_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard — Smap</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -1987,11 +2498,20 @@ ADMIN_DASHBOARD_HTML = f"""<!DOCTYPE html>
     tr:last-child td {{ border-bottom: none; }}
     .recent-name {{ display: flex; align-items: center; gap: 8px; color: #e8e4dc; font-weight: 600; }}
     .recent-logo {{ width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #201f1c; }}
+    .recent-logo-initial {{ display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #111; }}
     .mini-badge {{ font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; color: #111; white-space: nowrap; }}
     .cost-day-bars {{ display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 4px; }}
     .cost-day-bar {{ flex: 1; background: #7cb8e8; border-radius: 2px 2px 0 0; min-height: 2px; }}
     .empty-note {{ color: #55524c; font-size: 12.5px; }}
     #loading {{ color: #55524c; font-size: 13px; }}
+    @media (max-width: 640px) {{
+      body {{ padding: 20px 16px 40px; }}
+      #dash-header {{ flex-wrap: wrap; row-gap: 6px; }}
+      #dash-generated {{ margin-left: 0; flex-basis: 100%; }}
+      .grid {{ grid-template-columns: 1fr; }}
+      .bar-label {{ width: 96px; }}
+      table {{ min-width: 480px; }}
+    }}
   </style>
 </head>
 <body>
@@ -2023,6 +2543,17 @@ ADMIN_DASHBOARD_HTML = f"""<!DOCTYPE html>
         </table>
       </div>
     </div>
+    <div class="card">
+      <h2>Échecs</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>URL</th><th>Ajouté par</th><th>Erreur</th><th>Échoué</th>
+          </tr></thead>
+          <tbody id="failure-rows"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
   <script>
 {SECTOR_COLORS_JS}
@@ -2030,6 +2561,16 @@ ADMIN_DASHBOARD_HTML = f"""<!DOCTYPE html>
 function escapeHtml(str) {{
   const map = {{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }};
   return String(str == null ? "" : str).replace(/[&<>"']/g, ch => map[ch]);
+}}
+
+// See SEARCH_HTML's copy of this function for the full rationale.
+function handleLogoImgError(imgEl) {{
+  const div = document.createElement("div");
+  div.className = imgEl.dataset.fallbackClass;
+  if (imgEl.dataset.fallbackBg) div.style.background = imgEl.dataset.fallbackBg;
+  if (imgEl.dataset.fallbackColor) div.style.color = imgEl.dataset.fallbackColor;
+  div.textContent = imgEl.dataset.fallbackInitial || "";
+  imgEl.replaceWith(div);
 }}
 
 function fmtUsd(n) {{
@@ -2129,9 +2670,11 @@ fetch("/api/dashboard")
       recentEl.innerHTML = '<tr><td colspan="7" class="empty-note">Aucun ajout terminé pour l\\'instant.</td></tr>';
     }} else {{
       recentEl.innerHTML = data.recent.map(r => {{
+        const color   = sectorColor(r.sectors);
+        const initial = (r.name || "?")[0].toUpperCase();
         const logo = r.flaticon_url
-          ? `<img class="recent-logo" src="${{r.flaticon_url}}" alt="">`
-          : `<div class="recent-logo"></div>`;
+          ? `<img class="recent-logo" src="${{r.flaticon_url}}" alt="" onerror="handleLogoImgError(this)" data-fallback-class="recent-logo recent-logo-initial" data-fallback-bg="${{color}}" data-fallback-initial="${{initial}}">`
+          : `<div class="recent-logo recent-logo-initial" style="background:${{color}}">${{initial}}</div>`;
         const badges = (r.sectors || []).slice(0, 2).map(s =>
           `<span class="mini-badge" style="background:${{sectorColor([s])}}">${{escapeHtml(s)}}</span>`
         ).join(" ");
@@ -2145,6 +2688,18 @@ fetch("/api/dashboard")
           <td>${{timeAgo(r.completed_at)}}</td>
         </tr>`;
       }}).join("");
+    }}
+
+    const failureEl = document.getElementById("failure-rows");
+    if (!data.failures.length) {{
+      failureEl.innerHTML = '<tr><td colspan="4" class="empty-note">Aucun échec pour l\\'instant.</td></tr>';
+    }} else {{
+      failureEl.innerHTML = data.failures.map(f => `<tr>
+          <td>${{escapeHtml(f.url)}}</td>
+          <td>${{escapeHtml(f.added_by || "—")}}</td>
+          <td>${{escapeHtml(f.error_message || "—")}}</td>
+          <td>${{timeAgo(f.failed_at)}}</td>
+        </tr>`).join("");
     }}
   }})
   .catch(err => {{
@@ -2166,14 +2721,27 @@ def index(request: Request):
     # handler runs, an unauthenticated request has already been redirected to
     # /login by the middleware, so user here is always the logged-in account.
     user = getattr(request.state, "user", None)
+    is_owner = bool(user and user.get("is_owner"))
     graph_link = (
         '<a href="/graph" id="graph-link">Vue graphe complet →</a>'
         '<a href="/admin" id="admin-link">Dashboard →</a>'
         '<div id="nav-divider"></div>'
-        if user and user.get("is_owner")
+        if is_owner
         else ""
     )
-    html = SEARCH_HTML.replace("__GRAPH_NAV_LINK__", graph_link)
+    # Owner-only "Toutes / Mes ingestions" scope toggle -- a non-owner's view
+    # is always restricted server-side regardless of this control, so there's
+    # nothing for them to toggle (queueScopeBtns.length being 0 also tells
+    # the frontend JS not to send a scope param at all for them).
+    queue_scope_toggle = (
+        '<div id="queue-scope-toggle">'
+        '<button class="queue-scope-btn active" data-scope="all" type="button">Toutes</button>'
+        '<button class="queue-scope-btn" data-scope="mine" type="button">Mes ingestions</button>'
+        '</div>'
+        if is_owner
+        else ""
+    )
+    html = SEARCH_HTML.replace("__GRAPH_NAV_LINK__", graph_link).replace("__QUEUE_SCOPE_TOGGLE__", queue_scope_toggle)
     return HTMLResponse(content=html)
 
 

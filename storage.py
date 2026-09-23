@@ -19,7 +19,29 @@ load_dotenv()
 
 # Minimum pair score for two companies to be saved as competitors.
 # Validation showed 0.75-0.84 pairs are mostly false positives; 0.85+ all held up.
+#
+# MISTRAL-SCALE ONLY. This constant governs the Mistral scoring path
+# (competitor.py::score_candidates/save_competitors, still the live default
+# called from main.ingest() as of 2026-09-17) and save_relationships()'s
+# default `threshold` param below. It is NOT on the same scale as Jev's
+# scores -- see JEV_ACCEPT_THRESHOLD/JEV_REVIEW_FLOOR just below, which
+# govern the separate, not-yet-default Jev scoring path
+# (competitor.py::score_candidates_jev/save_competitors_jev). Do not repoint
+# this constant to a Jev-scale value while the Mistral path is still live --
+# that would silently break Mistral's own threshold, not "migrate" it.
 COMPETITOR_THRESHOLD = 0.85
+
+# Jev's three-zone decision (competitor.py::score_candidates_jev), decided
+# 2026-09-17 after the LOOCV/prompt-iteration/z-score investigation
+# documented in jev_manual_labels.json and loocv_jev_threshold_report.json:
+#   score >= JEV_ACCEPT_THRESHOLD            -> confirmed competitor, saved
+#   JEV_REVIEW_FLOOR <= score < ACCEPT       -> needs human review, not auto-saved
+#   score < JEV_REVIEW_FLOOR                 -> rejected, not saved
+# Jev's scale is NOT comparable to Mistral's (COMPETITOR_THRESHOLD above) --
+# confirmed true positives in testing landed anywhere from 0.52 to 0.92,
+# nowhere near Mistral's 0.85+ range for the same kind of pair.
+JEV_ACCEPT_THRESHOLD = 0.50
+JEV_REVIEW_FLOOR = 0.40
 
 # Set by main.ingest(url, interactive=...) for the duration of a single ingest,
 # read by competitor.py and extractor.py to pick a tighter Mistral retry/timeout
@@ -452,8 +474,19 @@ def relationship_exists(company_a_id: str, company_b_id: str) -> bool:
     return bool(response.data)
 
 
-def save_relationships(company_a_id: str, company_a_name: str, results: list[dict]) -> list[dict]:
-    """Insert (company_a_id, company_b_id) rows for results with score >= COMPETITOR_THRESHOLD.
+def save_relationships(company_a_id: str, company_a_name: str, results: list[dict], threshold: float = COMPETITOR_THRESHOLD, scorer: str | None = None) -> list[dict]:
+    """Insert (company_a_id, company_b_id) rows for results with score >= threshold.
+
+    threshold defaults to COMPETITOR_THRESHOLD (Mistral's scale, the existing
+    call site in competitor.py::save_competitors doesn't pass it explicitly).
+    competitor.py::save_competitors_jev passes JEV_ACCEPT_THRESHOLD explicitly
+    instead -- the two scorers' scores are not on the same scale, see
+    JEV_ACCEPT_THRESHOLD's comment above COMPETITOR_THRESHOLD.
+
+    scorer, when given, is stamped onto competitors.scorer ('mistral' or
+    'jev', migration 2026-09-17). None (the default) leaves the column NULL
+    -- the existing Mistral call site doesn't pass it, so its rows stay NULL
+    (implicitly mistral) rather than every historical row needing a backfill.
 
     Skips if the exact (company_a_id, company_b_id) pair already exists.
     company_a/company_b (name) are written alongside the ids as human-readable
@@ -461,7 +494,7 @@ def save_relationships(company_a_id: str, company_a_name: str, results: list[dic
     display name can't cause a mismatch.
     Returns list of dicts {company_a_id, company_a, company_b_id, company_b, score} that were inserted.
     """
-    candidates = [r for r in results if r.get("score", 0) >= COMPETITOR_THRESHOLD]
+    candidates = [r for r in results if r.get("score", 0) >= threshold]
     if not candidates:
         return []
 
@@ -478,7 +511,63 @@ def save_relationships(company_a_id: str, company_a_name: str, results: list[dic
                 "company_b": r["name"],
                 "score": r["score"],
             }
+            if scorer is not None:
+                row["scorer"] = scorer
             _execute(client.table("competitors").insert(row))
+            saved.append(row)
+
+    return saved
+
+
+def review_pair_exists(company_a_id: str, company_b_id: str) -> bool:
+    """Check if the exact (company_a_id, company_b_id) row already exists in
+    competitor_review_queue -- same dedup principle as relationship_exists()
+    for `competitors`, so re-ingesting a startup doesn't queue the same pair
+    for review twice.
+    """
+    client = _client()
+    response = _execute(
+        client.table("competitor_review_queue")
+        .select("id")
+        .eq("company_a_id", company_a_id)
+        .eq("company_b_id", company_b_id)
+        .limit(1)
+    )
+    return bool(response.data)
+
+
+def save_review_queue(company_a_id: str, company_a_name: str, results: list[dict], scorer: str) -> list[dict]:
+    """Insert (company_a_id, company_b_id) rows into competitor_review_queue
+    (migration 2026-09-17) for pairs in a scorer's review band -- not
+    filtered by any threshold here, the caller (competitor.py::
+    save_competitors_jev) already selected exactly the review-zone results.
+    Mirrors save_relationships()'s dedup pattern (skips an exact pair
+    already queued) but writes to competitor_review_queue instead of
+    `competitors`, and always stamps `scorer` (unlike save_relationships(),
+    where it's optional) since a review-queue row has no other way to know
+    which scorer's band it came from.
+
+    Returns the list of dicts that were inserted (same shape as the row
+    written: company_a_id, company_a, company_b_id, company_b, score, scorer).
+    """
+    if not results:
+        return []
+
+    client = _client()
+    saved = []
+
+    for r in results:
+        company_b_id = r["id"]
+        if not review_pair_exists(company_a_id, company_b_id):
+            row = {
+                "company_a_id": company_a_id,
+                "company_a": company_a_name,
+                "company_b_id": company_b_id,
+                "company_b": r["name"],
+                "score": r["score"],
+                "scorer": scorer,
+            }
+            _execute(client.table("competitor_review_queue").insert(row))
             saved.append(row)
 
     return saved
@@ -646,7 +735,31 @@ def _set_ingestion_status(row_id, status: str, **fields) -> None:
         raise ValueError(f"ingestion_queue row {row_id} not found (update matched zero rows)")
 
 
-def retry_ingestion(row_id) -> dict:
+def get_ingestion(row_id, requested_by_user_id: int | None = None) -> dict | None:
+    """Fetch a single ingestion_queue row by id, or None if it doesn't exist
+    (or -- see requested_by_user_id below -- doesn't belong to the caller).
+    Used by the retry/delete endpoints (graph_app.py) to re-validate the
+    row's URL (SSRF guard) and check the daily quota before retry_ingestion()
+    flips the row back to 'queued' -- checking after that transition would
+    leave a rejected row stuck at 'queued' with no worker ever picking it up.
+
+    requested_by_user_id, when given, restricts the SELECT itself to rows
+    owned by that user -- a mismatched or NULL (orphaned) row simply isn't
+    returned, indistinguishable from "no such id". This is the ownership
+    check for non-owner callers (graph_app.py passes None for the owner, who
+    is unrestricted, and their own id otherwise); it must be a query-level
+    filter, not a fetch-then-compare in Python, so a non-owner's read of
+    someone else's row never round-trips its data out of the DB layer at all.
+    """
+    client = _client()
+    query = client.table("ingestion_queue").select("*").eq("id", row_id)
+    if requested_by_user_id is not None:
+        query = query.eq("requested_by_user_id", requested_by_user_id)
+    response = _execute(query.limit(1))
+    return response.data[0] if response.data else None
+
+
+def retry_ingestion(row_id, requested_by_user_id: int | None = None) -> dict:
     """Reset an errored ingestion_queue row back to status='queued' so the
     worker (Story 6.1) picks it up again from scratch (Story 6.3 -- no
     partial/per-step retry, full main.ingest() re-run, per the v1 scope
@@ -659,6 +772,15 @@ def retry_ingestion(row_id) -> dict:
     If zero rows match, the caller can't tell "no such row" from "not in
     error" without another query, so this just raises ValueError either way;
     the caller (the retry endpoint) turns that into a 404.
+
+    requested_by_user_id, when given, is ANDed into the same WHERE clause as
+    an ownership guard -- a non-owner's retry on someone else's (or an
+    orphaned) row matches zero rows and raises the same ValueError as a
+    nonexistent id, giving the endpoint no way to distinguish "not found"
+    from "not yours" (by design: 404, not 403, per the spec). This mirrors
+    get_ingestion()'s query-level filter above rather than trusting a
+    Python-side check done by the caller after a separate read, so the
+    UPDATE itself can never touch a row it isn't authorized to touch.
 
     Code review (2026-08-29): NOT routed through _execute_retryable, unlike
     _set_ingestion_status(). That function's update is safe to retry because
@@ -682,33 +804,42 @@ def retry_ingestion(row_id) -> dict:
     409, not a 404 or 502).
     """
     client = _client()
-    response = _execute(
+    query = (
         client.table("ingestion_queue")
         .update({"status": "queued", "error_message": None, "updated_at": _now_iso()})
         .eq("id", row_id)
         .eq("status", "error")
     )
+    if requested_by_user_id is not None:
+        query = query.eq("requested_by_user_id", requested_by_user_id)
+    response = _execute(query)
     if not response.data:
-        raise ValueError(f"ingestion_queue row {row_id} not found or not in 'error' status")
+        raise ValueError(f"ingestion_queue row {row_id} not found, not in 'error' status, or not owned by user {requested_by_user_id}")
     return response.data[0]
 
 
-def delete_ingestion(row_id) -> dict:
+def delete_ingestion(row_id, requested_by_user_id: int | None = None) -> dict:
     """Permanently remove an errored ingestion_queue row so the "En attente"
     tab can be cleared of stale failures. Restricted to status='error', same
     as retry_ingestion -- deleting a queued/processing row would silently
     drop work still in flight, and a done row is the record of a real
     ingestion having happened.
+
+    requested_by_user_id: same query-level ownership guard as
+    retry_ingestion() -- see that function's docstring.
     """
     client = _client()
-    response = _execute(
+    query = (
         client.table("ingestion_queue")
         .delete()
         .eq("id", row_id)
         .eq("status", "error")
     )
+    if requested_by_user_id is not None:
+        query = query.eq("requested_by_user_id", requested_by_user_id)
+    response = _execute(query)
     if not response.data:
-        raise ValueError(f"ingestion_queue row {row_id} not found or not in 'error' status")
+        raise ValueError(f"ingestion_queue row {row_id} not found, not in 'error' status, or not owned by user {requested_by_user_id}")
     return response.data[0]
 
 
@@ -750,7 +881,7 @@ def get_pending_ingestions() -> list[dict]:
     return _execute(query).data or []
 
 
-def list_ingestions(limit: int = 50, status: str | None = None) -> list[dict]:
+def list_ingestions(limit: int = 50, status: str | None = None, requested_by_user_id: int | None = None) -> list[dict]:
     """All ingestion_queue rows (no status filter by default), most recent
     first, for the "En attente" tab (Story 6.2) -- unlike get_pending_ingestions(),
     this also surfaces done/error rows so their terminal badge stays visible.
@@ -769,20 +900,39 @@ def list_ingestions(limit: int = 50, status: str | None = None) -> list[dict]:
     this, the header badge and the list it was supposed to explain could
     disagree (badge says 4 errors, list -- capped to the 50 most recent rows
     of ANY status -- shows none of them).
+
+    requested_by_user_id, when given, restricts the result to that user's own
+    rows (query-level .eq(), not a Python-side filter after the fact) --
+    graph_app.py passes the caller's own id for a non-owner (who can never
+    see anyone else's rows, including orphaned ones with no
+    requested_by_user_id at all -- NULL never matches .eq()) or None for the
+    owner viewing everything (unchanged/legacy behavior, the only path that
+    still surfaces orphaned rows).
     """
     if status is not None and status not in _KNOWN_INGESTION_STATUSES:
         raise ValueError(f"Unknown ingestion status: {status!r}. Must be one of {sorted(_KNOWN_INGESTION_STATUSES)}")
     client = _client()
     query = client.table("ingestion_queue").select("*").order("created_at", desc=True)
+    if requested_by_user_id is not None:
+        query = query.eq("requested_by_user_id", requested_by_user_id)
     query = query.eq("status", status) if status is not None else query.limit(limit)
     return _execute(query).data or []
 
 
-def mark_done_rows_seen() -> int:
-    """Bulk-marks every currently-done-and-unseen row as seen (Story 6.4) --
-    called once when the "En attente" tab opens, not per-row. Returns the
-    number of rows updated (not required by any caller today, just an honest
-    return value instead of None).
+def mark_done_rows_seen(requested_by_user_id: int | None = None, include_orphaned: bool = False) -> int:
+    """Bulk-marks currently-done-and-unseen rows as seen (Story 6.4) -- called
+    once when the "En attente" tab opens, not per-row. Returns the number of
+    rows updated (not required by any caller today, just an honest return
+    value instead of None).
+
+    requested_by_user_id, when given, restricts this to that user's own rows
+    -- each user's "seen" state is theirs alone, so one user opening the
+    drawer must never dismiss another user's unseen-done badge.
+    include_orphaned additionally covers rows with no requested_by_user_id
+    at all (NULL) -- graph_app.py only ever sets this for the owner, since
+    an orphaned row is only ever visible to the owner in the first place
+    (see list_ingestions), so nobody else could otherwise ever clear its
+    "unseen" flag.
 
     Code review (2026-08-29): NOT routed through _execute_retryable, despite
     looking like the same "blind re-apply is a no-op" shape as
@@ -796,12 +946,18 @@ def mark_done_rows_seen() -> int:
     silently-wrong count.
     """
     client = _client()
-    response = _execute(
+    query = (
         client.table("ingestion_queue")
         .update({"seen": True})
         .eq("status", "done")
         .eq("seen", False)
     )
+    if requested_by_user_id is not None:
+        if include_orphaned:
+            query = query.or_(f"requested_by_user_id.eq.{requested_by_user_id},requested_by_user_id.is.null")
+        else:
+            query = query.eq("requested_by_user_id", requested_by_user_id)
+    response = _execute(query)
     return len(response.data or [])
 
 
@@ -857,7 +1013,26 @@ def count_non_owner_users() -> int:
     return response.count or 0
 
 
-def get_ingestion_summary() -> dict:
+def count_user_ingestions_since(user_id: int, since_iso: str) -> int:
+    """Count of ingestion_queue rows requested by `user_id` created at/after
+    since_iso -- backs auth.ingestion_quota_reached()'s rolling-24h per-user
+    cap (cost/abuse guardrail on /api/ingest, non-owner users only). Every
+    submission (queued/processing/done/error alike) counts, including one
+    that's since errored out -- a user retrying a URL that keeps failing
+    still consumed real scrape/LLM cost each time, so it still counts against
+    the cap.
+    """
+    client = _client()
+    response = _execute(
+        client.table("ingestion_queue")
+        .select("id", count="exact", head=True)
+        .eq("requested_by_user_id", user_id)
+        .gte("created_at", since_iso)
+    )
+    return response.count or 0
+
+
+def get_ingestion_summary(requested_by_user_id: int | None = None) -> dict:
     """Counts backing the "En attente" tab's two notification badges (Story
     6.4): error_count (status='error', regardless of seen -- a failure is
     never silently dismissed) and unseen_done_count (status='done' AND
@@ -866,19 +1041,29 @@ def get_ingestion_summary() -> dict:
     has no single-query way to count two different filters at once. head=True
     issues an HTTP HEAD request, which _execute()'s existing
     "http_method in ('GET', 'HEAD')" retry check already covers unchanged.
+
+    requested_by_user_id, when given, scopes both counts to that user's own
+    rows -- same query-level filter as list_ingestions(), so a non-owner's
+    badges only ever reflect rows they can actually see (never someone
+    else's, never an orphaned row with no requested_by_user_id).
     """
     client = _client()
-    error_response = _execute(
+    error_query = (
         client.table("ingestion_queue")
         .select("id", count="exact", head=True)
         .eq("status", "error")
     )
-    unseen_response = _execute(
+    unseen_query = (
         client.table("ingestion_queue")
         .select("id", count="exact", head=True)
         .eq("status", "done")
         .eq("seen", False)
     )
+    if requested_by_user_id is not None:
+        error_query = error_query.eq("requested_by_user_id", requested_by_user_id)
+        unseen_query = unseen_query.eq("requested_by_user_id", requested_by_user_id)
+    error_response = _execute(error_query)
+    unseen_response = _execute(unseen_query)
     return {
         "error_count": error_response.count or 0,
         "unseen_done_count": unseen_response.count or 0,

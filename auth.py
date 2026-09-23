@@ -14,6 +14,7 @@ spec's Design Notes.
 """
 
 import os
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
@@ -89,6 +90,62 @@ def signup_cap_reached() -> bool:
     for a cost-guardrail cap on a demo, not a strict security boundary.
     """
     return storage.count_non_owner_users() >= _max_users()
+
+
+# Cost/abuse guardrail on /api/ingest (each ingestion runs a real browser
+# render plus several Mistral calls): a non-owner user is capped at this many
+# ingestions per rolling 24h window. Unlike MAX_USERS/signup, this does NOT
+# fail closed to 0 on a missing/malformed env var -- an unset cap here would
+# silently block every non-owner ingestion rather than just leaving signups
+# closed, which is a functionality bug this project would rather avoid than
+# trade for defense-in-depth that main.py's SSRF guard (net_security.py)
+# already provides independently of this quota.
+_DEFAULT_MAX_INGESTIONS_PER_USER_PER_DAY = 20
+
+
+def _max_ingestions_per_user_per_day() -> int:
+    raw = os.environ.get("MAX_INGESTIONS_PER_USER_PER_DAY", "").strip()
+    if not raw:
+        return _DEFAULT_MAX_INGESTIONS_PER_USER_PER_DAY
+    try:
+        return int(raw)
+    except ValueError:
+        return _DEFAULT_MAX_INGESTIONS_PER_USER_PER_DAY
+
+
+class QuotaCheckError(RuntimeError):
+    """Raised by ingestion_quota_reached() when the underlying count itself
+    couldn't be determined (e.g. a Supabase outage) -- deliberately distinct
+    from a real "quota reached" result. The caller (graph_app.py's
+    api_ingest/api_retry_ingestion) must fail closed on this for non-owner
+    users (refuse the ingestion) rather than let it surface as an
+    unhandled 500, but it's still worth telling apart from an actual quota
+    hit: one is "you've used your 20 today", the other is "we couldn't even
+    check, try again shortly" -- collapsing them into a false "quota
+    reached" would misreport a transient outage as the user's own usage.
+    """
+
+
+def ingestion_quota_reached(user_id: int) -> bool:
+    """True once `user_id` has requested >= MAX_INGESTIONS_PER_USER_PER_DAY
+    ingestions in the last 24h. Rolling window (not calendar-day), so a
+    burst right at UTC midnight can't double a user's effective allowance.
+
+    Owner-exemption is the caller's responsibility (graph_app.py's api_ingest
+    checks is_owner before calling this), same division as
+    signup_cap_reached()/is_owner_email() -- this function only does the
+    quota arithmetic.
+
+    Raises QuotaCheckError (instead of returning a value) if the count
+    itself couldn't be read -- see that class's docstring for why the
+    caller must treat this as "refuse" for non-owners, not "allow".
+    """
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    try:
+        count = storage.count_user_ingestions_since(user_id, since)
+    except Exception as e:
+        raise QuotaCheckError(f"Could not verify ingestion quota for user {user_id}: {e}") from e
+    return count >= _max_ingestions_per_user_per_day()
 
 
 def get_current_user(request) -> dict | None:

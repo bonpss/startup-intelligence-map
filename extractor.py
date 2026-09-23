@@ -11,7 +11,7 @@ from storage import (
     RETRY_INTERACTIVE_WAIT,
     log_api_call,
 )
-from taxonomy import TAXONOMY, SUBSECTOR_DEFINITIONS, HORIZONTAL_SUBSECTORS, validate_subsectors, demote_generic_erp_tag, demote_generic_mlops_tag, demote_generic_compute_tag, remove_redundant_uncategorized
+from taxonomy import TAXONOMY, SUBSECTOR_DEFINITIONS, HORIZONTAL_SUBSECTORS, validate_subsectors, demote_generic_erp_tag, demote_generic_mlops_tag, demote_generic_compute_tag, demote_generic_productivity_tag, demote_generic_epm_tag, demote_generic_ai_industrial_ops_tag, remove_redundant_uncategorized
 
 
 # Batch/backfill budget (reprocess_list.py's extract() calls) -- free-tier Mistral
@@ -68,6 +68,13 @@ _SECTORS_LIST  = "\n".join(f'  "{s}"' for s in _VALID_SECTORS)
 _STEP1_SYSTEM = """
 You are a startup intelligence analyst. Given a webpage in markdown,
 extract structured information about the startup.
+
+If the text starts with a "PAGE TITLE: ..." line, that's the scraped page's
+<title> tag, given because some landing pages (common with Framer/Webflow
+templates) never spell out the company name anywhere in the body copy itself
+-- only in the tab title and the logo image. Use it as your primary signal
+for `name` when the body text doesn't otherwise name the company, stripping
+any trailing tagline (e.g. "Anemo Labs - Digitizing Smell" -> "Anemo Labs").
 
 Return ONLY a valid JSON object:
 {
@@ -326,6 +333,9 @@ def extract(markdown: str, website: str = None, logo_candidates: list[dict] = No
     subsectors = demote_generic_erp_tag(subsectors)
     subsectors = demote_generic_mlops_tag(subsectors)
     subsectors = demote_generic_compute_tag(subsectors)
+    subsectors = demote_generic_productivity_tag(subsectors)
+    subsectors = demote_generic_epm_tag(subsectors)
+    subsectors = demote_generic_ai_industrial_ops_tag(subsectors)
     subsectors = remove_redundant_uncategorized(subsectors)
     valid_subsector_set = set(subsectors)
 

@@ -550,6 +550,268 @@ def test_get_ingestion_summary_returns_error_and_unseen_counts(monkeypatch):
     assert summary == {"error_count": 3, "unseen_done_count": 5}
 
 
+# ── ingestion_queue per-user scoping (requested_by_user_id filters) ─────────
+# Real, query-level filtering via _FakeIngestionSelectQuery.eq() where
+# possible -- these must fail if storage.py ever filters in Python instead of
+# adding the .eq() to the query, since the fake only ever sees what's passed
+# to the query builder.
+
+def test_list_ingestions_filters_to_requested_by_user_id(monkeypatch):
+    rows = [
+        {"id": 1, "created_at": "2026-08-29T10:00:00+00:00", "requested_by_user_id": 1},
+        {"id": 2, "created_at": "2026-08-29T10:02:00+00:00", "requested_by_user_id": 2},
+        {"id": 3, "created_at": "2026-08-29T10:01:00+00:00", "requested_by_user_id": None},
+    ]
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery(rows)})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert [r["id"] for r in storage.list_ingestions(requested_by_user_id=1)] == [1]
+
+
+def test_list_ingestions_never_returns_orphaned_rows_to_a_scoped_user(monkeypatch):
+    rows = [
+        {"id": 1, "created_at": "2026-08-29T10:00:00+00:00", "requested_by_user_id": 1},
+        {"id": 2, "created_at": "2026-08-29T10:02:00+00:00", "requested_by_user_id": None},
+    ]
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery(rows)})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert [r["id"] for r in storage.list_ingestions(requested_by_user_id=1)] == [1]
+
+
+def test_list_ingestions_unfiltered_includes_orphaned_rows_when_no_user_given(monkeypatch):
+    # requested_by_user_id=None (the owner's "all" view) is the only path
+    # that ever surfaces an orphaned row -- matches current/legacy behavior.
+    rows = [
+        {"id": 1, "created_at": "2026-08-29T10:00:00+00:00", "requested_by_user_id": 1},
+        {"id": 2, "created_at": "2026-08-29T10:02:00+00:00", "requested_by_user_id": None},
+    ]
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery(rows)})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert {r["id"] for r in storage.list_ingestions()} == {1, 2}
+
+
+def test_get_ingestion_returns_none_when_row_belongs_to_a_different_user(monkeypatch):
+    row = {"id": 7, "url": "https://a.com", "requested_by_user_id": 2}
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery([row])})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.get_ingestion(7, requested_by_user_id=1) is None
+
+
+def test_get_ingestion_returns_none_for_orphaned_row_when_user_given(monkeypatch):
+    row = {"id": 7, "url": "https://a.com", "requested_by_user_id": None}
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery([row])})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.get_ingestion(7, requested_by_user_id=1) is None
+
+
+def test_get_ingestion_returns_row_when_owned_by_given_user(monkeypatch):
+    row = {"id": 7, "url": "https://a.com", "requested_by_user_id": 1}
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery([row])})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.get_ingestion(7, requested_by_user_id=1) == row
+
+
+def test_get_ingestion_unrestricted_when_no_user_given(monkeypatch):
+    row = {"id": 7, "url": "https://a.com", "requested_by_user_id": 2}
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeIngestionSelectQuery([row])})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.get_ingestion(7) == row
+
+
+def test_retry_ingestion_includes_ownership_filter_when_given(monkeypatch):
+    calls = {}
+
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "PATCH"})()
+
+        def eq(self, col, val):
+            calls.setdefault("filters", []).append((col, val))
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [{"id": 7, "requested_by_user_id": 3}]})()
+
+    fake_table = type("FakeTable", (), {"update": lambda self, values: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    storage.retry_ingestion(7, requested_by_user_id=3)
+
+    assert ("requested_by_user_id", 3) in calls["filters"]
+
+
+def test_retry_ingestion_raises_when_row_belongs_to_a_different_user(monkeypatch):
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "PATCH"})()
+
+        def eq(self, col, val):
+            return self  # the ownership mismatch is simulated by execute() below
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": []})()
+
+    fake_table = type("FakeTable", (), {"update": lambda self, values: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    with pytest.raises(ValueError):
+        storage.retry_ingestion(7, requested_by_user_id=999)
+
+
+def test_retry_ingestion_unrestricted_when_no_user_given(monkeypatch):
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "PATCH"})()
+
+        def eq(self, col, val):
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [{"id": 7, "requested_by_user_id": 2}]})()
+
+    fake_table = type("FakeTable", (), {"update": lambda self, values: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    row = storage.retry_ingestion(7)  # owner: no ownership filter
+    assert row["id"] == 7
+
+
+def test_delete_ingestion_includes_ownership_filter_when_given(monkeypatch):
+    calls = {}
+
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "DELETE"})()
+
+        def eq(self, col, val):
+            calls.setdefault("filters", []).append((col, val))
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [{"id": 7}]})()
+
+    fake_table = type("FakeTable", (), {"delete": lambda self: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    storage.delete_ingestion(7, requested_by_user_id=3)
+
+    assert ("requested_by_user_id", 3) in calls["filters"]
+
+
+def test_delete_ingestion_raises_when_row_belongs_to_a_different_user(monkeypatch):
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "DELETE"})()
+
+        def eq(self, col, val):
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": []})()
+
+    fake_table = type("FakeTable", (), {"delete": lambda self: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    with pytest.raises(ValueError):
+        storage.delete_ingestion(7, requested_by_user_id=999)
+
+
+def test_get_ingestion_summary_scopes_both_counts_to_given_user(monkeypatch):
+    captured_filters = []
+    counts = iter([1, 2])
+
+    class Query:
+        def __init__(self, count):
+            self._count = count
+            self.request = type("FakeRequest", (), {"http_method": "HEAD"})()
+
+        def eq(self, col, val):
+            captured_filters.append((col, val))
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [], "count": self._count})()
+
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: Query(next(counts))})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    summary = storage.get_ingestion_summary(requested_by_user_id=5)
+
+    assert summary == {"error_count": 1, "unseen_done_count": 2}
+    assert captured_filters.count(("requested_by_user_id", 5)) == 2  # both queries scoped
+
+
+def test_mark_done_rows_seen_scopes_to_given_user(monkeypatch):
+    calls = {}
+
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "PATCH"})()
+
+        def eq(self, col, val):
+            calls.setdefault("filters", []).append((col, val))
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [{"id": 1}]})()
+
+    fake_table = type("FakeTable", (), {"update": lambda self, values: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    storage.mark_done_rows_seen(requested_by_user_id=5)
+
+    assert ("requested_by_user_id", 5) in calls["filters"]
+
+
+def test_mark_done_rows_seen_includes_orphaned_rows_via_or_clause(monkeypatch):
+    calls = {}
+
+    class Query:
+        def __init__(self):
+            self.request = type("FakeRequest", (), {"http_method": "PATCH"})()
+
+        def eq(self, col, val):
+            calls.setdefault("eq_filters", []).append((col, val))
+            return self
+
+        def or_(self, clause):
+            calls["or_clause"] = clause
+            return self
+
+        def execute(self):
+            return type("FakeResponse", (), {"data": [{"id": 1}, {"id": 2}]})()
+
+    fake_table = type("FakeTable", (), {"update": lambda self, values: Query()})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    count = storage.mark_done_rows_seen(requested_by_user_id=5, include_orphaned=True)
+
+    assert calls["or_clause"] == "requested_by_user_id.eq.5,requested_by_user_id.is.null"
+    assert "requested_by_user_id" not in [c for c, _v in calls.get("eq_filters", [])]
+    assert count == 2
+
+
 # ── get_by_subsectors: fine-subsector sub_subsectors filtering ────────────────
 # Story: Freestyle (Productivity Tools, real sub_subsectors) was scored as a
 # "competitor" of Fluidstack/Rad AI/Garner Health -- unrelated startups that

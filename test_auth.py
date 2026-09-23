@@ -217,6 +217,9 @@ class _FakeCountQuery:
     def eq(self, *a, **k):
         return self
 
+    def gte(self, *a, **k):
+        return self
+
     def execute(self):
         return type("FakeResponse", (), {"data": [], "count": self._count})()
 
@@ -265,3 +268,111 @@ def test_middleware_order_session_available_before_auth_gate(monkeypatch):
     # AssertionError inside the middleware, surfacing as a 500 here.
     response = client.get("/api/graph/all", follow_redirects=False)
     assert response.status_code == 401
+
+
+# ── ingestion_quota_reached (MAX_INGESTIONS_PER_USER_PER_DAY) ───────────────
+# Same pattern as the signup_cap_reached tests above: monkeypatch the single
+# storage call this wraps, no real DB.
+
+def test_ingestion_quota_reached_true_at_or_above_max(monkeypatch):
+    monkeypatch.setenv("MAX_INGESTIONS_PER_USER_PER_DAY", "5")
+    monkeypatch.setattr(storage, "count_user_ingestions_since", lambda user_id, since: 5)
+    assert auth.ingestion_quota_reached(user_id=1)
+
+
+def test_ingestion_quota_not_reached_below_max(monkeypatch):
+    monkeypatch.setenv("MAX_INGESTIONS_PER_USER_PER_DAY", "5")
+    monkeypatch.setattr(storage, "count_user_ingestions_since", lambda user_id, since: 4)
+    assert not auth.ingestion_quota_reached(user_id=1)
+
+
+def test_ingestion_quota_uses_default_when_env_unset(monkeypatch):
+    monkeypatch.delenv("MAX_INGESTIONS_PER_USER_PER_DAY", raising=False)
+    monkeypatch.setattr(
+        storage, "count_user_ingestions_since",
+        lambda user_id, since: auth._DEFAULT_MAX_INGESTIONS_PER_USER_PER_DAY,
+    )
+    assert auth.ingestion_quota_reached(user_id=1)
+
+
+def test_ingestion_quota_uses_default_when_env_malformed(monkeypatch):
+    # Unlike MAX_USERS, a malformed cap here falls back to the default
+    # (not to 0 / fail-closed) -- see auth.py's docstring for why blocking
+    # every non-owner ingestion on a typo'd env var would be a worse outcome
+    # than falling back to a sane default.
+    monkeypatch.setenv("MAX_INGESTIONS_PER_USER_PER_DAY", "twenty")
+    monkeypatch.setattr(
+        storage, "count_user_ingestions_since",
+        lambda user_id, since: auth._DEFAULT_MAX_INGESTIONS_PER_USER_PER_DAY - 1,
+    )
+    assert not auth.ingestion_quota_reached(user_id=1)
+
+
+def test_ingestion_quota_reached_passes_a_24h_lookback(monkeypatch):
+    from datetime import datetime, timezone
+
+    monkeypatch.setenv("MAX_INGESTIONS_PER_USER_PER_DAY", "1")
+    captured = {}
+
+    def fake_count(user_id, since):
+        captured["user_id"] = user_id
+        captured["since"] = since
+        return 0
+
+    monkeypatch.setattr(storage, "count_user_ingestions_since", fake_count)
+    auth.ingestion_quota_reached(user_id=42)
+
+    assert captured["user_id"] == 42
+    since = datetime.fromisoformat(captured["since"])
+    lookback_hours = (datetime.now(timezone.utc) - since).total_seconds() / 3600
+    assert 23.9 < lookback_hours < 24.1
+
+
+# ── storage.count_user_ingestions_since ──────────────────────────────────────
+
+def test_count_user_ingestions_since_returns_count(monkeypatch):
+    def fake_select(self, *a, **k):
+        assert k.get("count") == "exact"
+        assert k.get("head") is True
+        return _FakeCountQuery(3)
+
+    fake_table = type("FakeTable", (), {"select": fake_select})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.count_user_ingestions_since(1, "2026-09-01T00:00:00+00:00") == 3
+
+
+def test_count_user_ingestions_since_returns_zero_when_count_is_none(monkeypatch):
+    fake_table = type("FakeTable", (), {"select": lambda self, *a, **k: _FakeCountQuery(None)})()
+    fake_client = type("FakeClient", (), {"table": lambda self, name: fake_table})()
+    monkeypatch.setattr(storage, "_client", lambda: fake_client)
+
+    assert storage.count_user_ingestions_since(1, "2026-09-01T00:00:00+00:00") == 0
+
+
+# ── ingestion_quota_reached fails closed on a quota-check error ─────────────
+
+def test_ingestion_quota_reached_raises_quota_check_error_on_storage_failure(monkeypatch):
+    def fake_count(user_id, since):
+        raise RuntimeError("Supabase is down")
+
+    monkeypatch.setattr(storage, "count_user_ingestions_since", fake_count)
+    with pytest.raises(auth.QuotaCheckError):
+        auth.ingestion_quota_reached(user_id=1)
+
+
+def test_quota_check_error_is_distinguishable_from_quota_reached(monkeypatch):
+    # A caller must be able to tell "we couldn't check" apart from "the
+    # quota really is exhausted" -- collapsing both into a plain True would
+    # misreport an outage as the user's own usage (auth.py's
+    # QuotaCheckError docstring).
+    monkeypatch.setattr(storage, "count_user_ingestions_since", lambda user_id, since: 0)
+    assert auth.ingestion_quota_reached(user_id=1) is False  # sanity: not reached
+
+    def fake_count_failing(user_id, since):
+        raise RuntimeError("timeout")
+
+    monkeypatch.setattr(storage, "count_user_ingestions_since", fake_count_failing)
+    with pytest.raises(auth.QuotaCheckError):
+        auth.ingestion_quota_reached(user_id=1)

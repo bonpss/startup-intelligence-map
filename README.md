@@ -64,6 +64,7 @@ So this repo shows the real architecture — scraping, LLM extraction pipeline, 
 ```bash
 pip install -r requirements.txt
 cp .env.example .env   # fill in MISTRAL_API_KEY, SUPABASE_URL, SUPABASE_KEY, SESSION_SECRET_KEY, OWNER_EMAIL
+                        # (TYPESAFE_API_KEY only needed for competitor.py's Jev path / shadow_classify_sector.py)
 
 # apply migrations/*.sql to your own Supabase project, in order (SQL editor or CLI)
 
