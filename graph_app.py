@@ -1248,6 +1248,8 @@ SEARCH_HTML = f"""<!DOCTYPE html>
       background: #161614; border: 1px solid #2a2a27; border-radius: 10px;
       padding: 14px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px;
     }}
+    .queue-row-clickable {{ cursor: pointer; transition: border-color 0.15s, background 0.15s; }}
+    .queue-row-clickable:hover {{ border-color: #3a3a35; background: #1a1a17; }}
     .queue-row-label {{ font-size: 14px; color: #e8e4dc; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
     .queue-row-requester {{ font-size: 11px; color: #8a8680; display: block; margin-top: 2px; }}
     .queue-status {{
@@ -1549,7 +1551,15 @@ function renderQueue(data) {{
     const requester = row.requester_email
       ? `<span class="queue-row-requester">${{escapeHtml(row.requester_email)}}</span>`
       : (("requester_email" in row) ? `<span class="queue-row-requester">(non attribué)</span>` : "");
-    return `<div class="queue-row">
+    // Clickable only once the startup actually exists to navigate to --
+    // domain is only present on the result of a successful ("done") ingest
+    // (main.py's _ingest_sync return value), never on queued/processing/error
+    // rows. A row from before "domain" was added to that dict (see
+    // pipeline-scope-tradeoff memory) just stays non-clickable, same as today.
+    const domain = row.status === "done" ? (row.result || {{}}).domain : null;
+    const clickableClass = domain ? " queue-row-clickable" : "";
+    const domainAttr = domain ? ` data-domain="${{escapeHtml(domain)}}"` : "";
+    return `<div class="queue-row${{clickableClass}}"${{domainAttr}}>
       <div class="queue-row-label">${{escapeHtml(label)}}${{requester}}</div>
       <div class="queue-status">${{badge}}</div>
     </div>`;
@@ -1595,6 +1605,12 @@ queuePanel.addEventListener("click", e => {{
         deleteBtn.textContent = "Supprimer";
         deleteBtn.insertAdjacentHTML("afterend", `<span class="retry-error">${{escapeHtml(err.message)}}</span>`);
       }});
+    return;
+  }}
+
+  const row = e.target.closest(".queue-row-clickable");
+  if (row) {{
+    window.location.href = "/startup/" + encodeURIComponent(row.dataset.domain);
   }}
 }});
 
