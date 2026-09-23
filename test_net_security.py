@@ -68,7 +68,7 @@ def test_rejects_cgnat_range_address():
     # 100.64.0.0/10 -- RFC 6598 Shared Address Space, includes Tailscale's
     # CGNAT range. Not covered by ipaddress.is_private, checked explicitly.
     with pytest.raises(UnsafeURLError):
-        net_security.validate_outbound_url("http://100.90.233.108/")
+        net_security.validate_outbound_url("http://100.64.0.1/")
 
 
 def test_rejects_link_local_metadata_address():
